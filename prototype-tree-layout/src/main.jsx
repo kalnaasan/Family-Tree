@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import './index.css'
 import { persons, parentLinks, partnerships } from './data.js'
 import { layout } from './layout.js'
+import { generate } from './gen.js'
 import VariantA, { name as nameA } from './VariantA.jsx'
 import VariantB, { name as nameB } from './VariantB.jsx'
 import VariantC, { name as nameC } from './VariantC.jsx'
@@ -13,7 +14,8 @@ const keys = Object.keys(V)
 
 function App() {
   const [v, setV] = useState(new URLSearchParams(location.search).get('variant') ?? 'A')
-  const L = useMemo(() => layout({ persons, parentLinks, partnerships }), [])
+  const n = Number(new URLSearchParams(location.search).get('n'))
+  const L = useMemo(() => layout(n ? generate(n) : { persons, parentLinks, partnerships }), [n])
   const go = d => {
     const next = keys[(keys.indexOf(v) + d + keys.length) % keys.length]
     setV(next); history.replaceState(null, '', `?variant=${next}`)
