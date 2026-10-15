@@ -127,6 +127,16 @@ describe('parseDocument rejects invalid files and names the rule', () => {
 })
 
 describe('serializeDocument', () => {
+  it('copies only the Tree fields, so the result can be structured-cloned (IndexedDB)', () => {
+    const t = addPerson(emptyTree(), { id: id(1), firstName: 'Anna' })
+    const withExtras = { ...t, addPerson: () => {}, loadTree: () => {} }
+    const doc = serializeDocument(withExtras)
+    expect(Object.keys(doc).sort()).toEqual(
+      ['exportedAt', 'focusPersonId', 'format', 'parentLinks', 'partnerships', 'persons', 'schemaVersion'].sort(),
+    )
+    expect(() => structuredClone(doc)).not.toThrow()
+  })
+
   it('round-trips a Tree exactly', () => {
     let t = addPerson(emptyTree(), { id: id(1), firstName: 'Anna', photoId: id(50), deceased: true, deathDate: '2020' })
     t = addPerson(t, { id: id(2), firstName: 'Ben' })

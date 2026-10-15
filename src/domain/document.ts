@@ -73,11 +73,15 @@ export function parseDocument(raw: unknown): ParseResult {
   }
 }
 
+/** Copies exactly the four Tree fields, so extra properties (e.g. store actions) can never reach a file or IndexedDB. */
 export function serializeDocument(tree: Tree, exportedAt: Date = new Date()): TreeDocument {
   return {
     format: 'family-tree',
     schemaVersion: CURRENT_SCHEMA_VERSION,
     exportedAt: exportedAt.toISOString(),
-    ...tree,
+    focusPersonId: tree.focusPersonId,
+    persons: tree.persons,
+    parentLinks: tree.parentLinks,
+    partnerships: tree.partnerships,
   }
 }
