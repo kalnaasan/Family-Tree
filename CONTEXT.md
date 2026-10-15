@@ -31,3 +31,7 @@ _Avoid_: Root, me, owner
 **Tree**:
 The whole set of **Persons**, **Parent links** and **Partnerships** held by one user in one browser.
 _Avoid_: Family, graph
+
+**Snapshot**:
+An automatic safety copy of the **Tree** kept by the app so an earlier version can be restored. Distinct from an export, which the user saves as a file.
+_Avoid_: Backup (that means the user's exported file), version
