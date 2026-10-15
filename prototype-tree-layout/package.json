@@ -1,0 +1,20 @@
+{
+  "name": "prototype-tree-layout",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "prototype": "vite"
+  },
+  "dependencies": {
+    "@xyflow/react": "12.3.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.11",
+    "@vitejs/plugin-react": "4.3.4",
+    "tailwindcss": "^4.1.11",
+    "vite": "6.0.7"
+  }
+}
