@@ -20,6 +20,10 @@ _Avoid_: Marriage, spouse link
 The derived name of how one **Person** relates to another (father, brother, grandfather, wife, son…). Computed from links, never stored.
 _Avoid_: Relation type, role
 
+**Half-sibling**:
+A sibling who shares exactly one birth or adoptive parent with a **Person**.
+_Avoid_: Step-sibling (that needs a step Parent link)
+
 **Focus person**:
 The **Person** the tree and **Relationship labels** are relative to. Defaults to the first Person created and can be changed by the user.
 _Avoid_: Root, me, owner
