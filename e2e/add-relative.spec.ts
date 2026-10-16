@@ -311,11 +311,9 @@ test.describe('edit, Focus person and delete', () => {
     await expect(panel(page)).toContainText('Focus person')
   })
 
-  test('deleting takes a second click, then says what went with the Person', async ({ page }) => {
+  test('deleting says what went with the Person', async ({ page }) => {
     await openWith(page, benWithTwoParents())
     await panel(page).getByRole('button', { name: 'Delete Ben' }).click()
-    await expect(peopleList(page).getByRole('listitem')).toHaveCount(3)
-    await panel(page).getByRole('button', { name: 'Confirm delete' }).click()
     await expect(page.getByText('Deleted Ben, with 2 parent links')).toBeVisible()
     await expect(panel(page)).toHaveCount(0)
     await expect(peopleList(page).getByRole('listitem')).toHaveText(['Karl', 'Maria'])
