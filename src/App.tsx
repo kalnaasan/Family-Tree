@@ -1,8 +1,12 @@
-import { type FormEvent, useState } from 'react'
 import { SaveIndicator } from './components/SaveIndicator.tsx'
 import { useTreeStore } from './domain/store.ts'
 import { usePersistenceStatus } from './persistence/saveStatus.ts'
 import { usePersistence } from './persistence/usePersistence.ts'
+import { EmptyState } from './ui/EmptyState.tsx'
+import { PeopleList } from './ui/PeopleList.tsx'
+import { PersonPanel } from './ui/PersonPanel.tsx'
+import { Toast } from './ui/Toast.tsx'
+import { useUiStore } from './ui/uiStore.ts'
 import { TreeView } from './view/TreeView.tsx'
 
 export function App() {
@@ -10,16 +14,14 @@ export function App() {
   const load = usePersistenceStatus((s) => s.load)
   const loadMessage = usePersistenceStatus((s) => s.loadMessage)
   const persons = useTreeStore((s) => s.persons)
-  const addPerson = useTreeStore((s) => s.addPerson)
-  const [firstName, setFirstName] = useState('')
+  const selectedId = useUiStore((s) => s.selectedId)
+  const select = useUiStore((s) => s.select)
+  const open = persons.some((p) => p.id === selectedId) ? selectedId : null
 
-  // TEMPORARY: a bare add-person form so persistence can be exercised end to end.
-  // The first-person and add-relative flow ticket replaces it.
-  const onSubmit = (event: FormEvent) => {
-    event.preventDefault()
-    if (!firstName.trim()) return
-    addPerson({ firstName })
-    setFirstName('')
+  const closePanel = () => {
+    select(null)
+    // hand the keyboard back to the tree
+    document.querySelector<HTMLElement>('[aria-label="Family tree"]')?.focus()
   }
 
   return (
@@ -44,30 +46,20 @@ export function App() {
 
       {load !== 'loading' && load !== 'invalid' && (
         <>
-          <form onSubmit={onSubmit} className="flex gap-2 px-4 pb-2">
-            <label className="flex flex-1 items-center gap-2 text-sm">
-              First name
-              <input
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                className="min-h-11 flex-1 rounded border border-stone-500 px-2"
-              />
-            </label>
-            <button type="submit" className="min-h-11 rounded bg-green-800 px-4 text-white">
-              Add person
-            </button>
-          </form>
-          {/* TEMPORARY, with the form above: the tree now shows people, so the list is kept for screen readers. */}
-          <ul className="sr-only" aria-label="People">
-            {persons.map((p) => (
-              <li key={p.id}>{p.firstName}</li>
-            ))}
-          </ul>
-          <div className="min-h-0 flex-1">
-            <TreeView />
-          </div>
+          {persons.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <div className="relative flex min-h-0 flex-1">
+              <PeopleList />
+              <div className="min-h-0 min-w-0 flex-1">
+                <TreeView />
+              </div>
+              {open && <PersonPanel key={open} personId={open} onClose={closePanel} />}
+            </div>
+          )}
         </>
       )}
+      <Toast />
     </main>
   )
 }

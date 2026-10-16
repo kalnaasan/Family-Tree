@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { type AddRelativeRequest, addRelative } from './addRelative.ts'
 import type { ParentLinkKind, Tree } from './schema.ts'
 import {
   type DeletedPersonInfo,
@@ -21,6 +22,8 @@ export interface TreeActions {
   /** Replaces the whole Tree (load from storage, import, restore). */
   loadTree: (tree: Tree) => void
   addPerson: (input: NewPerson) => void
+  /** One add-relative flow as one store update: the new Person, their links and Partnership. Returns the new id. */
+  addRelative: (request: AddRelativeRequest) => string
   updatePerson: (id: string, patch: PersonPatch) => void
   /** Returns what was removed along with the Person. */
   deletePerson: (id: string) => DeletedPersonInfo
@@ -52,6 +55,11 @@ export function createTreeStore(initial: Tree = emptyTree()) {
       ...initial,
       loadTree: (tree) => set(tree),
       addPerson: (input) => apply((t) => addPerson(t, input)),
+      addRelative: (request) => {
+        const result = addRelative(pick(get()), request)
+        set(result.tree)
+        return result.personId
+      },
       updatePerson: (id, patch) => apply((t) => updatePerson(t, id, patch)),
       deletePerson: (id) => {
         const result = deletePerson(pick(get()), id)

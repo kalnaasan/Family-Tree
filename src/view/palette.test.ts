@@ -39,7 +39,7 @@ describe('palette contrast (WCAG 2.2 AA, spec section 7)', () => {
   })
 
   it('the Focus ring, partner lines and hearts are at least 3:1', () => {
-    for (const color of [PALETTE.focus, PALETTE.partner, PALETTE.partnerEnded, PALETTE.heart]) {
+    for (const color of [PALETTE.focus, PALETTE.selected, PALETTE.partner, PALETTE.partnerEnded, PALETTE.heart]) {
       expect(contrast(color, PALETTE.background)).toBeGreaterThanOrEqual(3)
     }
   })

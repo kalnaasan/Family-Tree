@@ -19,4 +19,6 @@ export const PALETTE = {
   /** Deceased people get a muted version of their ring plus a small mark, so it is never colour alone. */
   ringDeceased: { female: '#6b8a52', male: '#a07e4a', other: '#7c7467', unknown: '#7c7467' } satisfies Record<Gender, string>,
   focus: '#1f5f8b',
+  /** The open Person: a dashed dark ring, a different shape from the Focus person's solid blue one. */
+  selected: '#2b2b2b',
 } as const

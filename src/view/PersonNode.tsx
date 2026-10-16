@@ -19,6 +19,7 @@ export interface PersonNodeProps {
   gender: Gender
   deceased: boolean
   isFocus: boolean
+  isSelected: boolean
   /** Object URL of the Person's photo. Set by the Photos ticket; without it the default figure is drawn. */
   photoUrl?: string
 }
@@ -60,7 +61,10 @@ function Figure({ gender }: { gender: Gender }) {
  * changed, not when anyone else did.
  */
 export const PersonNode = memo(function PersonNode(props: PersonNodeProps) {
-  const { id, x, y, bucket, name, initial, life, gender, deceased, isFocus, photoUrl } = props
+  const { id, x, y, bucket, name, initial, life, gender, deceased, isFocus, isSelected, photoUrl } = props
+  const selection = isSelected && (
+    <circle r={NODE_RADIUS + 18} fill="none" stroke={PALETTE.selected} strokeWidth={3} strokeDasharray="8 6" aria-hidden="true" />
+  )
   const ring = ringColor(gender, deceased)
 
   if (bucket === 'dot') {
@@ -70,6 +74,7 @@ export const PersonNode = memo(function PersonNode(props: PersonNodeProps) {
   if (bucket === 'initial') {
     return (
       <g data-person-id={id} transform={`translate(${x} ${y})`}>
+        {selection}
         {isFocus && <circle r={NODE_RADIUS + 10} fill="none" stroke={PALETTE.focus} strokeWidth={4} />}
         <circle r={NODE_RADIUS} fill={PALETTE.medallion} stroke={ring} strokeWidth={6} />
         <text
@@ -95,6 +100,7 @@ export const PersonNode = memo(function PersonNode(props: PersonNodeProps) {
           ))}
         </g>
       )}
+      {selection}
       {isFocus && <circle r={NODE_RADIUS + 10} fill="none" stroke={PALETTE.focus} strokeWidth={4} />}
       <circle r={NODE_RADIUS} fill={PALETTE.medallion} stroke={ring} strokeWidth={6} />
       {photoUrl ? (
