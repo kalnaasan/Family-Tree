@@ -58,8 +58,14 @@ interface SceneContentsProps {
   cursorIndex: number
   /** While a Person is open: their relatives and themself. Everyone else is drawn faint. `null`: nobody is dimmed. */
   brightIds: ReadonlySet<string> | null
+  photoUrlFor?: PhotoUrlFor
+  /** Changes when a photo becomes ready, so the Persons are drawn again with it. */
+  photoVersion: number
   drawn: Drawn
 }
+
+/** The object URL of a Person's photo at the detail level asked for, once it is loaded (see `photoCache`). */
+export type PhotoUrlFor = (photoId: string, variant: 'full' | 'thumb') => string | undefined
 
 /** Everything that depends on what is on screen. Re-rendered only when `drawn` changes, never per pan frame. */
 const SceneContents = memo(function SceneContents({
@@ -70,6 +76,7 @@ const SceneContents = memo(function SceneContents({
   selectedIndex,
   cursorIndex,
   brightIds,
+  photoUrlFor,
   drawn,
 }: SceneContentsProps) {
   const { layout } = scene
@@ -144,6 +151,12 @@ const SceneContents = memo(function SceneContents({
             isSelected={i === selectedIndex}
             isCurrent={i === cursorIndex}
             isDimmed={brightIds !== null && !brightIds.has(person.id)}
+            // photos are drawn from the "no leaves" level up; the 192 px copy does for the smaller medallions
+            photoUrl={
+              person.photoId && (bucket === 'full' || bucket === 'noLeaves')
+                ? photoUrlFor?.(person.photoId, bucket === 'full' ? 'full' : 'thumb')
+                : undefined
+            }
           />
         )
       })}
@@ -172,6 +185,9 @@ export interface TreeCanvasProps {
   hideControls?: boolean
   /** Pan to this Person, at the same zoom, each time `seq` changes (picking a search result). */
   revealRequest?: { id: string; seq: number } | null
+  /** Where the Persons' photos come from. Without it everyone is drawn with the default figure. */
+  photoUrlFor?: PhotoUrlFor
+  photoVersion?: number
 }
 
 /**
@@ -202,6 +218,8 @@ export function TreeCanvas({
   coveredBottom = 0,
   hideControls = false,
   revealRequest = null,
+  photoUrlFor,
+  photoVersion = 0,
 }: TreeCanvasProps) {
   const hintId = useId()
   const frameRef = useRef<HTMLDivElement>(null)
@@ -553,6 +571,8 @@ export function TreeCanvas({
                 selectedIndex={selectedIndex}
                 cursorIndex={cursorIndex}
                 brightIds={brightIds}
+                photoUrlFor={photoUrlFor}
+                photoVersion={photoVersion}
                 drawn={drawn}
               />
             )}

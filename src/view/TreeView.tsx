@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { deriveRelationships } from '../domain/labels.ts'
 import { useTreeStore } from '../domain/store.ts'
+import { photoCache, usePhotoVersion } from '../photos/photos.ts'
 import { useUiStore } from '../ui/uiStore.ts'
 import { TreeCanvas } from './TreeCanvas.tsx'
 import { useTreeLayout } from './useTreeLayout.ts'
@@ -16,6 +17,7 @@ export function TreeView() {
   const sheet = useUiStore((s) => s.sheet)
   const sheetHeight = useUiStore((s) => s.sheetHeight)
   const revealRequest = useUiStore((s) => s.revealRequest)
+  const photoVersion = usePhotoVersion()
   const layout = useTreeLayout(persons, parentLinks, partnerships)
   const links = useMemo(() => ({ parentLinks, partnerships }), [parentLinks, partnerships])
   const labels = useMemo(
@@ -40,6 +42,8 @@ export function TreeView() {
         useUiStore.getState().setSheet('peek')
       }}
       revealRequest={revealRequest}
+      photoUrlFor={photoCache.urlFor}
+      photoVersion={photoVersion}
       coveredBottom={sheetHeight}
       hideControls={sheetHeight > 0 && sheet === 'expanded'}
     />

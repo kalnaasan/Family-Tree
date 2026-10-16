@@ -37,7 +37,8 @@ export interface TreeActions {
   addPerson: (input: NewPerson) => void
   /** One add-relative flow as one store update: the new Person, their links and Partnership. Returns the new id. */
   addRelative: (request: AddRelativeRequest) => string
-  updatePerson: (id: string, patch: PersonPatch) => void
+  /** `label` names the undo step; "Edit person" by default. */
+  updatePerson: (id: string, patch: PersonPatch, label?: string) => void
   /**
    * Returns what was removed along with the Person. `release` is called when this step leaves the undo history,
    * so a deleted photo Blob can be kept in memory until then.
@@ -100,7 +101,7 @@ export function createTreeStore(initial: Tree = emptyTree()) {
         commit(`Add ${request.relation}`, before, result.tree)
         return result.personId
       },
-      updatePerson: (id, patch) => apply('Edit person', (t) => updatePerson(t, id, patch)),
+      updatePerson: (id, patch, label) => apply(label ?? 'Edit person', (t) => updatePerson(t, id, patch)),
       deletePerson: (id, options) => {
         const before = pick(get())
         const result = deletePerson(before, id)
