@@ -5,6 +5,7 @@ import { usePersistence } from './persistence/usePersistence.ts'
 import { EmptyState } from './ui/EmptyState.tsx'
 import { ListView } from './ui/ListView.tsx'
 import { PersonPanel } from './ui/PersonPanel.tsx'
+import { SearchBox } from './ui/SearchBox.tsx'
 import { Toast } from './ui/Toast.tsx'
 import { UndoControls } from './ui/UndoControls.tsx'
 import { useUndoShortcuts } from './ui/undo.ts'
@@ -36,6 +37,7 @@ export function App() {
       <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-2">
         <h1 className="text-2xl font-semibold">Family Tree</h1>
         <div className="flex flex-wrap items-center gap-3">
+          {persons.length > 0 && <SearchBox />}
           {persons.length > 0 && (
             <button
               type="button"

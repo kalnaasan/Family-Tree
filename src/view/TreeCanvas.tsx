@@ -170,6 +170,8 @@ export interface TreeCanvasProps {
   coveredBottom?: number
   /** Hides the zoom and fit buttons, for when the expanded sheet leaves no room for them. */
   hideControls?: boolean
+  /** Pan to this Person, at the same zoom, each time `seq` changes (picking a search result). */
+  revealRequest?: { id: string; seq: number } | null
 }
 
 /**
@@ -199,6 +201,7 @@ export function TreeCanvas({
   onSelectPerson,
   coveredBottom = 0,
   hideControls = false,
+  revealRequest = null,
 }: TreeCanvasProps) {
   const hintId = useId()
   const frameRef = useRef<HTMLDivElement>(null)
@@ -369,8 +372,23 @@ export function TreeCanvas({
   // The view moves so the open Person is never hidden behind the sheet, also when the sheet grows or shrinks.
   useEffect(() => {
     coveredRef.current = coveredBottom
+    controllerRef.current?.setCoveredBottom(coveredBottom)
     if (selectedPersonId) ensureVisible(selectedPersonId)
   }, [selectedPersonId, coveredBottom])
+
+  // Picking a search result pans to the Person, centred above any sheet, keeping the zoom. A request made before this
+  // canvas existed (the List view was showing) is not replayed.
+  const handledReveal = useRef(revealRequest?.seq ?? 0)
+  useEffect(() => {
+    if (!revealRequest || revealRequest.seq === handledReveal.current) return
+    handledReveal.current = revealRequest.seq
+    const index = layoutRef.current.ids.indexOf(revealRequest.id)
+    const controller = controllerRef.current
+    if (index < 0 || !controller?.ready) return
+    setCursorId(revealRequest.id)
+    navMemory.current = freshMemory()
+    controller.show({ x: layoutRef.current.x[index]!, y: layoutRef.current.y[index]! }, controller.view.k, coveredRef.current)
+  }, [revealRequest])
 
   // After a key moved the cursor, real focus follows it (without scrolling the frame, which is only panned by the view).
   useEffect(() => {

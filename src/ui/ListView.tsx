@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { deriveRelationships } from '../domain/labels.ts'
 import type { Person } from '../domain/schema.ts'
+import { searchPersons } from '../domain/search.ts'
 import { useTreeStore } from '../domain/store.ts'
 import { displayName, lifeSpan } from '../view/text.ts'
 import { useUiStore } from './uiStore.ts'
@@ -143,6 +144,13 @@ function Item({ person, depth, model }: { person: Person; depth: number; model: 
  */
 export function ListView() {
   const model = useModel()
+  const persons = useTreeStore((s) => s.persons)
+  const query = useUiStore((s) => s.query)
+  const select = useUiStore((s) => s.select)
+  const selectedId = useUiStore((s) => s.selectedId)
+  // With something typed in the search box the list shows only the matches, flat, best first.
+  const matches = useMemo(() => searchPersons(persons, query), [persons, query])
+  const filtering = query.trim() !== ''
   // a bottom sheet covers the end of the list: leave room to scroll it clear
   const sheetHeight = useUiStore((s) => s.sheetHeight)
   return (
@@ -150,11 +158,37 @@ export function ListView() {
       <h2 id="list-title" className="sr-only">
         Family list
       </h2>
-      <ul>
-        {model.roots.map((person) => (
-          <Item key={person.id} person={person} depth={0} model={model} />
-        ))}
-      </ul>
+      {filtering ? (
+        matches.length > 0 ? (
+          <ul>
+            {matches.map((person) => {
+              const relationship = person.id === model.focusPersonId ? 'Focus person' : model.labels.get(person.id)
+              const partners = model.partners.get(person.id)
+              return (
+                <li key={person.id}>
+                  <button
+                    type="button"
+                    aria-current={selectedId === person.id ? 'true' : undefined}
+                    onClick={() => select(person.id)}
+                    className={`${buttonClass} w-full ${selectedId === person.id ? 'bg-stone-200 font-semibold' : ''}`}
+                  >
+                    {[displayName(person), relationship, lifeSpan(person)].filter(Boolean).join(' · ')}
+                    {partners && <span className="block text-sm text-stone-700">with {partners}</span>}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <p className="px-2 text-stone-700">No one matches “{query.trim()}”.</p>
+        )
+      ) : (
+        <ul>
+          {model.roots.map((person) => (
+            <Item key={person.id} person={person} depth={0} model={model} />
+          ))}
+        </ul>
+      )}
     </section>
   )
 }

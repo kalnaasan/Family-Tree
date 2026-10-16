@@ -16,6 +16,13 @@ interface UiState {
   sheet: 'peek' | 'expanded'
   /** Pixels of the screen the sheet covers (0 when there is no sheet), so the view keeps the Person above it. */
   sheetHeight: number
+  /** What is typed in the search box (spec section 11). In the List view it filters the list. */
+  query: string
+  /** Set by picking a search result: the tree pans to this Person at the same zoom. `seq` makes a repeat count. */
+  revealRequest: { id: string; seq: number } | null
+  setQuery: (query: string) => void
+  /** Opens a Person and asks the tree to pan to them, keeping the zoom. */
+  reveal: (id: string) => void
   select: (id: string | null) => void
   showToast: (message: string, undoStepId?: number) => void
   clearToast: () => void
@@ -30,6 +37,11 @@ export const useUiStore = create<UiState>()((set) => ({
   listView: false,
   sheet: 'peek',
   sheetHeight: 0,
+  query: '',
+  revealRequest: null,
+  setQuery: (query) => set({ query }),
+  reveal: (id) =>
+    set((s) => ({ selectedId: id, sheet: 'peek', revealRequest: { id, seq: (s.revealRequest?.seq ?? 0) + 1 } })),
   select: (id) => set({ selectedId: id }),
   setSheet: (sheet) => set({ sheet }),
   setSheetHeight: (sheetHeight) => set({ sheetHeight }),
