@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useTreeStore } from '../domain/store.ts'
+import { focusTree } from '../view/focusTree.ts'
 import { useUiStore } from './uiStore.ts'
 
 /** If the open Person no longer exists after an undo or redo, close their panel and hand focus to the tree. */
@@ -7,7 +8,7 @@ function closePanelIfPersonGone(): void {
   const { selectedId, select } = useUiStore.getState()
   if (selectedId === null || useTreeStore.getState().persons.some((p) => p.id === selectedId)) return
   select(null)
-  document.querySelector<HTMLElement>('[aria-label="Family tree"]')?.focus()
+  focusTree()
 }
 
 /** Reverts the latest action and says so, so a screen reader user hears what changed. */

@@ -1,5 +1,31 @@
 import { describe, expect, it } from 'vitest'
-import { displayName, hashId, initialOf, lifeSpan } from './text.ts'
+import { displayName, hashId, initialOf, lifeSpan, personAriaLabel } from './text.ts'
+
+describe('personAriaLabel', () => {
+  const maria = { firstName: 'Maria', lastName: 'Keller', birthDate: '1962-04-17', deceased: false }
+
+  it('reads like "Maria Keller, mother, born 1962"', () => {
+    expect(personAriaLabel(maria, 'mother', false)).toBe('Maria Keller, mother, born 1962')
+  })
+  it('names the Focus person as such, who has no Relationship label', () => {
+    expect(personAriaLabel(maria, null, true)).toBe('Maria Keller, Focus person, born 1962')
+  })
+  it('leaves out what is not known', () => {
+    expect(personAriaLabel({ firstName: 'Maria', deceased: false }, null, false)).toBe('Maria')
+    expect(personAriaLabel({ firstName: 'Maria', deceased: false }, 'Relative', false)).toBe('Maria, Relative')
+  })
+  it('says when they died, or only that they are deceased', () => {
+    expect(personAriaLabel({ ...maria, deathDate: '2001-09', deceased: true }, 'mother', false)).toBe(
+      'Maria Keller, mother, born 1962, died 2001',
+    )
+    expect(personAriaLabel({ firstName: 'Maria', deathDate: '2001', deceased: true }, null, false)).toBe('Maria, died 2001')
+    expect(personAriaLabel({ firstName: 'Maria', deceased: true }, null, false)).toBe('Maria, deceased')
+  })
+  it('uses the whole name, not the shortened one drawn in the tree', () => {
+    const long = { firstName: 'Maximiliana-Theodora', lastName: 'von Hohenzollern', deceased: false }
+    expect(personAriaLabel(long, null, false)).toBe('Maximiliana-Theodora von Hohenzollern')
+  })
+})
 
 describe('displayName', () => {
   it('joins first and last name', () => {

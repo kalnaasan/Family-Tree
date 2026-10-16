@@ -3,12 +3,13 @@ import { useTreeStore } from './domain/store.ts'
 import { usePersistenceStatus } from './persistence/saveStatus.ts'
 import { usePersistence } from './persistence/usePersistence.ts'
 import { EmptyState } from './ui/EmptyState.tsx'
-import { PeopleList } from './ui/PeopleList.tsx'
+import { ListView } from './ui/ListView.tsx'
 import { PersonPanel } from './ui/PersonPanel.tsx'
 import { Toast } from './ui/Toast.tsx'
 import { UndoControls } from './ui/UndoControls.tsx'
 import { useUndoShortcuts } from './ui/undo.ts'
 import { useUiStore } from './ui/uiStore.ts'
+import { focusTree } from './view/focusTree.ts'
 import { TreeView } from './view/TreeView.tsx'
 
 export function App() {
@@ -19,12 +20,14 @@ export function App() {
   const persons = useTreeStore((s) => s.persons)
   const selectedId = useUiStore((s) => s.selectedId)
   const select = useUiStore((s) => s.select)
+  const listView = useUiStore((s) => s.listView)
+  const setListView = useUiStore((s) => s.setListView)
   const open = persons.some((p) => p.id === selectedId) ? selectedId : null
 
   const closePanel = () => {
     select(null)
-    // hand the keyboard back to the tree
-    document.querySelector<HTMLElement>('[aria-label="Family tree"]')?.focus()
+    // hand the keyboard back to the tree (in the list view there is nothing to hand back to)
+    if (!listView) focusTree()
   }
 
   return (
@@ -32,6 +35,16 @@ export function App() {
       <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-2">
         <h1 className="text-2xl font-semibold">Family Tree</h1>
         <div className="flex flex-wrap items-center gap-3">
+          {persons.length > 0 && (
+            <button
+              type="button"
+              aria-pressed={listView}
+              onClick={() => setListView(!listView)}
+              className="min-h-11 rounded border border-stone-500 px-3 aria-pressed:bg-stone-200 aria-pressed:font-semibold"
+            >
+              List view
+            </button>
+          )}
           <UndoControls />
           <SaveIndicator />
         </div>
@@ -56,10 +69,7 @@ export function App() {
             <EmptyState />
           ) : (
             <div className="relative flex min-h-0 flex-1">
-              <PeopleList />
-              <div className="min-h-0 min-w-0 flex-1">
-                <TreeView />
-              </div>
+              <div className="min-h-0 min-w-0 flex-1">{listView ? <ListView /> : <TreeView />}</div>
               {open && <PersonPanel key={open} personId={open} onClose={closePanel} />}
             </div>
           )}

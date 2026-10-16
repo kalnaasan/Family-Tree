@@ -22,6 +22,24 @@ export function lifeSpan(person: Pick<Person, 'birthDate' | 'deathDate'>): strin
   return birth ?? ''
 }
 
+/**
+ * What a screen reader says for a Person: "Maria Keller, mother, born 1962" (spec section 7). The Focus person has
+ * no Relationship label, so they are named as such. Full name, not the shortened one drawn in the tree.
+ */
+export function personAriaLabel(
+  person: Pick<Person, 'firstName' | 'lastName' | 'birthDate' | 'deathDate' | 'deceased'>,
+  relationship: string | null,
+  isFocus: boolean,
+): string {
+  const birth = person.birthDate?.slice(0, 4)
+  const death = person.deathDate?.slice(0, 4)
+  const dates =
+    birth && death ? `born ${birth}, died ${death}` : birth ? `born ${birth}` : death ? `died ${death}` : person.deceased ? 'deceased' : ''
+  return [[person.firstName, person.lastName].filter(Boolean).join(' '), isFocus ? 'Focus person' : relationship, dates]
+    .filter(Boolean)
+    .join(', ')
+}
+
 /** A stable 32-bit hash of an id, used to give each Person their own leaves. */
 export function hashId(id: string): number {
   let hash = 2166136261

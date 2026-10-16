@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { type Page, expect, test } from '@playwright/test'
 import type { Tree } from '../src/domain/schema.ts'
 import { addParentLink, addPartnership, addPerson, emptyTree } from '../src/domain/tree.ts'
+import { openPerson, panel, peopleList } from './helpers.ts'
 import { openWithTree } from './seed.ts'
 
 const id = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`
@@ -16,17 +17,9 @@ function family(): Tree {
   return addPartnership(tree, { personIds: [id(1), id(4)], status: 'current' })
 }
 
-const peopleList = (page: Page) => page.getByRole('list', { name: 'People' }).getByRole('listitem')
-const panel = (page: Page) => page.getByRole('complementary', { name: 'Person details' })
 const group = (page: Page, name: string) => panel(page).getByRole('region', { name })
 const undoButton = (page: Page) => page.getByRole('group', { name: 'History' }).getByRole('button', { name: 'Undo' })
 const redoButton = (page: Page) => page.getByRole('group', { name: 'History' }).getByRole('button', { name: 'Redo' })
-
-async function openPerson(page: Page, name: string) {
-  await page.getByRole('list', { name: 'People' }).getByRole('button', { name, exact: true }).focus()
-  await page.keyboard.press('Enter')
-  await expect(panel(page).getByRole('heading', { level: 2, name })).toBeFocused()
-}
 
 test('undo of an add-relative takes the whole flow back, redo returns it', async ({ page }) => {
   await openWithTree(page, family())

@@ -1,9 +1,11 @@
+import { useMemo } from 'react'
+import { deriveRelationships } from '../domain/labels.ts'
 import { useTreeStore } from '../domain/store.ts'
 import { useUiStore } from '../ui/uiStore.ts'
 import { TreeCanvas } from './TreeCanvas.tsx'
 import { useTreeLayout } from './useTreeLayout.ts'
 
-/** The Tree from the store, laid out and drawn. Clicking a Person opens them. */
+/** The Tree from the store, laid out and drawn. Clicking a Person opens them; the keyboard follows family links. */
 export function TreeView() {
   const persons = useTreeStore((s) => s.persons)
   const parentLinks = useTreeStore((s) => s.parentLinks)
@@ -12,11 +14,22 @@ export function TreeView() {
   const selectedId = useUiStore((s) => s.selectedId)
   const select = useUiStore((s) => s.select)
   const layout = useTreeLayout(persons, parentLinks, partnerships)
+  const links = useMemo(() => ({ parentLinks, partnerships }), [parentLinks, partnerships])
+  const labels = useMemo(
+    () =>
+      new Map(
+        [...deriveRelationships({ focusPersonId, persons, parentLinks, partnerships })].map(([id, r]) => [id, r.label]),
+      ),
+    [focusPersonId, persons, parentLinks, partnerships],
+  )
   return (
     <TreeCanvas
       layout={layout}
       persons={persons}
       focusPersonId={focusPersonId}
+      links={links}
+      labels={labels}
+      onSetFocusPerson={(id) => useTreeStore.getState().setFocusPerson(id)}
       selectedPersonId={selectedId}
       onSelectPerson={select}
     />

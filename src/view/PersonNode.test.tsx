@@ -11,10 +11,12 @@ const base: PersonNodeProps = {
   name: 'Maria Keller',
   initial: 'M',
   life: '1930–2001',
+  ariaLabel: 'Maria Keller, mother, born 1930, died 2001',
   gender: 'female',
   deceased: false,
   isFocus: false,
   isSelected: false,
+  isCurrent: false,
 }
 
 function draw(props: Partial<PersonNodeProps> = {}) {
@@ -32,7 +34,7 @@ describe('PersonNode', () => {
     expect(svg).toHaveTextContent('Maria Keller')
     expect(svg).toHaveTextContent('1930–2001')
     expect(svg.querySelectorAll('ellipse[rx="9"]')).toHaveLength(2)
-    expect(svg.querySelector('[data-person-id]')).toHaveAttribute('transform', 'translate(10 20)')
+    expect(svg.querySelector('[data-person-wrapper]')).toHaveAttribute('transform', 'translate(10 20)')
   })
 
   it('noLeaves: the same without the leaves', () => {
@@ -49,10 +51,42 @@ describe('PersonNode', () => {
 
   it('dot: a single small circle in the ring colour', () => {
     const svg = draw({ bucket: 'dot' })
-    const dot = svg.querySelector('circle[data-person-id]')!
+    const dot = svg.querySelector('[data-person-id] > circle')!
     expect(dot).toHaveAttribute('r', String(DOT_RADIUS))
     expect(dot).toHaveAttribute('fill', PALETTE.ring.female)
     expect(svg.querySelectorAll('text')).toHaveLength(0)
+  })
+
+  describe('for assistive technology and the keyboard', () => {
+    it.each(['full', 'noLeaves', 'initial', 'dot'] as const)('%s: a named button', (bucket) => {
+      const node = draw({ bucket }).querySelector('[data-person-id]')!
+      expect(node).toHaveAttribute('role', 'button')
+      expect(node).toHaveAttribute('aria-label', 'Maria Keller, mother, born 1930, died 2001')
+    })
+
+    it.each(['full', 'initial', 'dot'] as const)('%s: only the current Person is in the tab order', (bucket) => {
+      expect(draw({ bucket, isCurrent: true }).querySelector('[data-person-id]')).toHaveAttribute('tabindex', '0')
+      expect(draw({ bucket, isCurrent: false }).querySelector('[data-person-id]')).toHaveAttribute('tabindex', '-1')
+    })
+
+    it('hides every decorative part: the drawn name and dates, figure, leaves, marks and rings', () => {
+      const svg = draw({ deceased: true, isFocus: true, isSelected: true })
+      const node = svg.querySelector('[data-person-id]')!
+      for (const part of node.querySelectorAll('text, ellipse, circle[stroke-dasharray], circle[fill="none"]')) {
+        expect(part.closest('[aria-hidden="true"]') ?? part).toHaveAttribute('aria-hidden', 'true')
+      }
+      for (const text of svg.querySelectorAll('text')) expect(text).toHaveAttribute('aria-hidden', 'true')
+    })
+
+    it('has a keyboard ring that index.css shows only while focused', () => {
+      expect(draw().querySelector('[data-person-id] > .cursor-ring')).toHaveAttribute('aria-hidden', 'true')
+      expect(draw({ bucket: 'dot' }).querySelector('[data-person-id] > .cursor-ring')).not.toBeNull()
+    })
+
+    it('marks the open Person with aria-current', () => {
+      expect(draw({ isSelected: true }).querySelector('[data-person-id]')).toHaveAttribute('aria-current', 'true')
+      expect(draw().querySelector('[data-person-id]')).not.toHaveAttribute('aria-current')
+    })
   })
 
   it('leaves are hidden from assistive technology', () => {
