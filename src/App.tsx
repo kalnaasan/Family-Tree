@@ -26,6 +26,7 @@ export function App() {
 
   const closePanel = () => {
     select(null)
+    useUiStore.getState().setSheet('peek')
     // hand the keyboard back to the tree (in the list view there is nothing to hand back to)
     if (!listView) focusTree()
   }

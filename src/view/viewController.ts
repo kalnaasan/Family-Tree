@@ -80,9 +80,17 @@ export class ViewController {
     this.animateTo(fitView(this.bounds, this.size))
   }
 
-  /** Centres a world point, at `zoom` or the current zoom. */
-  show(point: Point, zoom: number = this.view.k): void {
-    this.animateTo(centerOn(point, zoom, this.size))
+  /** Animated zoom to `zoom` about a screen point: for double-tap and tapping the "dot" level. */
+  zoomTowardPoint(zoom: number, anchor: Point): void {
+    this.animateTo(zoomAt(this.view, zoom / this.view.k, anchor, this.limits))
+  }
+
+  /**
+   * Centres a world point, at `zoom` or the current zoom. `coveredBottom` is the height of a bottom sheet over the
+   * screen: the point is centred in the part that is left.
+   */
+  show(point: Point, zoom: number = this.view.k, coveredBottom = 0): void {
+    this.animateTo(centerOn(point, zoom, { width: this.size.width, height: Math.max(1, this.size.height - coveredBottom) }))
   }
 
   animateTo(target: View): void {

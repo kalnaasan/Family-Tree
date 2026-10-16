@@ -13,6 +13,8 @@ export function TreeView() {
   const focusPersonId = useTreeStore((s) => s.focusPersonId)
   const selectedId = useUiStore((s) => s.selectedId)
   const select = useUiStore((s) => s.select)
+  const sheet = useUiStore((s) => s.sheet)
+  const sheetHeight = useUiStore((s) => s.sheetHeight)
   const layout = useTreeLayout(persons, parentLinks, partnerships)
   const links = useMemo(() => ({ parentLinks, partnerships }), [parentLinks, partnerships])
   const labels = useMemo(
@@ -31,7 +33,13 @@ export function TreeView() {
       labels={labels}
       onSetFocusPerson={(id) => useTreeStore.getState().setFocusPerson(id)}
       selectedPersonId={selectedId}
-      onSelectPerson={select}
+      // tapping the tree always brings the sheet back to its short peek
+      onSelectPerson={(id) => {
+        select(id)
+        useUiStore.getState().setSheet('peek')
+      }}
+      coveredBottom={sheetHeight}
+      hideControls={sheetHeight > 0 && sheet === 'expanded'}
     />
   )
 }
