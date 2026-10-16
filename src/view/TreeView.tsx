@@ -15,6 +15,7 @@ export function TreeView() {
   const select = useUiStore((s) => s.select)
   const sheet = useUiStore((s) => s.sheet)
   const sheetHeight = useUiStore((s) => s.sheetHeight)
+  const revealRequest = useUiStore((s) => s.revealRequest)
   const layout = useTreeLayout(persons, parentLinks, partnerships)
   const links = useMemo(() => ({ parentLinks, partnerships }), [parentLinks, partnerships])
   const labels = useMemo(
@@ -38,6 +39,7 @@ export function TreeView() {
         select(id)
         useUiStore.getState().setSheet('peek')
       }}
+      revealRequest={revealRequest}
       coveredBottom={sheetHeight}
       hideControls={sheetHeight > 0 && sheet === 'expanded'}
     />

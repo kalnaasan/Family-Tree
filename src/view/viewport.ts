@@ -79,10 +79,12 @@ export const worldCenter = (view: View, size: Size): Point => ({
  * Keeps the middle of the screen inside the Tree's bounds (plus a margin of a quarter of the screen), so the
  * Tree can never be dragged completely out of sight, and the zoom inside its limits.
  */
-export function clampView(view: View, bounds: Rect, size: Size, limits: ZoomLimits): View {
+export function clampView(view: View, bounds: Rect, size: Size, limits: ZoomLimits, coveredBottom = 0): View {
   const k = clamp(view.k, limits.min, limits.max)
   const marginX = size.width / 4 / k
-  const marginY = size.height / 4 / k
+  // A sheet over the bottom of the screen moves the middle of what can be seen up by half its height: allow for it, so
+  // a Person at the edge of the Tree can still be brought above the sheet.
+  const marginY = (size.height / 4 + coveredBottom / 2) / k
   const centerX = clamp((size.width / 2 - view.x) / view.k, bounds.x0 - marginX, bounds.x1 + marginX)
   const centerY = clamp((size.height / 2 - view.y) / view.k, bounds.y0 - marginY, bounds.y1 + marginY)
   return centerOn({ x: centerX, y: centerY }, k, size)

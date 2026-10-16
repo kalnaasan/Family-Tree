@@ -88,6 +88,17 @@ describe('ViewController', () => {
       expect(controller.view.x).toBeCloseTo(size.width / 2)
     })
 
+    it('lets the view go further past the Tree to clear a sheet', () => {
+      const { controller } = setup(true)
+      const centreY = () => (size.height / 2 - controller.view.y) / controller.view.k
+      controller.jump({ x: 0, y: 0, k: 1 })
+      controller.show({ x: 0, y: 5000 }) // far below the Tree: held at its bottom edge plus a quarter screen
+      expect(centreY()).toBeCloseTo(bounds.y1 + size.height / 4)
+      controller.setCoveredBottom(200)
+      controller.show({ x: 0, y: 5000 })
+      expect(centreY()).toBeCloseTo(bounds.y1 + size.height / 4 + 100)
+    })
+
     it('zoomTowardPoint keeps the world point under the finger where it is', () => {
       const { controller } = setup(true)
       controller.jump({ x: 50, y: 40, k: 1 })

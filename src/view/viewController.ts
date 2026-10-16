@@ -36,6 +36,8 @@ export class ViewController {
   private bounds: Rect = { x0: 0, y0: 0, x1: 1, y1: 1 }
   private limits: ZoomLimits = { min: ZOOM_FLOOR, max: MAX_ZOOM }
   private frame = 0
+  /** Height of a bottom sheet over the screen; the view may go further past the Tree's edge to clear it. */
+  private covered = 0
 
   constructor(options: ViewControllerOptions) {
     this.options = options
@@ -54,7 +56,12 @@ export class ViewController {
     this.size = size
     this.bounds = bounds
     this.limits = zoomLimits(bounds, size)
-    if (this.ready) this.set(clampView(this.view, bounds, size, this.limits))
+    if (this.ready) this.set(clampView(this.view, bounds, size, this.limits, this.covered))
+  }
+
+  /** Tells the controller how much of the bottom of the screen a sheet covers (0: none). */
+  setCoveredBottom(pixels: number): void {
+    this.covered = pixels
   }
 
   jump(view: View): void {
@@ -119,7 +126,7 @@ export class ViewController {
   }
 
   private constrain(view: View): View {
-    return this.ready ? clampView(view, this.bounds, this.size, this.limits) : view
+    return this.ready ? clampView(view, this.bounds, this.size, this.limits, this.covered) : view
   }
 
   private stop(): void {
