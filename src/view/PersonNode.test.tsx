@@ -14,6 +14,7 @@ const base: PersonNodeProps = {
   gender: 'female',
   deceased: false,
   isFocus: false,
+  isSelected: false,
 }
 
 function draw(props: Partial<PersonNodeProps> = {}) {
@@ -77,6 +78,14 @@ describe('PersonNode', () => {
 
   it('the Focus person has an extra ring', () => {
     expect(draw({ isFocus: true }).querySelectorAll('circle').length).toBe(draw().querySelectorAll('circle').length + 1)
+  })
+
+  it('the open Person has a dashed ring that is not the Focus ring', () => {
+    const open = draw({ isSelected: true, isFocus: true })
+    expect(open.querySelector(`circle[stroke="${PALETTE.selected}"]`)).toHaveAttribute('stroke-dasharray')
+    expect(open.querySelector(`circle[stroke="${PALETTE.focus}"]`)).not.toHaveAttribute('stroke-dasharray')
+    expect(draw().querySelector(`circle[stroke="${PALETTE.selected}"]`)).toBeNull()
+    expect(draw({ isSelected: true, bucket: 'initial' }).querySelector(`circle[stroke="${PALETTE.selected}"]`)).not.toBeNull()
   })
 
   it('uses the default figure unless there is a photo', () => {

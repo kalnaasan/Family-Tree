@@ -3,9 +3,18 @@ import { type Page, expect, test } from '@playwright/test'
 
 const indicator = (page: Page) => page.getByRole('status')
 
+/** The first person through the empty state; each later one as a child of the person who is open. */
 async function addPerson(page: Page, name: string) {
+  const first = page.getByRole('button', { name: 'Add the first person' })
+  if (await first.isVisible()) {
+    await page.getByLabel('First name').fill(name)
+    await first.click()
+    return
+  }
+  await page.getByRole('button', { name: 'Add child' }).click()
   await page.getByLabel('First name').fill(name)
-  await page.getByRole('button', { name: 'Add person' }).click()
+  await page.getByRole('button', { name: 'Add child' }).click()
+  await expect(page.getByRole('heading', { level: 2, name })).toBeVisible()
 }
 
 /** True if a `beforeunload` event would be cancelled, i.e. the browser would prompt before leaving. */

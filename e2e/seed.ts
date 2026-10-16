@@ -1,13 +1,16 @@
 import { type Page, expect } from '@playwright/test'
 import { serializeDocument } from '../src/domain/document.ts'
+import type { Tree } from '../src/domain/schema.ts'
 import { generateTree } from '../src/layout/fixtures.ts'
 
+/** Opens the app with a generated fixture Tree of `size` people already saved. */
+export const openWithFixture = (page: Page, size: number) => openWithTree(page, generateTree(size, 1))
+
 /**
- * Opens the app with a generated fixture Tree of `size` people already saved, the way a returning user would
- * find it. Returns the Tree so a test can look up people by id.
+ * Opens the app with `tree` already saved, the way a returning user would find it. Returns the Tree so a test
+ * can look up people by id.
  */
-export async function openWithFixture(page: Page, size: number) {
-  const tree = generateTree(size, 1)
+export async function openWithTree(page: Page, tree: Tree) {
   const document = serializeDocument(tree)
   // the first visit creates the database; then the fixture is written straight into it and the app reloaded
   await page.goto('/')

@@ -1,0 +1,242 @@
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import type { Relation } from '../domain/addRelative.ts'
+import { relativesOf } from '../domain/groups.ts'
+import { deriveRelationships } from '../domain/labels.ts'
+import type { Person, Tree } from '../domain/schema.ts'
+import { useTreeStore } from '../domain/store.ts'
+import { lifeSpan } from '../view/text.ts'
+import { AddRelativeForm } from './AddRelativeForm.tsx'
+import { PersonFields } from './PersonFields.tsx'
+import { type PersonFormValues, toPersonFields, validate, valuesOf } from './personForm.ts'
+import { useUiStore } from './uiStore.ts'
+
+type Mode = { kind: 'view' } | { kind: 'add'; relation: Relation } | { kind: 'edit' }
+
+const GROUPS: { title: string; add: Relation[] }[] = [
+  { title: 'Parents', add: ['father', 'mother'] },
+  { title: 'Partners', add: ['husband', 'wife', 'partner'] },
+  { title: 'Siblings', add: ['brother', 'sister'] },
+  { title: 'Children', add: ['son', 'daughter', 'child'] },
+]
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+
+interface Props {
+  personId: string
+  onClose: () => void
+}
+
+/**
+ * The Person's detail view and the way to add relatives (spec section 5): relatives grouped as Parents / Partners /
+ * Siblings / Children, each with "Add" buttons, plus edit, make Focus person and delete. Mount it with
+ * `key={personId}` so each Person starts from the overview.
+ */
+export function PersonPanel({ personId, onClose }: Props) {
+  const persons = useTreeStore((s) => s.persons)
+  const parentLinks = useTreeStore((s) => s.parentLinks)
+  const partnerships = useTreeStore((s) => s.partnerships)
+  const focusPersonId = useTreeStore((s) => s.focusPersonId)
+  const select = useUiStore((s) => s.select)
+  const [mode, setMode] = useState<Mode>({ kind: 'view' })
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const headingRef = useRef<HTMLHeadingElement>(null)
+
+  const tree = useMemo<Tree>(
+    () => ({ focusPersonId, persons, parentLinks, partnerships }),
+    [focusPersonId, persons, parentLinks, partnerships],
+  )
+  const person = persons.find((p) => p.id === personId)
+  const relationships = useMemo(() => deriveRelationships(tree), [tree])
+  const relatives = useMemo(() => (person ? relativesOf(tree, person.id) : null), [tree, person])
+
+  useEffect(() => {
+    headingRef.current?.focus()
+  }, [])
+
+  if (!person || !relatives) return null
+  const isFocus = focusPersonId === person.id
+  const label = relationships.get(person.id)?.label
+
+  const backToOverview = () => {
+    setMode({ kind: 'view' })
+    queueMicrotask(() => headingRef.current?.focus())
+  }
+
+  const labelOf = (id: string) => relationships.get(id)?.label ?? null
+  const relativeButton = (relative: Person, note?: string) => (
+    <li key={relative.id}>
+      <button
+        type="button"
+        onClick={() => select(relative.id)}
+        className="min-h-11 w-full rounded px-2 text-left underline decoration-stone-400 hover:bg-stone-100"
+      >
+        {relative.firstName}
+        {relative.lastName ? ` ${relative.lastName}` : ''}
+        {[labelOf(relative.id), note].filter(Boolean).length > 0 &&
+          ` · ${[labelOf(relative.id), note].filter(Boolean).join(', ')}`}
+      </button>
+    </li>
+  )
+
+  const onDelete = () => {
+    const { deletePerson } = useTreeStore.getState()
+    const removed = deletePerson(person.id)
+    const parts = [
+      removed.parentLinks.length > 0 && plural(removed.parentLinks.length, 'parent link'),
+      removed.partnerships.length > 0 && plural(removed.partnerships.length, 'partnership'),
+    ].filter(Boolean)
+    useUiStore.getState().showToast(`Deleted ${removed.person.firstName}${parts.length ? `, with ${parts.join(' and ')}` : ''}`)
+    onClose()
+  }
+
+  return (
+    <aside
+      aria-label="Person details"
+      onKeyDown={(event) => {
+        if (event.key !== 'Escape') return
+        event.stopPropagation()
+        if (mode.kind === 'view') onClose()
+        else backToOverview()
+      }}
+      className="fixed inset-x-0 bottom-0 z-30 max-h-[62dvh] overflow-y-auto rounded-t-xl border-t border-stone-400 bg-white p-4 shadow-lg md:static md:max-h-none md:w-96 md:shrink-0 md:rounded-none md:border-t-0 md:border-l md:shadow-none"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h2 ref={headingRef} tabIndex={-1} className="text-xl font-semibold outline-offset-4">
+            {mode.kind === 'add' ? `Add ${mode.relation} of ${person.firstName}` : person.firstName}
+            {mode.kind !== 'add' && person.lastName ? ` ${person.lastName}` : ''}
+          </h2>
+          {mode.kind !== 'add' && (
+            <p className="text-sm text-stone-700">
+              {[isFocus ? 'Focus person' : label, lifeSpan(person)].filter(Boolean).join(' · ')}
+              {person.deceased && ' · deceased'}
+            </p>
+          )}
+        </div>
+        <button type="button" onClick={onClose} className="min-h-11 rounded border border-stone-500 px-3">
+          Close
+        </button>
+      </div>
+
+      {mode.kind === 'add' && (
+        <div className="mt-4">
+          <AddRelativeForm
+            anchor={person}
+            relation={mode.relation}
+            onCancel={backToOverview}
+            onDone={(newId) => select(newId)}
+          />
+        </div>
+      )}
+
+      {mode.kind === 'edit' && (
+        <EditForm
+          person={person}
+          onDone={backToOverview}
+        />
+      )}
+
+      {mode.kind === 'view' && (
+        <>
+          {GROUPS.map((group) => {
+            const entries =
+              group.title === 'Parents'
+                ? relatives.parents.map((p) => relativeButton(p))
+                : group.title === 'Partners'
+                  ? relatives.partners.map((p) => relativeButton(p.person, p.status === 'ended' ? 'former' : undefined))
+                  : group.title === 'Siblings'
+                    ? relatives.siblings.map((s) => relativeButton(s.person, s.half ? 'half' : undefined))
+                    : relatives.children.map((c) => relativeButton(c))
+            return (
+              <section key={group.title} aria-labelledby={`group-${group.title}`} className="mt-5">
+                <h3 id={`group-${group.title}`} className="font-semibold">
+                  {group.title}
+                </h3>
+                {entries.length > 0 ? <ul className="mt-1">{entries}</ul> : <p className="text-sm text-stone-700">None recorded</p>}
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {group.add.map((relation) => (
+                    <button
+                      key={relation}
+                      type="button"
+                      aria-label={`Add ${relation}`}
+                      onClick={() => setMode({ kind: 'add', relation })}
+                      className="min-h-11 rounded border border-green-800 px-3 text-green-900"
+                    >
+                      + {relation[0]!.toUpperCase() + relation.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )
+          })}
+
+          <div className="mt-6 flex flex-col gap-2 border-t border-stone-300 pt-4">
+            <button type="button" onClick={() => setMode({ kind: 'edit' })} className="min-h-11 rounded border border-stone-500 px-4">
+              Edit details
+            </button>
+            {!isFocus && (
+              <button
+                type="button"
+                onClick={() => useTreeStore.getState().setFocusPerson(person.id)}
+                className="min-h-11 rounded border border-stone-500 px-4"
+              >
+                Make Focus person
+              </button>
+            )}
+            {!confirmingDelete ? (
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+                className="min-h-11 rounded border border-red-800 px-4 text-red-800"
+              >
+                Delete {person.firstName}
+              </button>
+            ) : (
+              <div role="group" aria-label={`Confirm deleting ${person.firstName}`} className="flex flex-col gap-2 rounded border border-red-800 p-3">
+                <p className="text-red-800">
+                  Delete {person.firstName} and their links? Their relatives stay in the tree.
+                </p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={onDelete} className="min-h-11 flex-1 rounded bg-red-800 px-4 font-medium text-white">
+                    Confirm delete
+                  </button>
+                  <button type="button" onClick={() => setConfirmingDelete(false)} className="min-h-11 rounded border border-stone-500 px-4">
+                    Keep
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </aside>
+  )
+}
+
+function EditForm({ person, onDone }: { person: Person; onDone: () => void }) {
+  const [values, setValues] = useState<PersonFormValues>(() => valuesOf(person))
+  const [submitted, setSubmitted] = useState(false)
+  const errors = submitted ? validate(values) : {}
+
+  const onSubmit = (event: FormEvent) => {
+    event.preventDefault()
+    setSubmitted(true)
+    if (Object.keys(validate(values)).length > 0) return
+    useTreeStore.getState().updatePerson(person.id, toPersonFields(values))
+    onDone()
+  }
+
+  return (
+    <form onSubmit={onSubmit} noValidate className="mt-4 flex flex-col gap-4">
+      <PersonFields values={values} onChange={setValues} errors={errors} showDates autoFocusFirstName />
+      <div className="flex gap-2">
+        <button type="submit" className="min-h-11 flex-1 rounded bg-green-800 px-4 font-medium text-white">
+          Save
+        </button>
+        <button type="button" onClick={onDone} className="min-h-11 rounded border border-stone-500 px-4">
+          Cancel
+        </button>
+      </div>
+    </form>
+  )
+}

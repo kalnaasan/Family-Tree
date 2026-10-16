@@ -49,11 +49,12 @@ interface SceneContentsProps {
   scene: Scene
   persons: Person[]
   focusIndex: number
+  selectedIndex: number
   drawn: Drawn
 }
 
 /** Everything that depends on what is on screen. Re-rendered only when `drawn` changes, never per pan frame. */
-const SceneContents = memo(function SceneContents({ scene, persons, focusIndex, drawn }: SceneContentsProps) {
+const SceneContents = memo(function SceneContents({ scene, persons, focusIndex, selectedIndex, drawn }: SceneContentsProps) {
   const { layout } = scene
   const { bucket, rect } = drawn
   const visible = useMemo(() => selectVisible(scene, rect), [scene, rect])
@@ -116,6 +117,7 @@ const SceneContents = memo(function SceneContents({ scene, persons, focusIndex, 
             gender={person.gender}
             deceased={person.deceased}
             isFocus={i === focusIndex}
+            isSelected={i === selectedIndex}
           />
         )
       })}
@@ -128,14 +130,21 @@ export interface TreeCanvasProps {
   /** In the same order as `layout.ids`. */
   persons: Person[]
   focusPersonId: string | null
+  /** The open Person, drawn with a ring. */
+  selectedPersonId?: string | null
+  /** A click or tap (little movement) on a Person, or on empty space (`null`). */
+  onSelectPerson?: (id: string | null) => void
 }
+
+/** Movement under this many pixels between press and release is a click, not a drag. */
+const CLICK_SLOP_PX = 8
 
 /**
  * The pan/zoom canvas. The view lives in a `ViewController` and is written straight onto one `<g>`, so dragging
  * and zooming never re-render React. React re-renders only when the level of detail changes or the screen leaves
  * the part of the Tree that is drawn (spec section 9).
  */
-export function TreeCanvas({ layout, persons, focusPersonId }: TreeCanvasProps) {
+export function TreeCanvas({ layout, persons, focusPersonId, selectedPersonId = null, onSelectPerson }: TreeCanvasProps) {
   const frameRef = useRef<HTMLDivElement>(null)
   const surfaceRef = useRef<HTMLDivElement>(null)
   const worldRef = useRef<SVGGElement>(null)
@@ -145,11 +154,23 @@ export function TreeCanvas({ layout, persons, focusPersonId }: TreeCanvasProps) 
   const layoutRef = useRef(layout)
   const focusRef = useRef(focusPersonId)
   const openedRef = useRef(false)
-  const drag = useRef<{ pointerId: number; x: number; y: number } | null>(null)
+  const drag = useRef<{
+    pointerId: number
+    x: number
+    y: number
+    startX: number
+    startY: number
+    /** The Person under the pointer when it went down, read before pointer capture redirects events. */
+    personId: string | null
+  } | null>(null)
   const [drawn, setDrawn] = useState<Drawn | null>(null)
 
   const scene = useMemo(() => buildScene(layout), [layout])
   const focusIndex = useMemo(() => (focusPersonId ? layout.ids.indexOf(focusPersonId) : -1), [layout, focusPersonId])
+  const selectedIndex = useMemo(
+    () => (selectedPersonId ? layout.ids.indexOf(selectedPersonId) : -1),
+    [layout, selectedPersonId],
+  )
 
   useEffect(() => {
     const frame = frameRef.current!
@@ -247,6 +268,18 @@ export function TreeCanvas({ layout, persons, focusPersonId }: TreeCanvasProps) 
     syncRef.current()
   }, [layout, focusPersonId])
 
+  // Keeps the open Person in view: if they are off screen, or near its edge, the view moves to them at the same zoom.
+  useEffect(() => {
+    const controller = controllerRef.current
+    if (!controller || !controller.ready || !selectedPersonId) return
+    const index = layoutRef.current.ids.indexOf(selectedPersonId)
+    if (index < 0) return
+    const x = layoutRef.current.x[index]!
+    const y = layoutRef.current.y[index]!
+    const safe = growRect(visibleRect(controller.view, sizeRef.current), -0.15)
+    if (x < safe.x0 || x > safe.x1 || y < safe.y0 || y > safe.y1) controller.show({ x, y })
+  }, [selectedPersonId])
+
   const showFocus = () => {
     const controller = controllerRef.current
     if (!controller || focusIndex < 0) return
@@ -270,7 +303,15 @@ export function TreeCanvas({ layout, persons, focusPersonId }: TreeCanvasProps) 
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || drag.current) return
-    drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY }
+    const target = event.target instanceof Element ? event.target.closest('[data-person-id]') : null
+    drag.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      startX: event.clientX,
+      startY: event.clientY,
+      personId: target?.getAttribute('data-person-id') ?? null,
+    }
     event.currentTarget.setPointerCapture?.(event.pointerId)
     event.currentTarget.dataset.dragging = ''
   }
@@ -285,6 +326,14 @@ export function TreeCanvas({ layout, persons, focusPersonId }: TreeCanvasProps) 
     if (drag.current?.pointerId !== event.pointerId) return
     drag.current = null
     delete event.currentTarget.dataset.dragging
+  }
+  const onPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    const start = drag.current
+    if (start?.pointerId === event.pointerId) {
+      const moved = Math.hypot(event.clientX - start.startX, event.clientY - start.startY)
+      if (moved < CLICK_SLOP_PX) onSelectPerson?.(start.personId)
+    }
+    endDrag(event)
   }
 
   return (
@@ -303,13 +352,21 @@ export function TreeCanvas({ layout, persons, focusPersonId }: TreeCanvasProps) 
         className="absolute inset-0 cursor-grab touch-none data-[dragging]:cursor-grabbing"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
+        onPointerUp={onPointerUp}
         onPointerCancel={endDrag}
       >
         <svg width="100%" height="100%" className="block" focusable="false">
           <g ref={worldRef}>
             <Decor />
-            {drawn && <SceneContents scene={scene} persons={persons} focusIndex={focusIndex} drawn={drawn} />}
+            {drawn && (
+              <SceneContents
+                scene={scene}
+                persons={persons}
+                focusIndex={focusIndex}
+                selectedIndex={selectedIndex}
+                drawn={drawn}
+              />
+            )}
           </g>
         </svg>
       </div>
