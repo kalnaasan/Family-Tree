@@ -12,17 +12,27 @@ interface UiState {
   toast: ToastMessage | null
   /** Show the nested List view instead of the tree drawing (spec section 7). */
   listView: boolean
+  /** On a phone the open Person's panel is a bottom sheet: a short peek, or expanded to the full details. */
+  sheet: 'peek' | 'expanded'
+  /** Pixels of the screen the sheet covers (0 when there is no sheet), so the view keeps the Person above it. */
+  sheetHeight: number
   select: (id: string | null) => void
   showToast: (message: string, undoStepId?: number) => void
   clearToast: () => void
   setListView: (on: boolean) => void
+  setSheet: (sheet: 'peek' | 'expanded') => void
+  setSheetHeight: (height: number) => void
 }
 
 export const useUiStore = create<UiState>()((set) => ({
   selectedId: null,
   toast: null,
   listView: false,
+  sheet: 'peek',
+  sheetHeight: 0,
   select: (id) => set({ selectedId: id }),
+  setSheet: (sheet) => set({ sheet }),
+  setSheetHeight: (sheetHeight) => set({ sheetHeight }),
   showToast: (message, undoStepId) => set({ toast: { message, undoStepId } }),
   clearToast: () => set({ toast: null }),
   setListView: (on) => set({ listView: on }),

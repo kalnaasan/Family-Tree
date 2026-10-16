@@ -122,6 +122,12 @@ describe('PersonNode', () => {
     expect(draw({ isSelected: true, bucket: 'initial' }).querySelector(`circle[stroke="${PALETTE.selected}"]`)).not.toBeNull()
   })
 
+  it('a Person who is not a relative of the open one is drawn faint, and stays a button', () => {
+    expect(draw({ isDimmed: true }).querySelector('[data-person-wrapper]')).toHaveAttribute('opacity', '0.35')
+    expect(draw().querySelector('[data-person-wrapper]')).not.toHaveAttribute('opacity')
+    expect(draw({ isDimmed: true }).querySelector('[data-person-id]')).toHaveAttribute('role', 'button')
+  })
+
   it('uses the default figure unless there is a photo', () => {
     expect(draw().querySelector('image')).toBeNull()
     const withPhoto = draw({ photoUrl: 'blob:photo' })

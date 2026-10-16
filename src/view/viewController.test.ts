@@ -78,6 +78,28 @@ describe('ViewController', () => {
     expect(controller.view.y - y).toBeCloseTo(-20)
   })
 
+  describe('for touch and the bottom sheet', () => {
+    it('show centres a point in the part of the screen a sheet leaves free', () => {
+      const { controller } = setup(true)
+      controller.jump({ x: 0, y: 0, k: 1 })
+      controller.show({ x: 0, y: 250 }, 1, 100)
+      // 300 px high, 100 covered: the point sits in the middle of the top 200 px
+      expect(controller.view.y + 250).toBeCloseTo(100)
+      expect(controller.view.x).toBeCloseTo(size.width / 2)
+    })
+
+    it('zoomTowardPoint keeps the world point under the finger where it is', () => {
+      const { controller } = setup(true)
+      controller.jump({ x: 50, y: 40, k: 1 })
+      const anchor = { x: 120, y: 90 }
+      const world = { x: (anchor.x - 50) / 1, y: (anchor.y - 40) / 1 }
+      controller.zoomTowardPoint(2, anchor)
+      expect(controller.view.k).toBe(2)
+      expect(world.x * 2 + controller.view.x).toBeCloseTo(anchor.x)
+      expect(world.y * 2 + controller.view.y).toBeCloseTo(anchor.y)
+    })
+  })
+
   describe('with reduced motion', () => {
     it('every change jumps: no animation frames are needed', () => {
       const { controller } = setup(true)

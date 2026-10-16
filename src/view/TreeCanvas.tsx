@@ -1,8 +1,10 @@
 import { memo, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { relativesOf } from '../domain/groups.ts'
 import { type NavKey, type NavMemory, describeMove, freshMemory, move } from '../domain/navigation.ts'
 import type { ParentLink, Partnership, Person } from '../domain/schema.ts'
 import type { TreeLayout } from '../layout/layoutTree.ts'
 import { HEART_PATH, rootPaths, trunkPath } from './geometry.ts'
+import { GestureTracker, ZOOM_OUT_OF_DOT, resolveTap } from './gestures.ts'
 import { type LodBucket, lodBucket } from './lod.ts'
 import { PALETTE } from './palette.ts'
 import { PersonNode } from './PersonNode.tsx'
@@ -54,6 +56,8 @@ interface SceneContentsProps {
   selectedIndex: number
   /** The keyboard's Person: always drawn, even outside the drawn area, because it is the tab stop. */
   cursorIndex: number
+  /** While a Person is open: their relatives and themself. Everyone else is drawn faint. `null`: nobody is dimmed. */
+  brightIds: ReadonlySet<string> | null
   drawn: Drawn
 }
 
@@ -65,6 +69,7 @@ const SceneContents = memo(function SceneContents({
   focusIndex,
   selectedIndex,
   cursorIndex,
+  brightIds,
   drawn,
 }: SceneContentsProps) {
   const { layout } = scene
@@ -138,6 +143,7 @@ const SceneContents = memo(function SceneContents({
             isFocus={i === focusIndex}
             isSelected={i === selectedIndex}
             isCurrent={i === cursorIndex}
+            isDimmed={brightIds !== null && !brightIds.has(person.id)}
           />
         )
       })}
@@ -160,10 +166,11 @@ export interface TreeCanvasProps {
   selectedPersonId?: string | null
   /** A click or tap (little movement) on a Person, or on empty space (`null`). */
   onSelectPerson?: (id: string | null) => void
+  /** Pixels at the bottom of the canvas that a sheet covers: the open Person is kept in the part that is left. */
+  coveredBottom?: number
+  /** Hides the zoom and fit buttons, for when the expanded sheet leaves no room for them. */
+  hideControls?: boolean
 }
-
-/** Movement under this many pixels between press and release is a click, not a drag. */
-const CLICK_SLOP_PX = 8
 
 /**
  * The pan/zoom canvas. The view lives in a `ViewController` and is written straight onto one `<g>`, so dragging
@@ -190,6 +197,8 @@ export function TreeCanvas({
   onSetFocusPerson,
   selectedPersonId = null,
   onSelectPerson,
+  coveredBottom = 0,
+  hideControls = false,
 }: TreeCanvasProps) {
   const hintId = useId()
   const frameRef = useRef<HTMLDivElement>(null)
@@ -201,15 +210,10 @@ export function TreeCanvas({
   const layoutRef = useRef(layout)
   const focusRef = useRef(focusPersonId)
   const openedRef = useRef(false)
-  const drag = useRef<{
-    pointerId: number
-    x: number
-    y: number
-    startX: number
-    startY: number
-    /** The Person under the pointer when it went down, read before pointer capture redirects events. */
-    personId: string | null
-  } | null>(null)
+  const coveredRef = useRef(coveredBottom)
+  const gestures = useRef(new GestureTracker())
+  /** The Person under the first finger when it went down, read before pointer capture redirects events. */
+  const pressedPerson = useRef<string | null>(null)
   const [drawn, setDrawn] = useState<Drawn | null>(null)
 
   const scene = useMemo(() => buildScene(layout), [layout])
@@ -218,6 +222,21 @@ export function TreeCanvas({
     () => (selectedPersonId ? layout.ids.indexOf(selectedPersonId) : -1),
     [layout, selectedPersonId],
   )
+
+  const brightIds = useMemo(() => {
+    if (!selectedPersonId || !links || selectedIndex < 0) return null
+    const relatives = relativesOf(
+      { focusPersonId, persons, parentLinks: links.parentLinks, partnerships: links.partnerships },
+      selectedPersonId,
+    )
+    return new Set([
+      selectedPersonId,
+      ...relatives.parents.map((p) => p.id),
+      ...relatives.partners.map((p) => p.person.id),
+      ...relatives.siblings.map((s) => s.person.id),
+      ...relatives.children.map((p) => p.id),
+    ])
+  }, [selectedPersonId, selectedIndex, links, persons, focusPersonId])
 
   // The keyboard's place in the tree: the one Person in the tab order. It starts at the Focus person.
   const [cursorId, setCursorId] = useState<string | null>(null)
@@ -339,13 +358,19 @@ export function TreeCanvas({
     if (index < 0) return
     const x = layoutRef.current.x[index]!
     const y = layoutRef.current.y[index]!
-    const safe = growRect(visibleRect(controller.view, sizeRef.current), -0.15)
-    if (x < safe.x0 || x > safe.x1 || y < safe.y0 || y > safe.y1) controller.show({ x, y })
+    // Only the part of the screen above a sheet counts as visible.
+    const covered = coveredRef.current
+    const size = sizeRef.current
+    const free = { width: size.width, height: Math.max(1, size.height - covered) }
+    const safe = growRect(visibleRect(controller.view, free), -0.15)
+    if (x < safe.x0 || x > safe.x1 || y < safe.y0 || y > safe.y1) controller.show({ x, y }, controller.view.k, covered)
   }
 
+  // The view moves so the open Person is never hidden behind the sheet, also when the sheet grows or shrinks.
   useEffect(() => {
+    coveredRef.current = coveredBottom
     if (selectedPersonId) ensureVisible(selectedPersonId)
-  }, [selectedPersonId])
+  }, [selectedPersonId, coveredBottom])
 
   // After a key moved the cursor, real focus follows it (without scrolling the frame, which is only panned by the view).
   useEffect(() => {
@@ -412,49 +437,68 @@ export function TreeCanvas({
     event.preventDefault()
   }
 
+  // One finger drags, two pinch, a press that barely moves is a tap, two quick touch taps a double-tap (GestureTracker).
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || drag.current) return
-    // A Person is their button, or the name and dates drawn beside it.
-    const target =
-      event.target instanceof Element
-        ? (event.target.closest('[data-person-id]') ??
-          event.target.closest('[data-person-wrapper]')?.querySelector('[data-person-id]') ??
-          null)
-        : null
-    drag.current = {
-      pointerId: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-      startX: event.clientX,
-      startY: event.clientY,
-      personId: target?.getAttribute('data-person-id') ?? null,
+    if (event.button !== 0) return
+    if (!gestures.current.active) {
+      // A Person is their button, or the name and dates drawn beside it.
+      const target =
+        event.target instanceof Element
+          ? (event.target.closest('[data-person-id]') ??
+            event.target.closest('[data-person-wrapper]')?.querySelector('[data-person-id]') ??
+            null)
+          : null
+      pressedPerson.current = target?.getAttribute('data-person-id') ?? null
     }
+    const kind = event.pointerType === 'touch' || event.pointerType === 'pen' ? event.pointerType : 'mouse'
+    gestures.current.down(event.pointerId, { x: event.clientX, y: event.clientY }, kind)
     event.currentTarget.setPointerCapture?.(event.pointerId)
     event.currentTarget.dataset.dragging = ''
   }
-  const onPointerMove = (event: React.PointerEvent) => {
-    const start = drag.current
-    if (!start || start.pointerId !== event.pointerId) return
-    controllerRef.current?.panBy(event.clientX - start.x, event.clientY - start.y)
-    start.x = event.clientX
-    start.y = event.clientY
+  const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const controller = controllerRef.current
+    const action = gestures.current.move(event.pointerId, { x: event.clientX, y: event.clientY })
+    if (!controller || !action) return
+    if (action.type === 'pan') controller.panBy(action.dx, action.dy)
+    else if (action.type === 'pinch') {
+      const box = event.currentTarget.getBoundingClientRect()
+      controller.zoomAtPoint(action.factor, { x: action.anchor.x - box.left, y: action.anchor.y - box.top })
+      controller.panBy(action.dx, action.dy)
+    }
   }
   const endDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (drag.current?.pointerId !== event.pointerId) return
-    drag.current = null
-    delete event.currentTarget.dataset.dragging
+    gestures.current.cancel(event.pointerId)
+    if (!gestures.current.active) delete event.currentTarget.dataset.dragging
   }
   const onPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
-    const start = drag.current
-    if (start?.pointerId === event.pointerId) {
-      const moved = Math.hypot(event.clientX - start.startX, event.clientY - start.startY)
-      if (moved < CLICK_SLOP_PX) {
-        if (start.personId) setCursorId(start.personId)
-        navMemory.current = { ...navMemory.current, lastKey: null, origin: null }
-        onSelectPerson?.(start.personId)
-      }
+    const surface = event.currentTarget
+    const action = gestures.current.up(event.pointerId, { x: event.clientX, y: event.clientY }, event.timeStamp)
+    if (!gestures.current.active) delete surface.dataset.dragging
+    const controller = controllerRef.current
+    if (action?.type !== 'tap' || !controller) return
+    const box = surface.getBoundingClientRect()
+    const screen = { x: action.at.x - box.left, y: action.at.y - box.top }
+    if (action.double) {
+      // Toggles between the whole tree and a readable size, about the tap.
+      if (controller.view.k < READABLE_ZOOM) controller.zoomTowardPoint(READABLE_ZOOM, screen)
+      else controller.fit()
+      return
     }
-    endDrag(event)
+    const target = resolveTap({
+      drawnPersonId: pressedPerson.current,
+      screen,
+      view: controller.view,
+      layout: layoutRef.current,
+      bucket: lodBucket(controller.view.k),
+    })
+    if (target.type === 'zoom') {
+      controller.zoomTowardPoint(ZOOM_OUT_OF_DOT, screen)
+      return
+    }
+    const id = target.type === 'person' ? target.id : null
+    if (id) setCursorId(id)
+    navMemory.current = { ...navMemory.current, lastKey: null, origin: null }
+    onSelectPerson?.(id)
   }
 
   return (
@@ -490,6 +534,7 @@ export function TreeCanvas({
                 focusIndex={focusIndex}
                 selectedIndex={selectedIndex}
                 cursorIndex={cursorIndex}
+                brightIds={brightIds}
                 drawn={drawn}
               />
             )}
@@ -504,7 +549,13 @@ export function TreeCanvas({
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {announcement}
       </div>
-      <div data-controls className="absolute top-1/2 right-2 flex -translate-y-1/2 flex-col gap-2">
+      <div
+        data-controls
+        hidden={hideControls}
+        // centred in the part of the screen a sheet leaves free
+        style={{ top: `calc((100% - ${coveredBottom}px) / 2)` }}
+        className="absolute right-2 flex -translate-y-1/2 flex-col gap-2"
+      >
         <ControlButton label="Zoom in" onClick={() => controllerRef.current?.zoomBy(KEY_ZOOM)}>
           <path d="M12 5v14M5 12h14" />
         </ControlButton>

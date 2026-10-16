@@ -143,8 +143,10 @@ function Item({ person, depth, model }: { person: Person; depth: number; model: 
  */
 export function ListView() {
   const model = useModel()
+  // a bottom sheet covers the end of the list: leave room to scroll it clear
+  const sheetHeight = useUiStore((s) => s.sheetHeight)
   return (
-    <section aria-labelledby="list-title" className="h-full overflow-auto bg-white p-4">
+    <section aria-labelledby="list-title" style={{ paddingBottom: sheetHeight + 16 }} className="h-full overflow-auto bg-white p-4">
       <h2 id="list-title" className="sr-only">
         Family list
       </h2>

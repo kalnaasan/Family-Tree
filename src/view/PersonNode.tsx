@@ -24,6 +24,8 @@ export interface PersonNodeProps {
   isSelected: boolean
   /** The keyboard's place in the tree: the one Person in the tab order (spec section 7). */
   isCurrent: boolean
+  /** Someone else is open and this Person is not one of their relatives: drawn faint (spec section 8). */
+  isDimmed?: boolean
   /** Object URL of the Person's photo. Set by the Photos ticket; without it the default figure is drawn. */
   photoUrl?: string
 }
@@ -76,7 +78,7 @@ function CursorRing({ radius }: { radius: number }) {
  * in the tab order, the others are reached with the arrow keys.
  */
 export const PersonNode = memo(function PersonNode(props: PersonNodeProps) {
-  const { id, x, y, bucket, name, initial, life, ariaLabel, gender, deceased, isFocus, isSelected, isCurrent, photoUrl } =
+  const { id, x, y, bucket, name, initial, life, ariaLabel, gender, deceased, isFocus, isSelected, isCurrent, isDimmed, photoUrl } =
     props
   const ring = ringColor(gender, deceased)
   // The button holds only shapes and carries the accessible name. The drawn name and dates sit beside it, hidden from
@@ -89,7 +91,7 @@ export const PersonNode = memo(function PersonNode(props: PersonNodeProps) {
     tabIndex: isCurrent ? 0 : -1,
   }
   const place = (children: ReactNode) => (
-    <g transform={`translate(${x} ${y})`} data-person-wrapper="">
+    <g transform={`translate(${x} ${y})`} data-person-wrapper="" opacity={isDimmed ? 0.35 : undefined}>
       {children}
     </g>
   )

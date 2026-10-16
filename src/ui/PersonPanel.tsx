@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { type FormEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react'
 import type { Relation } from '../domain/addRelative.ts'
 import { relativesOf } from '../domain/groups.ts'
 import { deriveRelationships } from '../domain/labels.ts'
@@ -9,6 +9,10 @@ import { AddRelativeForm } from './AddRelativeForm.tsx'
 import { PersonFields } from './PersonFields.tsx'
 import { type PersonFormValues, toPersonFields, validate, valuesOf } from './personForm.ts'
 import { useUiStore } from './uiStore.ts'
+import { useWideScreen } from './useWideScreen.ts'
+
+/** A swipe on the sheet's handle must travel this far, in pixels, to count (a shorter press is a tap). */
+const SWIPE_PX = 40
 
 type Mode = { kind: 'view' } | { kind: 'add'; relation: Relation } | { kind: 'edit' }
 
@@ -39,6 +43,37 @@ export function PersonPanel({ personId, onClose }: Props) {
   const select = useUiStore((s) => s.select)
   const [mode, setMode] = useState<Mode>({ kind: 'view' })
   const headingRef = useRef<HTMLHeadingElement>(null)
+  const panelRef = useRef<HTMLElement>(null)
+  const wide = useWideScreen()
+  const sheet = useUiStore((s) => s.sheet)
+  const setSheet = useUiStore((s) => s.setSheet)
+  const setSheetHeight = useUiStore((s) => s.setSheetHeight)
+  const swipeStart = useRef<{ y: number; swiped: boolean } | null>(null)
+  const focusAddAfterOpen = useRef(false)
+
+  // On a phone the panel is a bottom sheet; the tree learns how much of the screen it covers.
+  useEffect(() => {
+    const panel = panelRef.current
+    if (wide || !panel) {
+      setSheetHeight(0)
+      return
+    }
+    const report = () => setSheetHeight(Math.round(panel.getBoundingClientRect().height))
+    report()
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(report)
+    observer?.observe(panel)
+    return () => {
+      observer?.disconnect()
+      setSheetHeight(0)
+    }
+  }, [wide, setSheetHeight])
+
+  // "Add relative" on the peek opens the details and puts the keyboard on the first Add button.
+  useEffect(() => {
+    if (sheet !== 'expanded' || !focusAddAfterOpen.current) return
+    focusAddAfterOpen.current = false
+    panelRef.current?.querySelector<HTMLButtonElement>('button[aria-label^="Add "]')?.focus()
+  }, [sheet])
 
   const tree = useMemo<Tree>(
     () => ({ focusPersonId, persons, parentLinks, partnerships }),
@@ -56,6 +91,35 @@ export function PersonPanel({ personId, onClose }: Props) {
   const isFocus = focusPersonId === person.id
   const label = relationships.get(person.id)?.label
 
+  // Below 768 px the panel is a bottom sheet: a short peek, or expanded to the full details (spec section 8).
+  const peeking = !wide && sheet === 'peek' && mode.kind === 'view'
+
+  const onHandleDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    swipeStart.current = { y: event.clientY, swiped: false }
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+  }
+  const onHandleUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const start = swipeStart.current
+    if (!start) return
+    const dy = event.clientY - start.y
+    if (dy <= -SWIPE_PX) {
+      start.swiped = true
+      setSheet('expanded')
+    } else if (dy >= SWIPE_PX) {
+      start.swiped = true
+      if (sheet === 'peek') onClose()
+      else if (mode.kind === 'view') setSheet('peek')
+    }
+  }
+  const onHandleClick = () => {
+    // a swipe that ended on the handle is not also a tap
+    if (swipeStart.current?.swiped) {
+      swipeStart.current = null
+      return
+    }
+    setSheet(sheet === 'peek' ? 'expanded' : 'peek')
+  }
+
   const backToOverview = () => {
     setMode({ kind: 'view' })
     queueMicrotask(() => headingRef.current?.focus())
@@ -67,7 +131,7 @@ export function PersonPanel({ personId, onClose }: Props) {
       <button
         type="button"
         onClick={() => select(relative.id)}
-        className="min-h-11 w-full rounded px-2 text-left underline decoration-stone-400 hover:bg-stone-100"
+        className="min-h-11 rounded-full border border-stone-400 px-4 text-left hover:bg-stone-100"
       >
         {relative.firstName}
         {relative.lastName ? ` ${relative.lastName}` : ''}
@@ -92,6 +156,7 @@ export function PersonPanel({ personId, onClose }: Props) {
 
   return (
     <aside
+      ref={panelRef}
       aria-label="Person details"
       onKeyDown={(event) => {
         if (event.key !== 'Escape') return
@@ -99,8 +164,24 @@ export function PersonPanel({ personId, onClose }: Props) {
         if (mode.kind === 'view') onClose()
         else backToOverview()
       }}
-      className="fixed inset-x-0 bottom-0 z-30 max-h-[62dvh] overflow-y-auto rounded-t-xl border-t border-stone-400 bg-white p-4 shadow-lg md:static md:max-h-none md:w-96 md:shrink-0 md:rounded-none md:border-t-0 md:border-l md:shadow-none"
+      className={`fixed inset-x-0 bottom-0 z-30 max-h-[62dvh] overflow-y-auto rounded-t-xl border-t border-stone-400 bg-white p-4 pt-1 shadow-lg md:static md:max-h-none md:w-96 md:shrink-0 md:rounded-none md:border-t-0 md:border-l md:p-4 md:shadow-none ${
+        !wide && sheet === 'expanded' ? 'h-[62dvh]' : ''
+      }`}
     >
+      {!wide && (
+        <button
+          type="button"
+          aria-expanded={sheet === 'expanded'}
+          aria-label={sheet === 'expanded' ? 'Collapse sheet' : 'Expand sheet'}
+          onPointerDown={onHandleDown}
+          onPointerUp={onHandleUp}
+          onPointerCancel={() => (swipeStart.current = null)}
+          onClick={onHandleClick}
+          className="mx-auto mb-1 flex h-9 w-full touch-none items-center justify-center"
+        >
+          <span aria-hidden="true" className="block h-1.5 w-12 rounded-full bg-stone-500" />
+        </button>
+      )}
       <div className="flex items-start justify-between gap-2">
         <div>
           <h2 ref={headingRef} tabIndex={-1} className="text-xl font-semibold outline-offset-4">
@@ -137,7 +218,25 @@ export function PersonPanel({ personId, onClose }: Props) {
         />
       )}
 
-      {mode.kind === 'view' && (
+      {peeking && (
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              focusAddAfterOpen.current = true
+              setSheet('expanded')
+            }}
+            className="min-h-11 flex-1 rounded bg-green-800 px-4 font-medium text-white"
+          >
+            Add relative
+          </button>
+          <button type="button" onClick={() => setSheet('expanded')} className="min-h-11 flex-1 rounded border border-stone-500 px-4">
+            Details
+          </button>
+        </div>
+      )}
+
+      {mode.kind === 'view' && !peeking && (
         <>
           {GROUPS.map((group) => {
             const entries =
@@ -153,7 +252,7 @@ export function PersonPanel({ personId, onClose }: Props) {
                 <h3 id={`group-${group.title}`} className="font-semibold">
                   {group.title}
                 </h3>
-                {entries.length > 0 ? <ul className="mt-1">{entries}</ul> : <p className="text-sm text-stone-700">None recorded</p>}
+                {entries.length > 0 ? <ul className="mt-1 flex flex-wrap gap-2">{entries}</ul> : <p className="text-sm text-stone-700">None recorded</p>}
                 <div className="mt-1 flex flex-wrap gap-2">
                   {group.add.map((relation) => (
                     <button
