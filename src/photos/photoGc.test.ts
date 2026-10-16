@@ -93,6 +93,24 @@ describe('the sweep', () => {
   })
 })
 
+describe('photos other things keep (saved versions)', () => {
+  it('keeps a photo the extra references name, though neither the Tree nor undo needs it', async () => {
+    await photos.put(A, blob())
+    await photos.put(B, blob())
+    await createPhotoGc(store, photos, undefined, async () => new Set([A])).sweep()
+    expect([...photos.blobs.keys()]).toEqual([A])
+  })
+
+  it('sweeps nothing at all when the extra references cannot be read: a photo is never lost to a hiccup', async () => {
+    await photos.put(A, blob())
+    const gc = createPhotoGc(store, photos, undefined, async () => {
+      throw new Error('storage busy')
+    })
+    await gc.sweep()
+    expect([...photos.blobs.keys()]).toEqual([A])
+  })
+})
+
 describe('the photo lifecycle with undo', () => {
   const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
 

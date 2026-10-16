@@ -153,6 +153,49 @@ describe('persistence session', () => {
     })
   })
 
+  describe('when the saved Tree is loaded', () => {
+    it('starts what needs it once the Tree is in the store, and stops it with the session', async () => {
+      const saved = addPerson(emptyTree(), { id: id(1), firstName: 'Anna' })
+      const { storage } = fakeStorage(async () => ({ status: 'loaded', tree: saved }))
+      const store = createTreeStore()
+      const seen: number[] = []
+      const stopHook = vi.fn()
+      const cleanup = await startPersistence(store, storage, undefined, () => {
+        seen.push(store.getState().persons.length)
+        return stopHook
+      })
+      expect(seen).toEqual([1])
+      cleanup()
+      expect(stopHook).toHaveBeenCalledTimes(1)
+    })
+
+    it('starts it for a brand-new, empty database too', async () => {
+      const { storage } = fakeStorage(async () => ({ status: 'empty' }))
+      const start = vi.fn(() => () => {})
+      stop = await startPersistence(createTreeStore(), storage, undefined, start)
+      expect(start).toHaveBeenCalledTimes(1)
+    })
+
+    it('never starts it when the saved document cannot be read, or storage is unavailable', async () => {
+      const start = vi.fn(() => () => {})
+      const invalid = fakeStorage(async () => ({ status: 'invalid', rule: 'invalid-data', message: 'bad' }))
+      stop = await startPersistence(createTreeStore(), invalid.storage, undefined, start)
+      const unavailable = fakeStorage(() => Promise.reject(new Error('IndexedDB blocked')))
+      stop = await startPersistence(createTreeStore(), unavailable.storage, undefined, start)
+      expect(start).not.toHaveBeenCalled()
+    })
+  })
+
+  it('counts a browser without persistent storage as a refusal, so the backup banner can show', async () => {
+    Object.defineProperty(navigator, 'storage', { value: {}, configurable: true })
+    usePersistenceStatus.setState({ persistent: null })
+    const { storage } = fakeStorage(async () => ({ status: 'empty' }))
+    const store = createTreeStore()
+    stop = await startPersistence(store, storage)
+    store.getState().addPerson({ id: id(1), firstName: 'Anna' })
+    expect(usePersistenceStatus.getState().persistent).toBe(false)
+  })
+
   it('stops listening after cleanup', async () => {
     const save = vi.fn().mockResolvedValue(undefined)
     const { storage } = fakeStorage(async () => ({ status: 'empty' }), save)

@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { startAppBackupSession } from '../backup/backup.ts'
 import { useTreeStore } from '../domain/store.ts'
 import { photoGc } from '../photos/photos.ts'
 import { startPersistence } from './session.ts'
@@ -9,7 +10,7 @@ export function usePersistence(): void {
   useEffect(() => {
     let stop: (() => void) | undefined
     let cancelled = false
-    void startPersistence(useTreeStore, createTreeStorage(), photoGc).then((cleanup) => {
+    void startPersistence(useTreeStore, createTreeStorage(), photoGc, startAppBackupSession).then((cleanup) => {
       // React StrictMode mounts, unmounts and mounts again; drop a start that was already cleaned up.
       if (cancelled) cleanup()
       else stop = cleanup

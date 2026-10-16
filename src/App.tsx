@@ -3,6 +3,7 @@ import { SaveIndicator } from './components/SaveIndicator.tsx'
 import { useTreeStore } from './domain/store.ts'
 import { usePersistenceStatus } from './persistence/saveStatus.ts'
 import { usePersistence } from './persistence/usePersistence.ts'
+import { BackupBanner } from './ui/BackupBanner.tsx'
 import { EmptyState } from './ui/EmptyState.tsx'
 import { ListView } from './ui/ListView.tsx'
 import { PersonPanel } from './ui/PersonPanel.tsx'
@@ -75,6 +76,8 @@ export function App() {
           backup to keep them.
         </p>
       )}
+
+      {persons.length > 0 && (load === 'ready' || load === 'unavailable') && <BackupBanner />}
 
       {load !== 'loading' && load !== 'invalid' && (
         <>
