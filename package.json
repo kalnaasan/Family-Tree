@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json",
     "test": "vitest run",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "bench": "PERF=1 vitest run --silent=false"
   },
   "dependencies": {
     "idb": "^8.0.4",
