@@ -3,6 +3,7 @@ import { SaveIndicator } from './components/SaveIndicator.tsx'
 import { useTreeStore } from './domain/store.ts'
 import { usePersistenceStatus } from './persistence/saveStatus.ts'
 import { usePersistence } from './persistence/usePersistence.ts'
+import { TreeView } from './view/TreeView.tsx'
 
 export function App() {
   usePersistence()
@@ -22,20 +23,20 @@ export function App() {
   }
 
   return (
-    <main className="mx-auto max-w-xl p-4">
-      <header className="flex flex-wrap items-center justify-between gap-3">
+    <main className="flex h-dvh flex-col">
+      <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-2">
         <h1 className="text-2xl font-semibold">Family Tree</h1>
         <SaveIndicator />
       </header>
 
       {load === 'invalid' && (
-        <p role="alert" className="mt-4 rounded border border-red-800 p-3 text-red-800">
+        <p role="alert" className="mx-4 mt-2 rounded border border-red-800 p-3 text-red-800">
           Your saved tree could not be read ({loadMessage}). It has not been changed, and nothing will be saved
           until this is resolved.
         </p>
       )}
       {load === 'unavailable' && (
-        <p role="alert" className="mt-4 rounded border border-red-800 p-3 text-red-800">
+        <p role="alert" className="mx-4 mt-2 rounded border border-red-800 p-3 text-red-800">
           Saving is not available in this browser ({loadMessage}). Changes will be lost when you leave; export a
           backup to keep them.
         </p>
@@ -43,24 +44,28 @@ export function App() {
 
       {load !== 'loading' && load !== 'invalid' && (
         <>
-          <form onSubmit={onSubmit} className="mt-6 flex gap-2">
-            <label className="flex flex-1 flex-col text-sm">
+          <form onSubmit={onSubmit} className="flex gap-2 px-4 pb-2">
+            <label className="flex flex-1 items-center gap-2 text-sm">
               First name
               <input
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="mt-1 min-h-11 rounded border border-stone-500 px-2"
+                className="min-h-11 flex-1 rounded border border-stone-500 px-2"
               />
             </label>
-            <button type="submit" className="mt-6 min-h-11 rounded bg-green-800 px-4 text-white">
+            <button type="submit" className="min-h-11 rounded bg-green-800 px-4 text-white">
               Add person
             </button>
           </form>
-          <ul className="mt-4 list-disc pl-6" aria-label="People">
+          {/* TEMPORARY, with the form above: the tree now shows people, so the list is kept for screen readers. */}
+          <ul className="sr-only" aria-label="People">
             {persons.map((p) => (
               <li key={p.id}>{p.firstName}</li>
             ))}
           </ul>
+          <div className="min-h-0 flex-1">
+            <TreeView />
+          </div>
         </>
       )}
     </main>
