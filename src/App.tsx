@@ -6,11 +6,14 @@ import { EmptyState } from './ui/EmptyState.tsx'
 import { PeopleList } from './ui/PeopleList.tsx'
 import { PersonPanel } from './ui/PersonPanel.tsx'
 import { Toast } from './ui/Toast.tsx'
+import { UndoControls } from './ui/UndoControls.tsx'
+import { useUndoShortcuts } from './ui/undo.ts'
 import { useUiStore } from './ui/uiStore.ts'
 import { TreeView } from './view/TreeView.tsx'
 
 export function App() {
   usePersistence()
+  useUndoShortcuts()
   const load = usePersistenceStatus((s) => s.load)
   const loadMessage = usePersistenceStatus((s) => s.loadMessage)
   const persons = useTreeStore((s) => s.persons)
@@ -28,7 +31,10 @@ export function App() {
     <main className="flex h-dvh flex-col">
       <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-2">
         <h1 className="text-2xl font-semibold">Family Tree</h1>
-        <SaveIndicator />
+        <div className="flex flex-wrap items-center gap-3">
+          <UndoControls />
+          <SaveIndicator />
+        </div>
       </header>
 
       {load === 'invalid' && (

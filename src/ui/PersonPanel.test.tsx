@@ -203,21 +203,13 @@ describe('edit and delete', () => {
     expect(ben).toMatchObject({ firstName: 'Benno', birthDate: '1962-04', deathDate: '2001', deceased: true })
   })
 
-  it('delete takes two steps, names what went with them, and closes', async () => {
+  it('delete needs no confirmation, names what went with the Person, offers Undo, and closes', async () => {
     const { user, onClose } = open(benWithParents())
     await user.click(screen.getByRole('button', { name: 'Delete Ben' }))
-    expect(people()).toHaveLength(6)
-    await user.click(screen.getByRole('button', { name: 'Confirm delete' }))
     expect(people()).not.toContain('Ben')
-    expect(useUiStore.getState().toast).toBe('Deleted Ben, with 2 parent links')
+    const toast = useUiStore.getState().toast!
+    expect(toast.message).toBe('Deleted Ben, with 2 parent links')
+    expect(toast.undoStepId).toBe(useTreeStore.getState().past.at(-1)!.id)
     expect(onClose).toHaveBeenCalled()
-  })
-
-  it('"Keep" backs out of a delete', async () => {
-    const { user } = open(benWithParents())
-    await user.click(screen.getByRole('button', { name: 'Delete Ben' }))
-    await user.click(screen.getByRole('button', { name: 'Keep' }))
-    expect(screen.getByRole('button', { name: 'Delete Ben' })).toBeInTheDocument()
-    expect(people()).toHaveLength(6)
   })
 })

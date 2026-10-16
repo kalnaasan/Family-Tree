@@ -38,7 +38,6 @@ export function PersonPanel({ personId, onClose }: Props) {
   const focusPersonId = useTreeStore((s) => s.focusPersonId)
   const select = useUiStore((s) => s.select)
   const [mode, setMode] = useState<Mode>({ kind: 'view' })
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const headingRef = useRef<HTMLHeadingElement>(null)
 
   const tree = useMemo<Tree>(
@@ -79,13 +78,15 @@ export function PersonPanel({ personId, onClose }: Props) {
   )
 
   const onDelete = () => {
-    const { deletePerson } = useTreeStore.getState()
-    const removed = deletePerson(person.id)
+    const removed = useTreeStore.getState().deletePerson(person.id)
+    const stepId = useTreeStore.getState().past.at(-1)?.id
     const parts = [
       removed.parentLinks.length > 0 && plural(removed.parentLinks.length, 'parent link'),
       removed.partnerships.length > 0 && plural(removed.partnerships.length, 'partnership'),
     ].filter(Boolean)
-    useUiStore.getState().showToast(`Deleted ${removed.person.firstName}${parts.length ? `, with ${parts.join(' and ')}` : ''}`)
+    useUiStore
+      .getState()
+      .showToast(`Deleted ${removed.person.firstName}${parts.length ? `, with ${parts.join(' and ')}` : ''}`, stepId)
     onClose()
   }
 
@@ -183,29 +184,9 @@ export function PersonPanel({ personId, onClose }: Props) {
                 Make Focus person
               </button>
             )}
-            {!confirmingDelete ? (
-              <button
-                type="button"
-                onClick={() => setConfirmingDelete(true)}
-                className="min-h-11 rounded border border-red-800 px-4 text-red-800"
-              >
-                Delete {person.firstName}
-              </button>
-            ) : (
-              <div role="group" aria-label={`Confirm deleting ${person.firstName}`} className="flex flex-col gap-2 rounded border border-red-800 p-3">
-                <p className="text-red-800">
-                  Delete {person.firstName} and their links? Their relatives stay in the tree.
-                </p>
-                <div className="flex gap-2">
-                  <button type="button" onClick={onDelete} className="min-h-11 flex-1 rounded bg-red-800 px-4 font-medium text-white">
-                    Confirm delete
-                  </button>
-                  <button type="button" onClick={() => setConfirmingDelete(false)} className="min-h-11 rounded border border-stone-500 px-4">
-                    Keep
-                  </button>
-                </div>
-              </div>
-            )}
+            <button type="button" onClick={onDelete} className="min-h-11 rounded border border-red-800 px-4 text-red-800">
+              Delete {person.firstName}
+            </button>
           </div>
         </>
       )}
