@@ -1,6 +1,7 @@
 import type { StoreApi } from 'zustand'
 import type { Tree } from '../domain/schema.ts'
 import type { TreeState } from '../domain/store.ts'
+import type { PhotoGc } from '../photos/photoGc.ts'
 import { createAutosave } from './autosave.ts'
 import { usePersistenceStatus } from './saveStatus.ts'
 import type { TreeStorage } from './storage.ts'
@@ -22,8 +23,13 @@ const treeOf = (state: Tree): Tree => ({
  * If storage itself is unavailable, autosave still starts: every write fails visibly ("Could not save") while
  * the Tree stays in memory and can be exported.
  */
-export async function startPersistence(store: StoreApi<TreeState>, storage: TreeStorage): Promise<() => void> {
+export async function startPersistence(
+  store: StoreApi<TreeState>,
+  storage: TreeStorage,
+  photoGc?: Pick<PhotoGc, 'sweep' | 'start' | 'stop'>,
+): Promise<() => void> {
   setStatus({ load: 'loading', loadMessage: null, save: 'saved' })
+  let treeLoaded = false
   try {
     const loaded = await storage.load()
     if (loaded.status === 'loaded') store.getState().loadTree(loaded.tree)
@@ -32,8 +38,16 @@ export async function startPersistence(store: StoreApi<TreeState>, storage: Tree
       return () => {}
     }
     setStatus({ load: 'ready' })
+    treeLoaded = true
   } catch (error) {
     setStatus({ load: 'unavailable', loadMessage: error instanceof Error ? error.message : String(error) })
+  }
+
+  // Photos nothing refers to are deleted on load, then after every change. Only once the saved Tree is really in the
+  // store: with an unreadable or unavailable document the Tree here is not the user's, and a sweep would wipe photos.
+  if (treeLoaded && photoGc) {
+    void photoGc.sweep()
+    photoGc.start()
   }
 
   const autosave = createAutosave({
@@ -66,6 +80,7 @@ export async function startPersistence(store: StoreApi<TreeState>, storage: Tree
     window.removeEventListener('beforeunload', onBeforeUnload)
     window.removeEventListener('pagehide', onPageHide)
     document.removeEventListener('visibilitychange', onVisibilityChange)
+    photoGc?.stop()
     autosave.dispose()
   }
 }

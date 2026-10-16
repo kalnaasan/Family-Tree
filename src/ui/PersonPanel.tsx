@@ -7,6 +7,7 @@ import { useTreeStore } from '../domain/store.ts'
 import { lifeSpan } from '../view/text.ts'
 import { AddRelativeForm } from './AddRelativeForm.tsx'
 import { PersonFields } from './PersonFields.tsx'
+import { Avatar, PhotoField } from './PhotoField.tsx'
 import { type PersonFormValues, toPersonFields, validate, valuesOf } from './personForm.ts'
 import { useUiStore } from './uiStore.ts'
 import { useWideScreen } from './useWideScreen.ts'
@@ -183,7 +184,8 @@ export function PersonPanel({ personId, onClose }: Props) {
         </button>
       )}
       <div className="flex items-start justify-between gap-2">
-        <div>
+        {mode.kind !== 'add' && person.photoId && <Avatar person={person} size={56} />}
+        <div className="min-w-0 flex-1">
           <h2 ref={headingRef} tabIndex={-1} className="text-xl font-semibold outline-offset-4">
             {mode.kind === 'add' ? `Add ${mode.relation} of ${person.firstName}` : person.firstName}
             {mode.kind !== 'add' && person.lastName ? ` ${person.lastName}` : ''}
@@ -308,6 +310,7 @@ function EditForm({ person, onDone }: { person: Person; onDone: () => void }) {
 
   return (
     <form onSubmit={onSubmit} noValidate className="mt-4 flex flex-col gap-4">
+      <PhotoField person={person} />
       <PersonFields values={values} onChange={setValues} errors={errors} showDates autoFocusFirstName />
       <div className="flex gap-2">
         <button type="submit" className="min-h-11 flex-1 rounded bg-green-800 px-4 font-medium text-white">

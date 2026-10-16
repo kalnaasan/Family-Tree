@@ -111,6 +111,48 @@ describe('persistence session', () => {
     expect(usePersistenceStatus.getState().save).toBe('error')
   })
 
+  describe('photo cleanup', () => {
+    const fakeGc = () => ({ sweep: vi.fn().mockResolvedValue(undefined), start: vi.fn(), stop: vi.fn() })
+
+    it('sweeps orphan photos once the saved Tree is in the store, then keeps sweeping, and stops with the session', async () => {
+      const saved = addPerson(emptyTree(), { id: id(1), firstName: 'Anna' })
+      const { storage } = fakeStorage(async () => ({ status: 'loaded', tree: saved }))
+      const gc = fakeGc()
+      const store = createTreeStore()
+      const treeAtSweep: number[] = []
+      gc.sweep.mockImplementation(async () => void treeAtSweep.push(store.getState().persons.length))
+      const cleanup = await startPersistence(store, storage, gc)
+      expect(treeAtSweep).toEqual([1]) // the saved Tree was loaded before the sweep, or it would find no photo in use
+      expect(gc.start).toHaveBeenCalledTimes(1)
+      cleanup()
+      expect(gc.stop).toHaveBeenCalledTimes(1)
+    })
+
+    it('sweeps for a brand-new, empty database too', async () => {
+      const { storage } = fakeStorage(async () => ({ status: 'empty' }))
+      const gc = fakeGc()
+      stop = await startPersistence(createTreeStore(), storage, gc)
+      expect(gc.sweep).toHaveBeenCalledTimes(1)
+      expect(gc.start).toHaveBeenCalledTimes(1)
+    })
+
+    it('never sweeps when the saved document cannot be read: the Tree in memory is not the real one', async () => {
+      const { storage } = fakeStorage(async () => ({ status: 'invalid', rule: 'invalid-data', message: 'bad' }))
+      const gc = fakeGc()
+      stop = await startPersistence(createTreeStore(), storage, gc)
+      expect(gc.sweep).not.toHaveBeenCalled()
+      expect(gc.start).not.toHaveBeenCalled()
+    })
+
+    it('never sweeps when storage is unavailable', async () => {
+      const { storage } = fakeStorage(() => Promise.reject(new Error('IndexedDB blocked')))
+      const gc = fakeGc()
+      stop = await startPersistence(createTreeStore(), storage, gc)
+      expect(gc.sweep).not.toHaveBeenCalled()
+      expect(gc.start).not.toHaveBeenCalled()
+    })
+  })
+
   it('stops listening after cleanup', async () => {
     const save = vi.fn().mockResolvedValue(undefined)
     const { storage } = fakeStorage(async () => ({ status: 'empty' }), save)

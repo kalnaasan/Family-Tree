@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { SaveIndicator } from './components/SaveIndicator.tsx'
 import { useTreeStore } from './domain/store.ts'
 import { usePersistenceStatus } from './persistence/saveStatus.ts'
@@ -6,6 +7,7 @@ import { EmptyState } from './ui/EmptyState.tsx'
 import { ListView } from './ui/ListView.tsx'
 import { PersonPanel } from './ui/PersonPanel.tsx'
 import { SearchBox } from './ui/SearchBox.tsx'
+import { SettingsDialog } from './ui/SettingsDialog.tsx'
 import { Toast } from './ui/Toast.tsx'
 import { UndoControls } from './ui/UndoControls.tsx'
 import { useUndoShortcuts } from './ui/undo.ts'
@@ -24,6 +26,7 @@ export function App() {
   const listView = useUiStore((s) => s.listView)
   const setListView = useUiStore((s) => s.setListView)
   const open = persons.some((p) => p.id === selectedId) ? selectedId : null
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const closePanel = () => {
     select(null)
@@ -49,6 +52,13 @@ export function App() {
             </button>
           )}
           <UndoControls />
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className="min-h-11 rounded border border-stone-500 px-3"
+          >
+            Settings
+          </button>
           <SaveIndicator />
         </div>
       </header>
@@ -79,6 +89,7 @@ export function App() {
         </>
       )}
       <Toast />
+      {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
     </main>
   )
 }
