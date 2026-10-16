@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { type Page, expect, test } from '@playwright/test'
+import { peopleList } from './helpers.ts'
 
 const indicator = (page: Page) => page.getByRole('status')
 
@@ -47,7 +48,7 @@ test('data survives a reload', async ({ page }) => {
   await addPerson(page, 'Ben')
   await expect(indicator(page)).toHaveText('Saved')
   await page.reload()
-  await expect(page.getByRole('list', { name: 'People' }).getByRole('listitem')).toHaveText(['Anna', 'Ben'])
+  await expect(peopleList(page)).toHaveText(['Anna', 'Ben'])
 })
 
 test('a failed write shows the error, keeps the Tree, and the next change retries', async ({ page }) => {
@@ -59,7 +60,7 @@ test('a failed write shows the error, keeps the Tree, and the next change retrie
   await breakWrites(page)
   await addPerson(page, 'Ben')
   await expect(indicator(page)).toHaveText('Could not save')
-  await expect(page.getByRole('list', { name: 'People' }).getByRole('listitem')).toHaveText(['Anna', 'Ben'])
+  await expect(peopleList(page)).toHaveText(['Anna', 'Ben'])
   await expect(page.getByRole('button', { name: 'Export a backup now' })).toBeVisible()
   expect(await leavingWouldPrompt(page)).toBe(true)
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
@@ -70,7 +71,7 @@ test('a failed write shows the error, keeps the Tree, and the next change retrie
   await expect(page.getByRole('button', { name: 'Export a backup now' })).toHaveCount(0)
 
   await page.reload()
-  await expect(page.getByRole('list', { name: 'People' }).getByRole('listitem')).toHaveText(['Anna', 'Ben', 'Cleo'])
+  await expect(peopleList(page)).toHaveText(['Anna', 'Ben', 'Cleo'])
 })
 
 test('no leave prompt when everything is saved', async ({ page }) => {

@@ -1,6 +1,9 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { Profiler } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { deriveRelationships } from '../domain/labels.ts'
+import type { Tree } from '../domain/schema.ts'
+import { addParentLink, addPartnership, addPerson, emptyTree } from '../domain/tree.ts'
 import { generateTree } from '../layout/fixtures.ts'
 import { layoutTree } from '../layout/layoutTree.ts'
 import { NODE_RADIUS, ROOTS_DEPTH, TRUNK_HEIGHT } from './geometry.ts'
@@ -30,18 +33,41 @@ afterEach(() => {
 })
 
 function mount(count: number, options: { focus?: boolean } = {}) {
-  const tree = generateTree(count, 1)
+  return mountTree(generateTree(count, 1), options)
+}
+
+function mountTree(tree: Tree, options: { focus?: boolean } = {}) {
   const layout = layoutTree(tree, { nodeRadius: NODE_RADIUS, trunkHeight: TRUNK_HEIGHT, rootsDepth: ROOTS_DEPTH })
   const focusPersonId = options.focus === false ? null : tree.focusPersonId
+  const labels = new Map([...deriveRelationships({ ...tree, focusPersonId })].map(([id, r]) => [id, r.label]))
   const commits = vi.fn()
+  const onSetFocusPerson = vi.fn()
+  const onSelectPerson = vi.fn()
   render(
     <Profiler id="canvas" onRender={commits}>
-      <TreeCanvas layout={layout} persons={tree.persons} focusPersonId={focusPersonId} />
+      <TreeCanvas
+        layout={layout}
+        persons={tree.persons}
+        focusPersonId={focusPersonId}
+        links={{ parentLinks: tree.parentLinks, partnerships: tree.partnerships }}
+        labels={labels}
+        onSetFocusPerson={onSetFocusPerson}
+        onSelectPerson={onSelectPerson}
+      />
     </Profiler>,
   )
   settle()
   const frame = screen.getByRole('group', { name: 'Family tree' })
-  return { tree, layout, commits, frame, surface: frame.firstElementChild as HTMLElement, focusPersonId }
+  return {
+    tree,
+    layout,
+    commits,
+    frame,
+    surface: frame.firstElementChild as HTMLElement,
+    focusPersonId,
+    onSetFocusPerson,
+    onSelectPerson,
+  }
 }
 
 /** Runs the animation frames and effects a user interaction triggers. */
@@ -202,18 +228,28 @@ describe('keyboard', () => {
     expect(viewOf(frame).y - start.y).toBeCloseTo(-80)
   })
 
-  it('Arrows without Shift and browser zoom shortcuts are left alone', () => {
+  it('browser zoom shortcuts and unrelated keys are left alone', () => {
     const { frame } = mount(150)
     const before = viewOf(frame)
-    expect(fireEvent.keyDown(frame, { key: 'ArrowLeft' })).toBe(true)
+    expect(fireEvent.keyDown(frame, { key: 'x' })).toBe(true)
     expect(fireEvent.keyDown(frame, { key: '+', ctrlKey: true })).toBe(true)
     settle(300)
     expect(viewOf(frame)).toEqual(before)
   })
 
-  it('the tree is one tab stop with a name', () => {
+  it('the tree is one tab stop with a name and instructions', () => {
     const { frame } = mount(15)
-    expect(frame).toHaveAttribute('tabindex', '0')
+    // the tab stop is the keyboard's Person; the frame itself is only reachable by click or script
+    expect(frame).toHaveAttribute('tabindex', '-1')
+    expect(frame.querySelectorAll('[data-person-id][tabindex="0"]')).toHaveLength(1)
+    expect(frame.querySelectorAll('[data-person-id][tabindex="-1"]')).toHaveLength(14)
+    expect(frame).toHaveAccessibleDescription(/Arrow keys move to a parent, child or sibling/)
+  })
+
+  it('an empty tree is itself the tab stop', () => {
+    const layout = layoutTree({ focusPersonId: null, persons: [], parentLinks: [], partnerships: [] })
+    render(<TreeCanvas layout={layout} persons={[]} focusPersonId={null} />)
+    expect(screen.getByRole('group', { name: 'Family tree' })).toHaveAttribute('tabindex', '0')
   })
 })
 
@@ -248,8 +284,10 @@ describe('buttons', () => {
   })
 
   it('every control is at least 44 px', () => {
-    mount(15)
-    for (const button of screen.getAllByRole('button')) expect(button.className).toContain('size-11')
+    const { frame } = mount(15)
+    const controls = frame.querySelectorAll('[data-controls] button')
+    expect(controls).toHaveLength(4)
+    for (const button of controls) expect(button.className).toContain('size-11')
   })
 })
 
@@ -274,6 +312,166 @@ describe('reduced motion', () => {
     expect(zoomOf(frame)).toBeCloseTo(fit, 3)
     settle(300)
     expect(zoomOf(frame)).toBeCloseTo(fit * 1.25, 3)
+  })
+})
+
+const id = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`
+
+/** Karl (1) + Maria (2) have Ben (3, the Focus person) and Anna (4); Ben + Eva (5) have Leo (6). */
+function smallFamily(): Tree {
+  const people: [string, 'male' | 'female'][] = [
+    ['Karl', 'male'], ['Maria', 'female'], ['Ben', 'male'], ['Anna', 'female'], ['Eva', 'female'], ['Leo', 'male'],
+  ]
+  let tree = people.reduce((t, [firstName, gender], i) => addPerson(t, { id: id(i + 1), firstName, gender }), emptyTree())
+  for (const [child, parent] of [[3, 1], [3, 2], [4, 1], [4, 2], [6, 3], [6, 5]] as const) {
+    tree = addParentLink(tree, id(child), id(parent))
+  }
+  tree = addPartnership(tree, { personIds: [id(1), id(2)], status: 'current' })
+  tree = addPartnership(tree, { personIds: [id(3), id(5)], status: 'current' })
+  return { ...tree, focusPersonId: id(3) }
+}
+
+const cursor = (frame: HTMLElement) => frame.querySelector<SVGElement>('[data-person-id][tabindex="0"]')!
+const active = () => document.activeElement?.getAttribute('data-person-id') ?? null
+const spoken = (frame: HTMLElement) => frame.querySelector('[aria-live]')!.textContent!.replace('​', '')
+const press = (key: string, init: KeyboardEventInit = {}) => {
+  fireEvent.keyDown(document.activeElement ?? document.body, { key, ...init })
+  settle(300)
+}
+
+describe('keyboard navigation along family links (spec section 7)', () => {
+  it('starts at the Focus person, named for a screen reader', () => {
+    const { frame } = mountTree(smallFamily())
+    expect(cursor(frame).getAttribute('data-person-id')).toBe(id(3))
+    expect(cursor(frame)).toHaveAccessibleName('Ben, Focus person')
+    expect(frame.querySelector(`[data-person-id="${id(1)}"]`)).toHaveAccessibleName('Karl, father')
+    expect(frame.querySelector(`[data-person-id="${id(4)}"]`)).toHaveAccessibleName('Anna, sister')
+  })
+
+  it.each([
+    ['ArrowUp', 'Karl, father of Ben, 2 children', 1],
+    ['ArrowDown', 'Leo, son of Ben', 6],
+    ['ArrowRight', 'Anna, sister of Ben', 4],
+    ['ArrowLeft', 'Anna, sister of Ben', 4],
+    ['p', 'Eva, wife of Ben, 1 child', 5],
+    ['P', 'Eva, wife of Ben, 1 child', 5],
+  ])('%s moves focus, and the move is announced', (key, said, target) => {
+    const { frame } = mountTree(smallFamily())
+    cursor(frame).focus()
+    press(key)
+    expect(active()).toBe(id(target))
+    expect(spoken(frame)).toBe(said)
+    // roving tab stop: the one tab stop moved with the focus
+    expect(frame.querySelectorAll('[data-person-id][tabindex="0"]')).toHaveLength(1)
+    expect(cursor(frame).getAttribute('data-person-id')).toBe(id(target))
+  })
+
+  it('says so, and stays put, when there is nobody that way', () => {
+    const { frame } = mountTree(smallFamily())
+    cursor(frame).focus()
+    press('ArrowUp') // Karl
+    press('ArrowUp')
+    expect(spoken(frame)).toBe('Karl has no recorded parents')
+    expect(active()).toBe(id(1))
+  })
+
+  it('siblings wrap round, and down returns the way we came up', () => {
+    const { frame } = mountTree(smallFamily())
+    cursor(frame).focus()
+    press('ArrowRight') // Anna
+    press('ArrowRight') // wraps to Ben
+    expect(active()).toBe(id(3))
+    press('ArrowUp') // Karl
+    press('ArrowDown') // back to Ben, the child we came from
+    expect(active()).toBe(id(3))
+  })
+
+  it('Enter and Space open the Person under the keyboard', () => {
+    const { frame, onSelectPerson } = mountTree(smallFamily())
+    cursor(frame).focus()
+    press('ArrowUp')
+    press('Enter')
+    expect(onSelectPerson).toHaveBeenLastCalledWith(id(1))
+    press(' ')
+    expect(onSelectPerson).toHaveBeenCalledTimes(2)
+  })
+
+  it('F makes the Person under the keyboard the Focus person and says so', () => {
+    const { frame, onSetFocusPerson } = mountTree(smallFamily())
+    cursor(frame).focus()
+    press('ArrowUp')
+    press('f')
+    expect(onSetFocusPerson).toHaveBeenCalledWith(id(1))
+    expect(spoken(frame)).toBe('Karl is now the Focus person')
+  })
+
+  it('Home returns to the Focus person', () => {
+    const { frame } = mountTree(smallFamily())
+    cursor(frame).focus()
+    press('ArrowUp')
+    press('ArrowUp')
+    press('Home')
+    expect(active()).toBe(id(3))
+    expect(spoken(frame)).toBe('Ben, Focus person')
+  })
+
+  it('Shift+arrows still pan and do not move between people', () => {
+    const { frame } = mountTree(smallFamily())
+    cursor(frame).focus()
+    press('ArrowUp', { shiftKey: true })
+    expect(active()).toBe(id(3))
+  })
+
+  it('the buttons beside the tree keep their own keys', () => {
+    const { frame, onSelectPerson } = mountTree(smallFamily())
+    screen.getByRole('button', { name: 'Zoom in' }).focus()
+    press('ArrowUp')
+    press('f')
+    press('Enter')
+    expect(cursor(frame).getAttribute('data-person-id')).toBe(id(3))
+    expect(onSelectPerson).not.toHaveBeenCalled()
+  })
+
+  it('a click puts the keyboard where the pointer went', () => {
+    const { frame, onSelectPerson } = mountTreeAndClick()
+    expect(onSelectPerson).toHaveBeenCalledWith(id(4))
+    expect(cursor(frame).getAttribute('data-person-id')).toBe(id(4))
+  })
+
+  function mountTreeAndClick() {
+    const mounted = mountTree(smallFamily())
+    const anna = mounted.frame.querySelector(`[data-person-id="${id(4)}"]`)!
+    pointer('pointerdown', anna, 100, 100)
+    pointer('pointerup', anna, 100, 100)
+    return mounted
+  }
+
+  it('the keyboard Person stays drawn when the view is panned far away from them', () => {
+    const { frame, surface, layout } = mount(500)
+    const before = cursor(frame).getAttribute('data-person-id')
+    pointer('pointerdown', surface, 200, 150)
+    for (let i = 1; i <= 12; i++) {
+      pointer('pointermove', surface, 200 - i * 80, 150)
+      settle(16)
+    }
+    pointer('pointerup', surface, -800, 150)
+    settle()
+    expect(frame.querySelectorAll('[data-person-id]').length).toBeLessThan(layout.count)
+    expect(cursor(frame).getAttribute('data-person-id')).toBe(before)
+  })
+
+  it('moving keeps the Person on screen', () => {
+    const { frame, layout } = mount(500)
+    cursor(frame).focus()
+    for (let i = 0; i < 4; i++) press('ArrowUp')
+    const index = layout.ids.indexOf(active()!)
+    const view = viewOf(frame)
+    const x = layout.x[index]! * view.k + view.x
+    const y = layout.y[index]! * view.k + view.y
+    expect(x).toBeGreaterThan(0)
+    expect(x).toBeLessThan(size.width)
+    expect(y).toBeGreaterThan(0)
+    expect(y).toBeLessThan(size.height)
   })
 })
 

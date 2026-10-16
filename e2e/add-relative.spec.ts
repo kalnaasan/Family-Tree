@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { type Page, expect, test } from '@playwright/test'
 import type { Tree } from '../src/domain/schema.ts'
 import { addParentLink, addPartnership, addPerson, emptyTree } from '../src/domain/tree.ts'
+import { openPerson, panel, peopleList, personButton } from './helpers.ts'
 import { openWithTree } from './seed.ts'
 
 const id = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`
@@ -18,17 +19,8 @@ function benWithTwoParents(): Tree {
   return addParentLink(addParentLink(tree, id(1), id(2)), id(1), id(3))
 }
 
-const peopleList = (page: Page) => page.getByRole('list', { name: 'People' })
-const panel = (page: Page) => page.getByRole('complementary', { name: 'Person details' })
 const group = (page: Page, name: string) => panel(page).getByRole('region', { name })
 const noViolations = async (page: Page) => expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
-
-/** Opens a Person the keyboard way: focus their entry in the People list and press Enter. */
-async function openPerson(page: Page, name: string) {
-  await peopleList(page).getByRole('button', { name, exact: true }).focus()
-  await page.keyboard.press('Enter')
-  await expect(panel(page).getByRole('heading', { level: 2, name })).toBeFocused()
-}
 
 async function openWith(page: Page, tree: Tree, name = 'Ben') {
   await openWithTree(page, tree)
@@ -70,7 +62,7 @@ test.describe('parents', () => {
     await noViolations(page)
     await page.getByRole('button', { name: 'Back', exact: true }).click()
     await expect(group(page, 'Parents')).toContainText('Karl')
-    await expect(peopleList(page).getByRole('listitem')).toHaveCount(3)
+    await expect(peopleList(page)).toHaveCount(3)
   })
 
   test('with one parent, the partnership question defaults to current and shows a preview', async ({ page }) => {
@@ -200,7 +192,7 @@ test.describe('keyboard only', () => {
         const label = el instanceof HTMLInputElement ? el.labels?.[0]?.textContent : null
         return el?.getAttribute('aria-label') ?? label?.trim() ?? el?.textContent?.trim() ?? ''
       })
-      if (focused === name) return
+      if (focused === name || focused.startsWith(`${name},`)) return
     }
     throw new Error(`Tab never reached "${name}"`)
   }
@@ -230,7 +222,7 @@ test.describe('keyboard only', () => {
     await page.keyboard.press('Enter')
     await expect(panel(page).getByRole('heading', { name: 'Zoe' })).toBeFocused()
 
-    await expect(peopleList(page).getByRole('listitem')).toHaveText(['Ben', 'Leo', 'Zoe'])
+    await expect(peopleList(page)).toHaveText(['Ben', 'Leo', 'Zoe'])
   })
 
   test('Escape steps back from a form, then closes the panel and returns to the tree', async ({ page }) => {
@@ -241,7 +233,7 @@ test.describe('keyboard only', () => {
     await expect(panel(page).getByRole('heading', { name: 'Ben' })).toBeFocused()
     await page.keyboard.press('Escape')
     await expect(panel(page)).toHaveCount(0)
-    await expect(page.getByRole('group', { name: 'Family tree' })).toBeFocused()
+    await expect(personButton(page, 'Ben')).toBeFocused() // back where the keyboard was
   })
 
   test('the panel passes axe', async ({ page }) => {
@@ -316,6 +308,6 @@ test.describe('edit, Focus person and delete', () => {
     await panel(page).getByRole('button', { name: 'Delete Ben' }).click()
     await expect(page.getByText('Deleted Ben, with 2 parent links')).toBeVisible()
     await expect(panel(page)).toHaveCount(0)
-    await expect(peopleList(page).getByRole('listitem')).toHaveText(['Karl', 'Maria'])
+    await expect(peopleList(page)).toHaveText(['Karl', 'Maria'])
   })
 })

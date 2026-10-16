@@ -21,4 +21,6 @@ export const PALETTE = {
   focus: '#1f5f8b',
   /** The open Person: a dashed dark ring, a different shape from the Focus person's solid blue one. */
   selected: '#2b2b2b',
+  /** The keyboard focus ring, drawn over a white halo. */
+  cursor: '#111111',
 } as const

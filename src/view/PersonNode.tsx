@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { type ReactNode, memo } from 'react'
 import type { Gender } from '../domain/schema.ts'
 import { NODE_RADIUS } from './geometry.ts'
 import type { LodBucket } from './lod.ts'
@@ -16,10 +16,14 @@ export interface PersonNodeProps {
   name: string
   initial: string
   life: string
+  /** What a screen reader says: "Maria, mother, born 1962". */
+  ariaLabel: string
   gender: Gender
   deceased: boolean
   isFocus: boolean
   isSelected: boolean
+  /** The keyboard's place in the tree: the one Person in the tab order (spec section 7). */
+  isCurrent: boolean
   /** Object URL of the Person's photo. Set by the Photos ticket; without it the default figure is drawn. */
   photoUrl?: string
 }
@@ -56,43 +60,71 @@ function Figure({ gender }: { gender: Gender }) {
   )
 }
 
+/** The keyboard focus ring: white under dark, so it shows on any background. Drawn only while focused (index.css). */
+function CursorRing({ radius }: { radius: number }) {
+  return (
+    <g className="cursor-ring" aria-hidden="true" fill="none">
+      <circle r={radius} stroke="#ffffff" strokeWidth={11} />
+      <circle r={radius} stroke={PALETTE.cursor} strokeWidth={5} />
+    </g>
+  )
+}
+
 /**
  * One Person's medallion. All props are primitives, so a Person is re-rendered only when something about them
- * changed, not when anyone else did.
+ * changed, not when anyone else did. It is a button that opens the Person; only the keyboard's current Person is
+ * in the tab order, the others are reached with the arrow keys.
  */
 export const PersonNode = memo(function PersonNode(props: PersonNodeProps) {
-  const { id, x, y, bucket, name, initial, life, gender, deceased, isFocus, isSelected, photoUrl } = props
+  const { id, x, y, bucket, name, initial, life, ariaLabel, gender, deceased, isFocus, isSelected, isCurrent, photoUrl } =
+    props
+  const ring = ringColor(gender, deceased)
+  // The button holds only shapes and carries the accessible name. The drawn name and dates sit beside it, hidden from
+  // assistive technology, so the visible text is never a label the accessible name fails to contain (WCAG 2.5.3).
+  const button = {
+    'data-person-id': id,
+    role: 'button',
+    'aria-label': ariaLabel,
+    'aria-current': isSelected ? ('true' as const) : undefined,
+    tabIndex: isCurrent ? 0 : -1,
+  }
+  const place = (children: ReactNode) => (
+    <g transform={`translate(${x} ${y})`} data-person-wrapper="">
+      {children}
+    </g>
+  )
   const selection = isSelected && (
     <circle r={NODE_RADIUS + 18} fill="none" stroke={PALETTE.selected} strokeWidth={3} strokeDasharray="8 6" aria-hidden="true" />
   )
-  const ring = ringColor(gender, deceased)
 
   if (bucket === 'dot') {
-    return <circle data-person-id={id} cx={x} cy={y} r={DOT_RADIUS} fill={ring} />
-  }
-
-  if (bucket === 'initial') {
-    return (
-      <g data-person-id={id} transform={`translate(${x} ${y})`}>
-        {selection}
-        {isFocus && <circle r={NODE_RADIUS + 10} fill="none" stroke={PALETTE.focus} strokeWidth={4} />}
-        <circle r={NODE_RADIUS} fill={PALETTE.medallion} stroke={ring} strokeWidth={6} />
-        <text
-          textAnchor="middle"
-          dominantBaseline="central"
-          fontSize={30}
-          fontWeight={600}
-          fill={PALETTE.name}
-          aria-hidden="true"
-        >
-          {initial}
-        </text>
-      </g>
+    return place(
+      <g {...button}>
+        <circle r={DOT_RADIUS} fill={ring} />
+        <CursorRing radius={DOT_RADIUS + 16} />
+      </g>,
     )
   }
 
-  return (
-    <g data-person-id={id} transform={`translate(${x} ${y})`}>
+  if (bucket === 'initial') {
+    return place(
+      <>
+        <g {...button}>
+          {selection}
+          {isFocus && <circle r={NODE_RADIUS + 10} fill="none" stroke={PALETTE.focus} strokeWidth={4} aria-hidden="true" />}
+          <circle r={NODE_RADIUS} fill={PALETTE.medallion} stroke={ring} strokeWidth={6} />
+          <CursorRing radius={NODE_RADIUS + 26} />
+        </g>
+        <text textAnchor="middle" dominantBaseline="central" fontSize={30} fontWeight={600} fill={PALETTE.name} aria-hidden="true" pointerEvents="none">
+          {initial}
+        </text>
+      </>,
+    )
+  }
+
+  return place(
+    <>
+      <g {...button}>
       {bucket === 'full' && (
         <g aria-hidden="true" fill={PALETTE.leaf}>
           {leavesFor(id).map((leaf, n) => (
@@ -101,7 +133,7 @@ export const PersonNode = memo(function PersonNode(props: PersonNodeProps) {
         </g>
       )}
       {selection}
-      {isFocus && <circle r={NODE_RADIUS + 10} fill="none" stroke={PALETTE.focus} strokeWidth={4} />}
+      {isFocus && <circle r={NODE_RADIUS + 10} fill="none" stroke={PALETTE.focus} strokeWidth={4} aria-hidden="true" />}
       <circle r={NODE_RADIUS} fill={PALETTE.medallion} stroke={ring} strokeWidth={6} />
       {photoUrl ? (
         <>
@@ -128,14 +160,16 @@ export const PersonNode = memo(function PersonNode(props: PersonNodeProps) {
           <path d="M0,-5V5M-3.5,-2H3.5" stroke={PALETTE.medallion} strokeWidth={2} fill="none" />
         </g>
       )}
-      <text y={NODE_RADIUS + 20} textAnchor="middle" fontSize={15} fontWeight={600} fill={PALETTE.name}>
+      <CursorRing radius={NODE_RADIUS + 28} />
+      </g>
+      <text y={NODE_RADIUS + 20} textAnchor="middle" fontSize={15} fontWeight={600} fill={PALETTE.name} aria-hidden="true">
         {name}
       </text>
       {life && (
-        <text y={NODE_RADIUS + 37} textAnchor="middle" fontSize={12.5} fill={PALETTE.dates}>
+        <text y={NODE_RADIUS + 37} textAnchor="middle" fontSize={12.5} fill={PALETTE.dates} aria-hidden="true">
           {life}
         </text>
       )}
-    </g>
+    </>,
   )
 })

@@ -1,1 +1,12 @@
 @import 'tailwindcss';
+
+/* The keyboard focus ring of a Person in the tree is drawn by PersonNode, only while it has keyboard focus. */
+.cursor-ring {
+  display: none;
+}
+[data-person-id]:focus {
+  outline: none;
+}
+[data-person-id]:focus-visible > .cursor-ring {
+  display: inline;
+}
