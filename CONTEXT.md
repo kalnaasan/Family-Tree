@@ -39,3 +39,7 @@ _Avoid_: Backup (that means the user's exported file), version
 **Editing tab**:
 The one browser tab that may change the **Tree** at a time. Any other tab open on the same Tree is read-only until the user chooses "Take over editing"; tabs never update each other live.
 _Avoid_: Master tab, leader
+
+**Language**:
+The display language the app is shown in, chosen in Settings: English, Arabic, or follow the browser. A device setting, not part of the **Tree**; backups and exports do not carry it.
+_Avoid_: Locale (that implies region, calendar and number format, which are decided separately)
