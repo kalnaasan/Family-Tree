@@ -23,6 +23,15 @@ export const LANGUAGE_KEY = 'family-tree.language'
 
 const isSetting = (value: unknown): value is LanguageSetting => value === 'auto' || value === 'en' || value === 'ar'
 
+/** The main language of a browser language tag ("ar-EG", "ar_EG" and "AR" are all "ar"); null for a tag that is not one. */
+function mainLanguage(tag: string): string | null {
+  try {
+    return new Intl.Locale(tag.replace(/_/g, '-')).language
+  } catch {
+    return null
+  }
+}
+
 /** The Language to show for a setting. A language that is not available yet is shown as English. */
 export function resolveLanguage(
   setting: LanguageSetting,
@@ -31,7 +40,7 @@ export function resolveLanguage(
 ): Language {
   if (setting !== 'auto') return available.includes(setting) ? setting : 'en'
   for (const tag of browserLanguages) {
-    const main = tag.toLowerCase().split('-')[0]
+    const main = mainLanguage(tag)
     const found = available.find((language) => language === main)
     if (found) return found
   }
@@ -55,6 +64,8 @@ export interface LanguageEnvironment {
   storage: SettingStorage | null
   browserLanguages: readonly string[]
   root: PageRoot
+  /** Calls the listener with the saved value (null: removed) whenever another tab changes it. */
+  watch?: (listener: (value: string | null) => void) => void
 }
 
 interface LanguageState {
@@ -66,6 +77,9 @@ interface LanguageState {
 }
 
 export function createLanguageStore(env: LanguageEnvironment) {
+  /** A language that is not available is not kept as the setting: it would switch on by itself the day it is. */
+  const usable = (setting: LanguageSetting): LanguageSetting =>
+    setting === 'auto' || env.available.includes(setting) ? setting : 'auto'
   const resolve = (setting: LanguageSetting) => resolveLanguage(setting, env.browserLanguages, env.available)
   const show = (language: Language) => {
     env.root.lang = language
@@ -79,13 +93,14 @@ export function createLanguageStore(env: LanguageEnvironment) {
       return null
     }
   })()
-  const setting: LanguageSetting = isSetting(saved) ? saved : 'auto'
+  const setting = isSetting(saved) ? usable(saved) : 'auto'
   show(resolve(setting))
-  return create<LanguageState>()((set) => ({
+  const store = create<LanguageState>()((set) => ({
     setting,
     language: resolve(setting),
     available: env.available,
-    setSetting: (next) => {
+    setSetting: (chosen) => {
+      const next = usable(chosen)
       try {
         env.storage?.setItem(LANGUAGE_KEY, next)
       } catch {
@@ -96,6 +111,14 @@ export function createLanguageStore(env: LanguageEnvironment) {
       set({ setting: next, language })
     },
   }))
+  env.watch?.((value) => {
+    const next = value === null ? 'auto' : isSetting(value) ? usable(value) : null
+    if (next === null) return
+    const language = resolve(next)
+    show(language)
+    store.setState({ setting: next, language })
+  })
+  return store
 }
 
 export type LanguageStore = ReturnType<typeof createLanguageStore>
@@ -109,10 +132,19 @@ function browserStorage(): SettingStorage | null {
   }
 }
 
+/** Another tab changed the setting: `storage` events arrive only in the other tabs. */
+function watchOtherTabs(listener: (value: string | null) => void) {
+  if (typeof window === 'undefined') return
+  window.addEventListener('storage', (event) => {
+    if (event.key === LANGUAGE_KEY || event.key === null) listener(event.newValue)
+  })
+}
+
 /** The app's Language, kept for as long as the page is open. Creating it puts `lang` and `dir` on the page. */
 export const useLanguageStore: LanguageStore = createLanguageStore({
   available: AVAILABLE_LANGUAGES,
   storage: browserStorage(),
   browserLanguages: typeof navigator === 'undefined' ? [] : navigator.languages?.length ? navigator.languages : [navigator.language],
   root: typeof document === 'undefined' ? { lang: '', dir: '' } : document.documentElement,
+  watch: watchOtherTabs,
 })

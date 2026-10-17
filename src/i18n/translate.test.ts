@@ -41,6 +41,12 @@ describe('translator', () => {
       },
     }
 
+    it('refuses a plural message without a numeric count, instead of quietly picking a form', () => {
+      const t = createTranslator('en', plurals)
+      expect(() => t('people')).toThrow(/count/)
+      expect(() => t('people', { count: '2' })).toThrow(/count/)
+    })
+
     it('picks the English form from the count', () => {
       const t = createTranslator('en', plurals)
       expect(t('people', { count: 1 })).toBe('1 person')

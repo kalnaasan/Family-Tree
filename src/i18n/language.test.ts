@@ -8,7 +8,11 @@ function environment(stored?: string, available: ('en' | 'ar')[] = ['en', 'ar'],
   const values = new Map<string, string>(stored === undefined ? [] : [[LANGUAGE_KEY, stored]])
   const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => void values.set(key, value) }
   const root = { lang: '', dir: '' }
-  return { values, storage, root, available, browserLanguages }
+  let notify: (value: string | null) => void = () => {}
+  /** What another tab changing the setting looks like. */
+  const changeInAnotherTab = (value: string | null) => notify(value)
+  const watch = (listener: (value: string | null) => void) => void (notify = listener)
+  return { values, storage, root, available, browserLanguages, watch, changeInAnotherTab }
 }
 
 describe('resolving the Language', () => {
@@ -31,6 +35,11 @@ describe('resolving the Language', () => {
     it('uses English when no browser language is available', () => {
       expect(resolveLanguage('auto', ['de-DE', 'fr'], ['en', 'ar'])).toBe('en')
       expect(resolveLanguage('auto', [], ['en', 'ar'])).toBe('en')
+    })
+
+    it('reads tags written with an underscore, and skips empty ones', () => {
+      expect(resolveLanguage('auto', ['ar_EG'], ['en', 'ar'])).toBe('ar')
+      expect(resolveLanguage('auto', ['', 'ar'], ['en', 'ar'])).toBe('ar')
     })
 
     it('does not follow a browser language that is not available yet', () => {
@@ -89,5 +98,29 @@ describe('the Language setting', () => {
     const document = serializeDocument(generateTree(5, 1))
     expect(document).not.toContain('language')
     expect(document).not.toContain(LANGUAGE_KEY)
+  })
+
+  it('does not keep a language that is not available: it is treated as auto, so it cannot switch on by itself later', () => {
+    const saved = environment('ar', ['en'], ['ar'])
+    expect(createLanguageStore(saved).getState()).toMatchObject({ setting: 'auto', language: 'en' })
+
+    const env = environment(undefined, ['en'], ['ar'])
+    const store = createLanguageStore(env)
+    store.getState().setSetting('ar')
+    expect(store.getState().setting).toBe('auto')
+    expect(env.values.get(LANGUAGE_KEY)).toBe('auto')
+  })
+
+  it('follows a change made in another tab, without saving it again', () => {
+    const env = environment()
+    const store = createLanguageStore(env)
+    env.changeInAnotherTab('ar')
+    expect(store.getState()).toMatchObject({ setting: 'ar', language: 'ar' })
+    expect(env.root).toEqual({ lang: 'ar', dir: 'rtl' })
+    expect(env.values.has(LANGUAGE_KEY)).toBe(false)
+    env.changeInAnotherTab('klingon')
+    expect(store.getState().setting).toBe('ar')
+    env.changeInAnotherTab(null)
+    expect(store.getState()).toMatchObject({ setting: 'auto', language: 'en' })
   })
 })
