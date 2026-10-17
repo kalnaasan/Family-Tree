@@ -1,4 +1,5 @@
 import { type Gender, type Person, partialDateSchema } from '../domain/schema.ts'
+import type { MessageKey } from '../i18n/messages.ts'
 
 /** The text the Person form edits. Strings throughout, so a half-typed date is just text. */
 export interface PersonFormValues {
@@ -10,9 +11,10 @@ export interface PersonFormValues {
   deceased: boolean
 }
 
-export type PersonFormErrors = Partial<Record<'firstName' | 'birthDate' | 'deathDate', string>>
+/** Each error is a dictionary key; the form translates it when it draws it. */
+export type PersonFormErrors = Partial<Record<'firstName' | 'birthDate' | 'deathDate', MessageKey>>
 
-export const DATE_HELP = 'Use YYYY, YYYY-MM or YYYY-MM-DD'
+export const DATE_HELP: MessageKey = 'person.dateHelp'
 
 export const emptyValues = (gender: Gender = 'unknown'): PersonFormValues => ({
   firstName: '',
@@ -34,7 +36,7 @@ export const valuesOf = (person: Person): PersonFormValues => ({
 
 export function validate(values: PersonFormValues): PersonFormErrors {
   const errors: PersonFormErrors = {}
-  if (!values.firstName.trim()) errors.firstName = 'Enter a first name'
+  if (!values.firstName.trim()) errors.firstName = 'person.errorFirstName'
   for (const field of ['birthDate', 'deathDate'] as const) {
     const text = values[field].trim()
     if (text && !partialDateSchema.safeParse(text).success) errors[field] = DATE_HELP

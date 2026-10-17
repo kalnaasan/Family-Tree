@@ -4,6 +4,10 @@ import { relativesOf } from '../domain/groups.ts'
 import { deriveRelationships } from '../domain/labels.ts'
 import type { Person, Tree } from '../domain/schema.ts'
 import { useTreeStore } from '../domain/store.ts'
+import { capitalise, formatList } from '../i18n/format.ts'
+import { useLanguageStore } from '../i18n/language.ts'
+import { type MessageRef, msg } from '../i18n/messageRef.ts'
+import { useT } from '../i18n/useT.ts'
 import { lifeSpan } from '../view/text.ts'
 import { AddRelativeForm } from './AddRelativeForm.tsx'
 import { PersonFields } from './PersonFields.tsx'
@@ -17,14 +21,14 @@ const SWIPE_PX = 40
 
 type Mode = { kind: 'view' } | { kind: 'add'; relation: Relation } | { kind: 'edit' }
 
-const GROUPS: { title: string; add: Relation[] }[] = [
-  { title: 'Parents', add: ['father', 'mother'] },
-  { title: 'Partners', add: ['husband', 'wife', 'partner'] },
-  { title: 'Siblings', add: ['brother', 'sister'] },
-  { title: 'Children', add: ['son', 'daughter', 'child'] },
-]
+type GroupKey = 'parents' | 'partners' | 'siblings' | 'children'
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+const GROUPS: { key: GroupKey; add: Relation[] }[] = [
+  { key: 'parents', add: ['father', 'mother'] },
+  { key: 'partners', add: ['husband', 'wife', 'partner'] },
+  { key: 'siblings', add: ['brother', 'sister'] },
+  { key: 'children', add: ['son', 'daughter', 'child'] },
+]
 
 interface Props {
   personId: string
@@ -37,6 +41,8 @@ interface Props {
  * `key={personId}` so each Person starts from the overview.
  */
 export function PersonPanel({ personId, onClose }: Props) {
+  const t = useT()
+  const language = useLanguageStore((s) => s.language)
   const persons = useTreeStore((s) => s.persons)
   const parentLinks = useTreeStore((s) => s.parentLinks)
   const partnerships = useTreeStore((s) => s.partnerships)
@@ -74,7 +80,7 @@ export function PersonPanel({ personId, onClose }: Props) {
   useEffect(() => {
     if (sheet !== 'expanded' || !focusAddAfterOpen.current) return
     focusAddAfterOpen.current = false
-    panelRef.current?.querySelector<HTMLButtonElement>('button[aria-label^="Add "]')?.focus()
+    panelRef.current?.querySelector<HTMLButtonElement>('button[data-add]')?.focus()
   }, [sheet])
 
   const tree = useMemo<Tree>(
@@ -128,38 +134,49 @@ export function PersonPanel({ personId, onClose }: Props) {
   }
 
   const labelOf = (id: string) => relationships.get(id)?.label ?? null
-  const relativeButton = (relative: Person, note?: string) => (
-    <li key={relative.id}>
-      <button
-        type="button"
-        onClick={() => select(relative.id)}
-        className="min-h-11 rounded-full border border-stone-400 px-4 text-left hover:bg-stone-100"
-      >
-        {relative.firstName}
-        {relative.lastName ? ` ${relative.lastName}` : ''}
-        {[labelOf(relative.id), note].filter(Boolean).length > 0 &&
-          ` · ${[labelOf(relative.id), note].filter(Boolean).join(', ')}`}
-      </button>
-    </li>
-  )
+  const relationWord = (relation: Relation) => t(`relation.${relation}`)
+  const relativeButton = (relative: Person, note?: string) => {
+    const details = [labelOf(relative.id), note].filter((part): part is string => Boolean(part))
+    return (
+      <li key={relative.id}>
+        <button
+          type="button"
+          onClick={() => select(relative.id)}
+          className="min-h-11 rounded-full border border-stone-400 px-4 text-left hover:bg-stone-100"
+        >
+          {relative.firstName}
+          {relative.lastName ? ` ${relative.lastName}` : ''}
+          {details.length > 0 && ` · ${formatList(details, language)}`}
+        </button>
+      </li>
+    )
+  }
 
   const onDelete = () => {
     const removed = useTreeStore.getState().deletePerson(person.id)
     const stepId = useTreeStore.getState().past.at(-1)?.id
+    // what went with them, as messages: the toast is worded in the language in use when it is drawn
     const parts = [
-      removed.parentLinks.length > 0 && plural(removed.parentLinks.length, 'parent link'),
-      removed.partnerships.length > 0 && plural(removed.partnerships.length, 'partnership'),
-    ].filter(Boolean)
+      removed.parentLinks.length > 0 && msg('toast.parentLinks', { count: removed.parentLinks.length }),
+      removed.partnerships.length > 0 && msg('toast.partnerships', { count: removed.partnerships.length }),
+    ].filter((part): part is MessageRef => Boolean(part))
+    const what =
+      parts.length === 2 ? msg('toast.bothParts', { first: parts[0]!, second: parts[1]! }) : parts[0]
     useUiStore
       .getState()
-      .showToast(`Deleted ${removed.person.firstName}${parts.length ? `, with ${parts.join(' and ')}` : ''}`, stepId)
+      .showToast(
+        what
+          ? msg('toast.deletedWith', { name: removed.person.firstName, parts: what })
+          : msg('toast.deleted', { name: removed.person.firstName }),
+        stepId,
+      )
     onClose()
   }
 
   return (
     <aside
       ref={panelRef}
-      aria-label="Person details"
+      aria-label={t('panel.label')}
       onKeyDown={(event) => {
         if (event.key !== 'Escape') return
         event.stopPropagation()
@@ -174,7 +191,7 @@ export function PersonPanel({ personId, onClose }: Props) {
         <button
           type="button"
           aria-expanded={sheet === 'expanded'}
-          aria-label={sheet === 'expanded' ? 'Collapse sheet' : 'Expand sheet'}
+          aria-label={sheet === 'expanded' ? t('panel.collapseSheet') : t('panel.expandSheet')}
           onPointerDown={onHandleDown}
           onPointerUp={onHandleUp}
           onPointerCancel={() => (swipeStart.current = null)}
@@ -188,18 +205,20 @@ export function PersonPanel({ personId, onClose }: Props) {
         {mode.kind !== 'add' && person.photoId && <Avatar person={person} size={56} />}
         <div className="min-w-0 flex-1">
           <h2 ref={headingRef} tabIndex={-1} className="text-xl font-semibold outline-offset-4">
-            {mode.kind === 'add' ? `Add ${mode.relation} of ${person.firstName}` : person.firstName}
+            {mode.kind === 'add'
+              ? t('panel.addTitle', { relation: relationWord(mode.relation), name: person.firstName })
+              : person.firstName}
             {mode.kind !== 'add' && person.lastName ? ` ${person.lastName}` : ''}
           </h2>
           {mode.kind !== 'add' && (
             <p className="text-sm text-stone-700">
-              {[isFocus ? 'Focus person' : label, lifeSpan(person)].filter(Boolean).join(' · ')}
-              {person.deceased && ' · deceased'}
+              {[isFocus ? t('person.focus') : label, lifeSpan(person)].filter(Boolean).join(' · ')}
+              {person.deceased && ` · ${t('person.deceased')}`}
             </p>
           )}
         </div>
         <button type="button" onClick={onClose} className="btn px-3">
-          Close
+          {t('common.close')}
         </button>
       </div>
 
@@ -214,12 +233,7 @@ export function PersonPanel({ personId, onClose }: Props) {
         </div>
       )}
 
-      {mode.kind === 'edit' && !readOnly && (
-        <EditForm
-          person={person}
-          onDone={backToOverview}
-        />
-      )}
+      {mode.kind === 'edit' && !readOnly && <EditForm person={person} onDone={backToOverview} />}
 
       {peeking && (
         <div className="mt-3 flex gap-2">
@@ -232,11 +246,11 @@ export function PersonPanel({ personId, onClose }: Props) {
               }}
               className="btn-primary flex-1  px-4 font-medium text-white"
             >
-              Add relative
+              {t('panel.addRelative')}
             </button>
           )}
           <button type="button" onClick={() => setSheet('expanded')} className="min-h-11 flex-1 rounded border border-line-strong px-4">
-            Details
+            {t('panel.details')}
           </button>
         </div>
       )}
@@ -245,55 +259,60 @@ export function PersonPanel({ personId, onClose }: Props) {
         <>
           {GROUPS.map((group) => {
             const entries =
-              group.title === 'Parents'
+              group.key === 'parents'
                 ? relatives.parents.map((p) => relativeButton(p))
-                : group.title === 'Partners'
-                  ? relatives.partners.map((p) => relativeButton(p.person, p.status === 'ended' ? 'former' : undefined))
-                  : group.title === 'Siblings'
-                    ? relatives.siblings.map((s) => relativeButton(s.person, s.half ? 'half' : undefined))
+                : group.key === 'partners'
+                  ? relatives.partners.map((p) => relativeButton(p.person, p.status === 'ended' ? t('panel.noteFormer') : undefined))
+                  : group.key === 'siblings'
+                    ? relatives.siblings.map((s) => relativeButton(s.person, s.half ? t('panel.noteHalf') : undefined))
                     : relatives.children.map((c) => relativeButton(c))
             return (
-              <section key={group.title} aria-labelledby={`group-${group.title}`} className="mt-5">
-                <h3 id={`group-${group.title}`} className="font-semibold">
-                  {group.title}
+              <section key={group.key} aria-labelledby={`group-${group.key}`} className="mt-5">
+                <h3 id={`group-${group.key}`} className="font-semibold">
+                  {t(`panel.group.${group.key}`)}
                 </h3>
-                {entries.length > 0 ? <ul className="mt-1 flex flex-wrap gap-2">{entries}</ul> : <p className="text-sm text-stone-700">None recorded</p>}
+                {entries.length > 0 ? (
+                  <ul className="mt-1 flex flex-wrap gap-2">{entries}</ul>
+                ) : (
+                  <p className="text-sm text-stone-700">{t('panel.none')}</p>
+                )}
                 <div className="mt-1 flex flex-wrap gap-2">
                   {!readOnly &&
                     group.add.map((relation) => (
-                    <button
-                      key={relation}
-                      type="button"
-                      aria-label={`Add ${relation}`}
-                      onClick={() => setMode({ kind: 'add', relation })}
-                      className="min-h-11 rounded border border-leaf-deep px-3 text-leaf-deep"
-                    >
-                      + {relation[0]!.toUpperCase() + relation.slice(1)}
-                    </button>
-                  ))}
+                      <button
+                        key={relation}
+                        type="button"
+                        data-add=""
+                        aria-label={t('panel.addAria', { relation: relationWord(relation) })}
+                        onClick={() => setMode({ kind: 'add', relation })}
+                        className="min-h-11 rounded border border-leaf-deep px-3 text-leaf-deep"
+                      >
+                        {t('panel.addButton', { relation: capitalise(relationWord(relation)) })}
+                      </button>
+                    ))}
                 </div>
               </section>
             )
           })}
 
           {!readOnly && (
-          <div className="mt-6 flex flex-col gap-2 border-t border-stone-300 pt-4">
-            <button type="button" onClick={() => setMode({ kind: 'edit' })} className="btn px-4">
-              Edit details
-            </button>
-            {!isFocus && (
-              <button
-                type="button"
-                onClick={() => useTreeStore.getState().setFocusPerson(person.id)}
-                className="btn px-4"
-              >
-                Make Focus person
+            <div className="mt-6 flex flex-col gap-2 border-t border-stone-300 pt-4">
+              <button type="button" onClick={() => setMode({ kind: 'edit' })} className="btn px-4">
+                {t('panel.edit')}
               </button>
-            )}
-            <button type="button" onClick={onDelete} className="min-h-11 rounded border border-red-800 px-4 text-red-800">
-              Delete {person.firstName}
-            </button>
-          </div>
+              {!isFocus && (
+                <button
+                  type="button"
+                  onClick={() => useTreeStore.getState().setFocusPerson(person.id)}
+                  className="btn px-4"
+                >
+                  {t('panel.makeFocus')}
+                </button>
+              )}
+              <button type="button" onClick={onDelete} className="min-h-11 rounded border border-red-800 px-4 text-red-800">
+                {t('panel.delete', { name: person.firstName })}
+              </button>
+            </div>
           )}
         </>
       )}
@@ -302,6 +321,7 @@ export function PersonPanel({ personId, onClose }: Props) {
 }
 
 function EditForm({ person, onDone }: { person: Person; onDone: () => void }) {
+  const t = useT()
   const [values, setValues] = useState<PersonFormValues>(() => valuesOf(person))
   const [submitted, setSubmitted] = useState(false)
   const errors = submitted ? validate(values) : {}
@@ -320,10 +340,10 @@ function EditForm({ person, onDone }: { person: Person; onDone: () => void }) {
       <PersonFields values={values} onChange={setValues} errors={errors} showDates autoFocusFirstName />
       <div className="flex gap-2">
         <button type="submit" className="btn-primary flex-1  px-4 font-medium text-white">
-          Save
+          {t('common.save')}
         </button>
         <button type="button" onClick={onDone} className="btn px-4">
-          Cancel
+          {t('common.cancel')}
         </button>
       </div>
     </form>

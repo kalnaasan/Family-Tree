@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { msg } from '../i18n/messageRef.ts'
 import { HISTORY_LIMIT, emptyHistory, pushStep, redoStep, undoStep } from './history.ts'
 import type { Tree } from './schema.ts'
 import { createTreeStore } from './store.ts'
@@ -25,7 +26,7 @@ function family() {
 }
 
 describe('pure history helpers', () => {
-  const step = (n: number) => ({ id: n, label: `s${n}`, before: emptyTree(), after: emptyTree() })
+  const step = (n: number) => ({ id: n, label: msg('step.addPerson'), before: emptyTree(), after: emptyTree() })
 
   it('push, undo and redo move steps between the lists', () => {
     let history = pushStep(emptyHistory(), step(1)).history
@@ -76,7 +77,7 @@ describe('undo and redo in the store', () => {
     expect(after.persons).toHaveLength(5)
 
     const undone = store.getState().undo()
-    expect(undone?.label).toBe('Add brother')
+    expect(undone?.label).toEqual(msg('step.addRelation', { relation: msg('relation.brother') }))
     const restored = snapshot(store)
     expect(restored.persons).toBe(before.persons)
     expect(restored.parentLinks).toBe(before.parentLinks)
@@ -106,7 +107,7 @@ describe('undo and redo in the store', () => {
     expect(removed.partnerships).toHaveLength(1)
     expect(store.getState().focusPersonId).not.toBe(id(1))
 
-    expect(store.getState().undo()?.label).toBe('Delete Ben')
+    expect(store.getState().undo()?.label).toEqual(msg('step.delete', { name: 'Ben' }))
     expect(snapshot(store)).toEqual(before)
     expect(store.getState().focusPersonId).toBe(id(1))
   })

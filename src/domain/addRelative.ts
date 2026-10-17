@@ -1,3 +1,5 @@
+import { type MessageParam, type MessageRef, msg } from '../i18n/messageRef.ts'
+import type { MessageKey } from '../i18n/messages.ts'
 import type { Gender, PartnershipStatus, Person, Tree } from './schema.ts'
 import { type NewPerson, addParentLink, addPartnership, addPerson } from './tree.ts'
 
@@ -34,14 +36,17 @@ export const RELATIONS: Record<Relation, { kind: RelationKind; gender: Gender }>
   child: { kind: 'child', gender: 'unknown' },
 }
 
-/** Name given to the parent created for a sibling of a Person with no recorded parents. Renameable. */
+/**
+ * Name given to the parent created for a sibling of a Person with no recorded parents. Renameable. It is stored with
+ * the Person, so the interface passes it in the language in use (`unnamedParentName`); this is the default.
+ */
 export const UNNAMED_PARENT = 'Unnamed parent'
 
 export type ParentPartnershipAnswer = 'current' | 'ended' | 'none'
 
 export type Question =
   | { kind: 'none' }
-  | { kind: 'blocked'; message: string }
+  | { kind: 'blocked'; message: MessageRef }
   /** The new parent's link to the one birth parent the Person already has. */
   | { kind: 'parent-partnership'; existingParent: Person }
   /** A Person with two birth parents: a full sibling shares both, a half-sibling only one. */
@@ -66,10 +71,24 @@ export interface AddRelativeRequest {
   /** `gender` overrides the one the relation presets. */
   person: Omit<NewPerson, 'id'>
   answers?: RelativeAnswers
+  /** The name of the parent made for a sibling of a Person with no parents; default `UNNAMED_PARENT`. */
+  unnamedParentName?: string
 }
 
 const name = (person: Person) => person.firstName
-const aPartnership = (status: string) => `${status === 'ended' ? 'An' : 'A'} ${status} partnership`
+
+/** "A current partnership" or "An ended partnership", with whom when known. */
+function partnershipLine(status: PartnershipStatus, withName?: string): MessageRef {
+  const key: MessageKey =
+    status === 'ended'
+      ? withName === undefined
+        ? 'preview.partnershipEnded'
+        : 'preview.partnershipEndedWith'
+      : withName === undefined
+        ? 'preview.partnershipCurrent'
+        : 'preview.partnershipCurrentWith'
+  return withName === undefined ? msg(key) : msg(key, { name: withName })
+}
 
 function personOf(tree: Tree, id: string): Person {
   const person = tree.persons.find((p) => p.id === id)
@@ -104,7 +123,7 @@ export function questionFor(tree: Tree, anchorId: string, relation: Relation): Q
   switch (RELATIONS[relation].kind) {
     case 'parent':
       if (parents.length >= 2) {
-        return { kind: 'blocked', message: `${name(anchor)} already has two birth parents, so a third cannot be added.` }
+        return { kind: 'blocked', message: msg('addRelative.blockedParents', { name: name(anchor) }) }
       }
       return parents.length === 1 ? { kind: 'parent-partnership', existingParent: parents[0]! } : { kind: 'none' }
     case 'sibling':
@@ -162,7 +181,7 @@ export function addRelative(tree: Tree, request: AddRelativeRequest): { tree: Tr
       let parentIds = siblingParentIds(tree, anchorId, answers)
       if (parentIds.length === 0) {
         const parentId = crypto.randomUUID()
-        next = addPerson(next, { id: parentId, firstName: UNNAMED_PARENT })
+        next = addPerson(next, { id: parentId, firstName: request.unnamedParentName ?? UNNAMED_PARENT })
         next = addParentLink(next, anchorId, parentId)
         parentIds = [parentId]
       }
@@ -182,50 +201,64 @@ export function addRelative(tree: Tree, request: AddRelativeRequest): { tree: Tr
   return { tree: next, personId }
 }
 
-/** Plain-language lines for "This will create: ...". */
-export function previewFor(tree: Tree, request: AddRelativeRequest): string[] {
+/** The lines of "This will create: ...", as messages the form words in the language in use. */
+export function previewFor(tree: Tree, request: AddRelativeRequest): MessageRef[] {
   const { anchorId, relation } = request
   const answers = request.answers ?? {}
   const anchor = personOf(tree, anchorId)
-  const who = request.person.firstName.trim() || 'The new person'
-  const lines: string[] = []
+  const typed = request.person.firstName.trim()
+  const who: MessageParam = typed || msg('preview.newPerson')
+  const relationWord = msg(`relation.${relation}` as MessageKey)
+  const relationLine = () => msg('preview.relationOf', { who, relation: relationWord, name: name(anchor) })
+  const lines: MessageRef[] = []
 
   switch (RELATIONS[relation].kind) {
     case 'parent': {
-      lines.push(`${who}, ${relation} of ${name(anchor)}`)
+      lines.push(relationLine())
       const existing = birthParentsOf(tree, anchorId)
       const answer = answers.parentPartnership ?? 'current'
       if (existing.length === 1) {
         lines.push(
           answer === 'none'
-            ? `No partnership with ${name(existing[0]!)}`
-            : `${aPartnership(answer)} with ${name(existing[0]!)}`,
+            ? msg('preview.noPartnership', { name: name(existing[0]!) })
+            : partnershipLine(answer, name(existing[0]!)),
         )
       }
       break
     }
     case 'sibling': {
-      lines.push(`${who}, ${relation} of ${name(anchor)}`)
+      lines.push(relationLine())
       const parents = birthParentsOf(tree, anchorId)
       if (parents.length === 0) {
-        lines.push(`A new parent, "${UNNAMED_PARENT}", of both (you can rename them)`)
+        lines.push(msg('preview.newParent', { name: request.unnamedParentName ?? UNNAMED_PARENT }))
       } else {
         const shared = siblingParentIds(tree, anchorId, answers).map((id) => name(personOf(tree, id)))
         lines.push(
           parents.length === 2 && shared.length === 1
-            ? `Half-sibling: shares only ${shared[0]} as parent`
-            : `Same ${shared.length > 1 ? 'parents' : 'parent'}: ${shared.join(' and ')}`,
+            ? msg('preview.halfSibling', { parent: shared[0]! })
+            : shared.length > 1
+              ? msg('preview.sameParents', { first: shared[0]!, second: shared[1]! })
+              : msg('preview.sameParent', { name: shared[0]! }),
         )
       }
       break
     }
     case 'partner':
-      lines.push(`${who}, ${relation} of ${name(anchor)}`)
-      lines.push(aPartnership(answers.partnerStatus ?? 'current'))
+      lines.push(relationLine())
+      lines.push(partnershipLine(answers.partnerStatus ?? 'current'))
       break
     case 'child': {
       const other = otherParentId(tree, anchorId, answers)
-      lines.push(`${who}, ${relation} of ${name(anchor)}${other ? ` and ${name(personOf(tree, other))}` : ''}`)
+      lines.push(
+        other
+          ? msg('preview.relationOfTwo', {
+              who,
+              relation: relationWord,
+              name: name(anchor),
+              other: name(personOf(tree, other)),
+            })
+          : relationLine(),
+      )
       break
     }
   }

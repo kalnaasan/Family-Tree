@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { UNNAMED_PARENT, addRelative, previewFor, questionFor } from './addRelative.ts'
+import { renderEnglish } from '../i18n/testing.ts'
+import { UNNAMED_PARENT, addRelative, previewFor as previewRefs, questionFor } from './addRelative.ts'
 import { IntegrityError } from './integrity.ts'
 import { deriveRelationships } from './labels.ts'
 import type { Tree } from './schema.ts'
@@ -61,7 +62,7 @@ describe('adding a parent', () => {
     const tree = benWithTwoParents()
     const question = questionFor(tree, id(1), 'father')
     expect(question.kind).toBe('blocked')
-    expect(question.kind === 'blocked' && question.message).toContain('two birth parents')
+    expect(question.kind === 'blocked' && renderEnglish(question.message)).toContain('two birth parents')
     expect(() => addRelative(tree, { anchorId: id(1), relation: 'father', person: { firstName: 'Third' } })).toThrow(
       IntegrityError,
     )
@@ -239,6 +240,9 @@ describe('as one store action', () => {
     expect(store.getState().persons).toBe(before)
   })
 })
+
+/** What the user reads: the lines of the preview, in English. */
+const previewFor = (...args: Parameters<typeof previewRefs>) => previewRefs(...args).map(renderEnglish)
 
 describe('previewFor', () => {
   it('words what will be created', () => {

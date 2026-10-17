@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_PHOTO_BYTES, sniffImage, validatePhotoFile } from './sniff.ts'
+import { renderEnglish } from '../i18n/testing.ts'
+import { MAX_PHOTO_BYTES, type PhotoCheck, sniffImage, validatePhotoFile } from './sniff.ts'
+
+/** What the user reads when the file is turned away, in English; the check itself when it is fine. */
+const said = (check: PhotoCheck) => (check.ok ? check : { ok: false, message: renderEnglish(check.message) })
 
 const bytes = (...values: (number | string)[]) =>
   Uint8Array.from(values.flatMap((v) => (typeof v === 'string' ? [...v].map((c) => c.charCodeAt(0)) : [v])))
@@ -44,17 +48,17 @@ describe('validatePhotoFile', () => {
   })
 
   it('rejects a HEIC photo and says to convert it to JPEG', async () => {
-    const result = await validatePhotoFile(file(HEIC, 'IMG_0001.HEIC'))
+    const result = said(await validatePhotoFile(file(HEIC, 'IMG_0001.HEIC')))
     expect(result).toEqual({ ok: false, message: 'That is a HEIC photo, which browsers cannot open. Convert it to JPEG first.' })
   })
 
   it('rejects a HEIC file by its name when the bytes are not recognised either', async () => {
-    const result = await validatePhotoFile(file(bytes('????????????'), 'IMG.heif'))
+    const result = said(await validatePhotoFile(file(bytes('????????????'), 'IMG.heif')))
     expect(result.ok === false && result.message).toMatch(/HEIC/)
   })
 
   it('rejects other files by what they are, not what they are called', async () => {
-    expect(await validatePhotoFile(file(bytes('%PDF-1.7 not a photo'), 'photo.jpg'))).toEqual({
+    expect(said(await validatePhotoFile(file(bytes('%PDF-1.7 not a photo'), 'photo.jpg')))).toEqual({
       ok: false,
       message: 'That file is not a JPEG, PNG or WebP photo.',
     })
@@ -62,7 +66,7 @@ describe('validatePhotoFile', () => {
   })
 
   it('rejects a file over 25 MB and says its size', async () => {
-    const result = await validatePhotoFile(file(JPEG, 'big.jpg', MAX_PHOTO_BYTES + 1.2 * 1024 * 1024))
+    const result = said(await validatePhotoFile(file(JPEG, 'big.jpg', MAX_PHOTO_BYTES + 1.2 * 1024 * 1024)))
     expect(result).toEqual({ ok: false, message: 'That file is 26.2 MB. Photos can be up to 25 MB.' })
   })
 
@@ -71,6 +75,6 @@ describe('validatePhotoFile', () => {
   })
 
   it('rejects an empty file', async () => {
-    expect(await validatePhotoFile(file(new Uint8Array(), 'empty.jpg'))).toEqual({ ok: false, message: 'That file is empty.' })
+    expect(said(await validatePhotoFile(file(new Uint8Array(), 'empty.jpg')))).toEqual({ ok: false, message: 'That file is empty.' })
   })
 })

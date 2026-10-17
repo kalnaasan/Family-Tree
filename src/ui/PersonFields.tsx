@@ -1,12 +1,14 @@
 import { useId } from 'react'
 import type { Gender } from '../domain/schema.ts'
+import type { MessageKey } from '../i18n/messages.ts'
+import { useT } from '../i18n/useT.ts'
 import { DATE_HELP, type PersonFormErrors, type PersonFormValues } from './personForm.ts'
 
-const GENDERS: { value: Gender; label: string }[] = [
-  { value: 'female', label: 'Female' },
-  { value: 'male', label: 'Male' },
-  { value: 'other', label: 'Other' },
-  { value: 'unknown', label: 'Not specified' },
+const GENDERS: { value: Gender; label: MessageKey }[] = [
+  { value: 'female', label: 'gender.female' },
+  { value: 'male', label: 'gender.male' },
+  { value: 'other', label: 'gender.other' },
+  { value: 'unknown', label: 'gender.unknown' },
 ]
 
 const inputClass = 'mt-1 block min-h-11 w-full rounded border border-line-strong bg-white px-2'
@@ -22,6 +24,7 @@ interface Props {
 
 /** The fields shared by "add the first person", "add a relative" and "edit". */
 export function PersonFields({ values, onChange, errors = {}, showDates = false, autoFocusFirstName = false }: Props) {
+  const t = useT()
   const id = useId()
   const set = <K extends keyof PersonFormValues>(key: K, value: PersonFormValues[K]) =>
     onChange({ ...values, [key]: value })
@@ -30,7 +33,7 @@ export function PersonFields({ values, onChange, errors = {}, showDates = false,
     <div className="flex flex-col gap-3">
       <div>
         <label htmlFor={`${id}-first`} className="text-sm font-medium">
-          First name
+          {t('fields.firstName')}
         </label>
         <input
           id={`${id}-first`}
@@ -44,13 +47,13 @@ export function PersonFields({ values, onChange, errors = {}, showDates = false,
         />
         {errors.firstName && (
           <p id={`${id}-first-error`} className="mt-1 text-sm text-red-800">
-            {errors.firstName}
+            {t(errors.firstName)}
           </p>
         )}
       </div>
       <div>
         <label htmlFor={`${id}-last`} className="text-sm font-medium">
-          Last name (optional)
+          {t('fields.lastName')}
         </label>
         <input
           id={`${id}-last`}
@@ -62,7 +65,7 @@ export function PersonFields({ values, onChange, errors = {}, showDates = false,
       </div>
       <div>
         <label htmlFor={`${id}-gender`} className="text-sm font-medium">
-          Gender
+          {t('fields.gender')}
         </label>
         <select
           id={`${id}-gender`}
@@ -72,7 +75,7 @@ export function PersonFields({ values, onChange, errors = {}, showDates = false,
         >
           {GENDERS.map((g) => (
             <option key={g.value} value={g.value}>
-              {g.label}
+              {t(g.label)}
             </option>
           ))}
         </select>
@@ -82,20 +85,20 @@ export function PersonFields({ values, onChange, errors = {}, showDates = false,
           {(['birthDate', 'deathDate'] as const).map((field) => (
             <div key={field}>
               <label htmlFor={`${id}-${field}`} className="text-sm font-medium">
-                {field === 'birthDate' ? 'Born (optional)' : 'Died (optional)'}
+                {field === 'birthDate' ? t('fields.born') : t('fields.died')}
               </label>
               <input
                 id={`${id}-${field}`}
                 value={values[field]}
                 onChange={(e) => set(field, e.target.value)}
-                placeholder="YYYY-MM-DD"
+                placeholder={t('fields.datePlaceholder')}
                 autoComplete="off"
                 aria-invalid={errors[field] ? true : undefined}
                 aria-describedby={`${id}-${field}-help`}
                 className={inputClass}
               />
               <p id={`${id}-${field}-help`} className={`mt-1 text-sm ${errors[field] ? 'text-red-800' : 'text-stone-700'}`}>
-                {errors[field] ?? DATE_HELP}
+                {t(errors[field] ?? DATE_HELP)}
               </p>
             </div>
           ))}
@@ -107,7 +110,7 @@ export function PersonFields({ values, onChange, errors = {}, showDates = false,
               onChange={(e) => set('deceased', e.target.checked)}
               className="size-5"
             />
-            Deceased
+            {t('fields.deceased')}
           </label>
         </>
       )}

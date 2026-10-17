@@ -35,3 +35,29 @@ export function formatNumber(value: number, language: Language): string {
   }
   return format.format(value)
 }
+
+const conjunctions = new Map<Language, Intl.ListFormat>()
+
+/** What separates the parts of a plain list. */
+const SEPARATOR: Record<Language, string> = { en: ', ', ar: '، ' }
+
+/**
+ * "Ana, Ben, Cy": the parts joined with the separator of the Language (Arabic writes "،"). With `'and'` the last two
+ * are joined by the Language's own word for it ("a and b"; Arabic "و"). A plain list never gets an "and" of its own,
+ * because `Intl.ListFormat` would put one before every part in Arabic.
+ */
+export function formatList(items: readonly string[], language: Language, join: 'plain' | 'and' = 'plain'): string {
+  if (join === 'plain') return items.join(SEPARATOR[language])
+  let format = conjunctions.get(language)
+  if (!format) {
+    format = new Intl.ListFormat(language, { type: 'conjunction', style: 'long' })
+    conjunctions.set(language, format)
+  }
+  return format.format(items)
+}
+
+/** "Father" from "father"; text in a script without case (Arabic) comes back unchanged. */
+export function capitalise(text: string): string {
+  const [first = '', ...rest] = Array.from(text)
+  return first.toLocaleUpperCase() + rest.join('')
+}

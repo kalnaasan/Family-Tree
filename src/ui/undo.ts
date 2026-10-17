@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useTreeStore } from '../domain/store.ts'
+import { msg } from '../i18n/messageRef.ts'
 import { focusTree } from '../view/focusTree.ts'
 import { useUiStore } from './uiStore.ts'
 
@@ -15,14 +16,14 @@ function closePanelIfPersonGone(): void {
 export function undoLatest(): void {
   const step = useTreeStore.getState().undo()
   if (!step) return
-  useUiStore.getState().showToast(`Undid: ${step.label}`)
+  useUiStore.getState().showToast(msg('toast.undid', { what: step.label }))
   closePanelIfPersonGone()
 }
 
 export function redoLatest(): void {
   const step = useTreeStore.getState().redo()
   if (!step) return
-  useUiStore.getState().showToast(`Redid: ${step.label}`)
+  useUiStore.getState().showToast(msg('toast.redid', { what: step.label }))
   closePanelIfPersonGone()
 }
 

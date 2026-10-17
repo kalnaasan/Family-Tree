@@ -9,6 +9,9 @@ import {
 } from '../domain/addRelative.ts'
 import type { Person, Tree } from '../domain/schema.ts'
 import { useTreeStore } from '../domain/store.ts'
+import { renderMessage } from '../i18n/messageRef.ts'
+import type { MessageKey } from '../i18n/messages.ts'
+import { useT } from '../i18n/useT.ts'
 import { PersonFields } from './PersonFields.tsx'
 import { type PersonFormValues, emptyValues, toPersonFields, validate } from './personForm.ts'
 
@@ -34,6 +37,7 @@ function Choice(props: { name: string; checked: boolean; onSelect: () => void; c
  * ends with "This will create: ..." so nothing happens that the user has not seen.
  */
 export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
+  const t = useT()
   const persons = useTreeStore((s) => s.persons)
   const parentLinks = useTreeStore((s) => s.parentLinks)
   const partnerships = useTreeStore((s) => s.partnerships)
@@ -55,6 +59,8 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
     relation,
     person: { firstName: values.firstName, gender: values.gender },
     answers,
+    // stored with the new parent, so it is made in the language in use now
+    unnamedParentName: t('person.unnamedParent'),
   }
   const preview = previewFor(tree, request)
   const errors = submitted ? validate(values) : {}
@@ -69,10 +75,12 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
         relation,
         person: toPersonFields(values),
         answers,
+        unnamedParentName: request.unnamedParentName,
       })
       onDone(personId)
     } catch (error) {
-      setFailure(error instanceof Error ? error.message : 'This could not be added.')
+      // the reason is a rule of the Tree's integrity, technical detail that stays in English
+      setFailure(t('addForm.failure', { detail: error instanceof Error ? error.message : String(error) }))
     }
   }
 
@@ -80,10 +88,10 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
     return (
       <div className="flex flex-col gap-3">
         <p role="alert" className="rounded border border-red-800 p-3 text-red-800">
-          {question.message}
+          {renderMessage(t, question.message)}
         </p>
         <button type="button" onClick={onCancel} className="btn px-4">
-          Back
+          {t('addForm.back')}
         </button>
       </div>
     )
@@ -96,14 +104,14 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
       {question.kind === 'parent-partnership' && (
         <fieldset>
           <legend className="text-sm font-medium">
-            How is the new parent connected to {question.existingParent.firstName}?
+            {t('addForm.parentPartnership', { name: question.existingParent.firstName })}
           </legend>
           {(
             [
-              ['current', 'Current partner'],
-              ['ended', 'Former partner (ended)'],
-              ['none', 'Not partners'],
-            ] as const
+              ['current', 'addForm.partnerCurrent'],
+              ['ended', 'addForm.partnerEnded'],
+              ['none', 'addForm.partnerNone'],
+            ] as const satisfies readonly (readonly [string, MessageKey])[]
           ).map(([value, label]) => (
             <Choice
               key={value}
@@ -111,7 +119,7 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
               checked={(answers.parentPartnership ?? 'current') === value}
               onSelect={() => setAnswers({ ...answers, parentPartnership: value })}
             >
-              {label}
+              {t(label)}
             </Choice>
           ))}
         </fieldset>
@@ -119,13 +127,13 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
 
       {question.kind === 'sibling-parents' && (
         <fieldset>
-          <legend className="text-sm font-medium">Which parents do they share?</legend>
+          <legend className="text-sm font-medium">{t('addForm.siblingParents')}</legend>
           <Choice
             name={`${name}-parents`}
             checked={(answers.siblingParents ?? 'both') === 'both'}
             onSelect={() => setAnswers({ ...answers, siblingParents: 'both' })}
           >
-            Both: {question.parents[0].firstName} and {question.parents[1].firstName}
+            {t('addForm.sharesBoth', { first: question.parents[0].firstName, second: question.parents[1].firstName })}
           </Choice>
           {question.parents.map((parent) => (
             <Choice
@@ -134,7 +142,7 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
               checked={answers.siblingParents === parent.id}
               onSelect={() => setAnswers({ ...answers, siblingParents: parent.id })}
             >
-              Only {parent.firstName} (half-sibling)
+              {t('addForm.sharesOnly', { name: parent.firstName })}
             </Choice>
           ))}
         </fieldset>
@@ -142,7 +150,7 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
 
       {question.kind === 'child-other-parent' && (
         <fieldset>
-          <legend className="text-sm font-medium">Who is the other parent?</legend>
+          <legend className="text-sm font-medium">{t('addForm.otherParent')}</legend>
           {question.partners.map(({ person, status }) => (
             <Choice
               key={person.id}
@@ -150,7 +158,7 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
               checked={(answers.otherParentId === undefined ? question.defaultParentId : answers.otherParentId) === person.id}
               onSelect={() => setAnswers({ ...answers, otherParentId: person.id })}
             >
-              {person.firstName} ({status === 'current' ? 'current partner' : 'former partner'})
+              {t(status === 'current' ? 'addForm.otherCurrent' : 'addForm.otherFormer', { name: person.firstName })}
             </Choice>
           ))}
           <Choice
@@ -158,19 +166,19 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
             checked={(answers.otherParentId === undefined ? question.defaultParentId : answers.otherParentId) === null}
             onSelect={() => setAnswers({ ...answers, otherParentId: null })}
           >
-            Nobody / not recorded
+            {t('addForm.otherNobody')}
           </Choice>
         </fieldset>
       )}
 
       {question.kind === 'partner-status' && (
         <fieldset>
-          <legend className="text-sm font-medium">Is this partnership current or ended?</legend>
+          <legend className="text-sm font-medium">{t('addForm.partnerStatus')}</legend>
           {(
             [
-              ['current', 'Current'],
-              ['ended', 'Ended'],
-            ] as const
+              ['current', 'addForm.statusCurrent'],
+              ['ended', 'addForm.statusEnded'],
+            ] as const satisfies readonly (readonly [string, MessageKey])[]
           ).map(([value, label]) => (
             <Choice
               key={value}
@@ -178,17 +186,17 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
               checked={(answers.partnerStatus ?? 'current') === value}
               onSelect={() => setAnswers({ ...answers, partnerStatus: value })}
             >
-              {label}
+              {t(label)}
             </Choice>
           ))}
         </fieldset>
       )}
 
       <div aria-live="polite" className="rounded bg-stone-100 p-3 text-sm">
-        <p className="font-medium">This will create:</p>
+        <p className="font-medium">{t('preview.title')}</p>
         <ul className="mt-1 list-disc pl-5">
-          {preview.map((line) => (
-            <li key={line}>{line}</li>
+          {preview.map((line, n) => (
+            <li key={n}>{renderMessage(t, line)}</li>
           ))}
         </ul>
       </div>
@@ -201,10 +209,10 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
 
       <div className="flex gap-2">
         <button type="submit" className="btn-primary flex-1  px-4 font-medium text-white">
-          Add {relation}
+          {t('addForm.submit', { relation: t(`relation.${relation}`) })}
         </button>
         <button type="button" onClick={onCancel} className="btn px-4">
-          Cancel
+          {t('common.cancel')}
         </button>
       </div>
     </form>

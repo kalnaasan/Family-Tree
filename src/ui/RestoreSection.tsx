@@ -1,29 +1,22 @@
 import { useEffect, useId, useState } from 'react'
 import { backupService } from '../backup/backup.ts'
-import { type SnapshotInfo, type SnapshotReason, snapshotKeeper } from '../backup/snapshots.ts'
+import { type SnapshotInfo, snapshotKeeper } from '../backup/snapshots.ts'
 import { useTreeStore } from '../domain/store.ts'
-import { useLanguageStore } from '../i18n/language.ts'
-import { formatWhen } from './dates.ts'
-
-const REASON: Record<SnapshotReason, string> = {
-  load: 'when the app opened',
-  hourly: 'while editing',
-  import: 'before an import',
-  restore: 'before a restore',
-}
-
-const people = (count: number) => `${count} ${count === 1 ? 'person' : 'people'}`
+import { type MessageRef, msg, renderMessage } from '../i18n/messageRef.ts'
+import { useT } from '../i18n/useT.ts'
+import { useWhen } from './dates.ts'
 
 /** Settings: "Restore a previous version" (spec section 10), from the up to five copies kept automatically. */
-export function RestoreSection({ onRestored }: { onRestored: (message: string) => void }) {
+export function RestoreSection({ onRestored }: { onRestored: (message: MessageRef) => void }) {
+  const t = useT()
+  const when = useWhen()
   const titleId = useId()
   const currentCount = useTreeStore((s) => s.persons.length)
   const readOnly = useTreeStore((s) => s.readOnly)
-  const language = useLanguageStore((s) => s.language)
   const [versions, setVersions] = useState<SnapshotInfo[] | 'unavailable' | null>(null)
   const [choosing, setChoosing] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [problem, setProblem] = useState<string | null>(null)
+  const [problem, setProblem] = useState<MessageRef | null>(null)
 
   useEffect(() => {
     let current = true
@@ -42,7 +35,7 @@ export function RestoreSection({ onRestored }: { onRestored: (message: string) =
     const result = await backupService.restoreSnapshot(version.id)
     setBusy(false)
     if (result.ok) {
-      onRestored(`Restored the version from ${formatWhen(version.takenAt, language)}. Your previous tree is kept as a version too.`)
+      onRestored(msg('restore.done', { when: when(version.takenAt) }))
     } else {
       setProblem(result.message)
     }
@@ -51,32 +44,33 @@ export function RestoreSection({ onRestored }: { onRestored: (message: string) =
   return (
     <section aria-labelledby={titleId} className="mt-5">
       <h3 id={titleId} className="font-semibold">
-        Restore a previous version
+        {t('restore.title')}
       </h3>
-      {readOnly && (
-        <p className="mt-1 text-stone-700">Importing and restoring are for the tab that is editing.</p>
-      )}
+      {readOnly && <p className="mt-1 text-stone-700">{t('restore.readOnlyNote')}</p>}
       {versions === null ? (
-        <p className="mt-1 text-stone-700">Checking…</p>
+        <p className="mt-1 text-stone-700">{t('common.checking')}</p>
       ) : versions === 'unavailable' ? (
-        <p className="mt-1 text-stone-700">Earlier versions could not be read.</p>
+        <p className="mt-1 text-stone-700">{t('restore.unavailable')}</p>
       ) : versions.length === 0 ? (
-        <p className="mt-1 text-stone-700">No earlier versions yet. They are kept automatically as you work.</p>
+        <p className="mt-1 text-stone-700">{t('restore.none')}</p>
       ) : (
         <ul className="mt-1 flex flex-col gap-2">
           {versions.map((version) => {
-            const when = formatWhen(version.takenAt, language)
+            const at = when(version.takenAt)
+            const people = (count: number) => renderMessage(t, msg('common.people', { count }))
             return (
               <li key={version.id} className="rounded border border-stone-300 p-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span>
-                    {when} · {people(version.personCount)}
-                    <span className="text-stone-700"> ({REASON[version.reason]})</span>
+                    {t('restore.line', { when: at, people: people(version.personCount) })}{' '}
+                    <span className="text-stone-700">
+                      {t('restore.reasonNote', { reason: t(`restore.reason.${version.reason}`) })}
+                    </span>
                   </span>
                   {choosing !== version.id && (
                     <button
                       type="button"
-                      aria-label={`Restore the version from ${when}`}
+                      aria-label={t('restore.buttonAria', { when: at })}
                       onClick={() => {
                         setProblem(null)
                         setChoosing(version.id)
@@ -84,15 +78,14 @@ export function RestoreSection({ onRestored }: { onRestored: (message: string) =
                       disabled={busy || readOnly}
                       className="btn px-3 disabled:opacity-60"
                     >
-                      Restore
+                      {t('restore.button')}
                     </button>
                   )}
                 </div>
                 {choosing === version.id && (
-                  <div role="group" aria-label={`Restore the version from ${when}?`} className="mt-2">
+                  <div role="group" aria-label={t('restore.groupAria', { when: at })} className="mt-2">
                     <p>
-                      Your tree has {people(currentCount)}; this version has {people(version.personCount)}. Your tree is
-                      replaced, and kept as a version too.
+                      {t('restore.question', { current: people(currentCount), version: people(version.personCount) })}
                     </p>
                     <div className="mt-2 flex gap-2">
                       <button
@@ -101,7 +94,7 @@ export function RestoreSection({ onRestored }: { onRestored: (message: string) =
                         disabled={busy}
                         className="min-h-11 rounded bg-red-800 px-3 font-medium text-white disabled:opacity-60"
                       >
-                        Restore this version
+                        {t('restore.confirm')}
                       </button>
                       <button
                         type="button"
@@ -109,7 +102,7 @@ export function RestoreSection({ onRestored }: { onRestored: (message: string) =
                         disabled={busy}
                         className="btn px-3 disabled:opacity-60"
                       >
-                        Cancel
+                        {t('common.cancel')}
                       </button>
                     </div>
                   </div>
@@ -121,7 +114,7 @@ export function RestoreSection({ onRestored }: { onRestored: (message: string) =
       )}
       {problem && (
         <p role="alert" className="mt-2 text-red-800">
-          {problem}
+          {renderMessage(t, problem)}
         </p>
       )}
     </section>

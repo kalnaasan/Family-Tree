@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createTreeStore } from '../domain/store.ts'
+import { msg } from '../i18n/messageRef.ts'
 import { type MemoryPhotoStore, memoryPhotoStore } from './memoryPhotoStore.ts'
 import { createPhotoGc } from './photoGc.ts'
 import { createPhotoService } from './photoService.ts'
@@ -27,7 +28,7 @@ describe('setPhoto', () => {
     expect(await service.setPhoto(ANNA, blob)).toEqual({ ok: true })
     expect(photos.blobs.get(PHOTO)).toBe(blob)
     expect(store.getState().persons[0]!.photoId).toBe(PHOTO)
-    expect(store.getState().past.at(-1)!.label).toBe('Change photo')
+    expect(store.getState().past.at(-1)!.label).toEqual(msg('step.changePhoto'))
   })
 
   it('writes the Blob before the Tree changes, so a saved Tree never names a missing photo', async () => {
@@ -45,7 +46,7 @@ describe('setPhoto', () => {
     const result = await service.setPhoto(ANNA, new Blob(['x']))
     expect(result).toEqual({
       ok: false,
-      message: 'There is not enough storage space left for this photo, so it was not added. Everything else is saved.',
+      message: msg('photo.noSpace'),
     })
     expect(store.getState().persons).toBe(before)
     expect(store.getState().past).toHaveLength(1) // only the add; no step for the failed photo
@@ -54,7 +55,7 @@ describe('setPhoto', () => {
   it('any other storage failure also leaves the Person alone, with a plainer message', async () => {
     photos.failWith = new Error('disk on fire')
     const result = await service.setPhoto(ANNA, new Blob(['x']))
-    expect(result.ok === false && result.message).toMatch(/could not be saved/)
+    expect(result.ok === false && result.message).toEqual(msg('photo.notSaved'))
     expect(store.getState().persons[0]!.photoId).toBeUndefined()
   })
 
@@ -81,7 +82,7 @@ describe('removePhoto', () => {
     await service.setPhoto(ANNA, new Blob(['x']))
     service.removePhoto(ANNA)
     expect(store.getState().persons[0]!.photoId).toBeUndefined()
-    expect(store.getState().past.at(-1)!.label).toBe('Remove photo')
+    expect(store.getState().past.at(-1)!.label).toEqual(msg('step.removePhoto'))
     store.getState().undo()
     expect(store.getState().persons[0]!.photoId).toBe(PHOTO)
   })

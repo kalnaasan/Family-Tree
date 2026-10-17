@@ -1,4 +1,5 @@
 import { type KeyboardEvent, type PointerEvent, useEffect, useId, useRef, useState } from 'react'
+import { useT } from '../i18n/useT.ts'
 import {
   KEY_ZOOM_FACTOR,
   MAX_CROP_ZOOM,
@@ -26,9 +27,11 @@ interface Props {
 
 /**
  * The circular crop step (spec section 6): drag the photo or use the arrow keys to place it, the slider or + and -
- * to zoom. A modal `<dialog>`, so the keyboard stays inside it and Escape cancels.
+ * to zoom. A modal `<dialog>`, so the keyboard stays inside it and Escape cancels. The arrow keys move the photo on
+ * the screen, so they mean the same physical direction in every language.
  */
 export function CropDialog({ bitmap, onCancel, onConfirm }: Props) {
+  const t = useT()
   const titleId = useId()
   const hintId = useId()
   const dialogRef = useRef<HTMLDialogElement>(null)
@@ -37,7 +40,7 @@ export function CropDialog({ bitmap, onCancel, onConfirm }: Props) {
   const photo = { width: bitmap.width, height: bitmap.height }
   const [crop, setCrop] = useState<CropState>(() => initialCrop(photo))
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState(false)
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -83,11 +86,11 @@ export function CropDialog({ bitmap, onCancel, onConfirm }: Props) {
 
   const confirm = async () => {
     setBusy(true)
-    setError(null)
+    setError(false)
     try {
       await onConfirm(await encodePhoto(bitmap, cropRect(photo, crop)))
     } catch {
-      setError('The photo could not be prepared. Try another one.')
+      setError(true)
       setBusy(false)
     }
   }
@@ -107,15 +110,15 @@ export function CropDialog({ bitmap, onCancel, onConfirm }: Props) {
       className="m-auto w-[min(92vw,26rem)] rounded-xl border border-stone-400 bg-white p-5 shadow-xl backdrop:bg-black/50"
     >
       <h2 id={titleId} className="text-xl font-semibold">
-        Crop photo
+        {t('crop.title')}
       </h2>
       <p id={hintId} className="mt-1 text-sm text-stone-700">
-        Drag the photo, or use the arrow keys, to place it. Zoom with the slider, or with + and −.
+        {t('crop.hint')}
       </p>
 
       <div
         role="group"
-        aria-label="Photo position"
+        aria-label={t('crop.position')}
         aria-describedby={hintId}
         tabIndex={0}
         onKeyDown={onKeyDown}
@@ -136,7 +139,7 @@ export function CropDialog({ bitmap, onCancel, onConfirm }: Props) {
       </div>
 
       <label className="flex items-center gap-3">
-        <span className="font-medium">Zoom</span>
+        <span className="font-medium">{t('crop.zoom')}</span>
         <input
           type="range"
           min={MIN_CROP_ZOOM}
@@ -150,7 +153,7 @@ export function CropDialog({ bitmap, onCancel, onConfirm }: Props) {
 
       {error && (
         <p role="alert" className="mt-3 text-red-800">
-          {error}
+          {t('crop.error')}
         </p>
       )}
 
@@ -161,7 +164,7 @@ export function CropDialog({ bitmap, onCancel, onConfirm }: Props) {
           disabled={busy}
           className="btn-primary flex-1  px-4 font-medium text-white disabled:opacity-60"
         >
-          {busy ? 'Saving…' : 'Use this photo'}
+          {busy ? t('crop.saving') : t('crop.use')}
         </button>
         <button
           type="button"
@@ -169,7 +172,7 @@ export function CropDialog({ bitmap, onCancel, onConfirm }: Props) {
           disabled={busy}
           className="btn px-4 disabled:opacity-60"
         >
-          Cancel
+          {t('common.cancel')}
         </button>
       </div>
     </dialog>

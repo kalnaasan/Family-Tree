@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { type MessageKey } from '../i18n/messages.ts'
+import { type MessageRef, msg } from '../i18n/messageRef.ts'
 import { type AddRelativeRequest, addRelative } from './addRelative.ts'
 import {
   HISTORY_LIMIT,
@@ -43,7 +45,7 @@ export interface TreeActions {
   /** One add-relative flow as one store update: the new Person, their links and Partnership. Returns the new id. */
   addRelative: (request: AddRelativeRequest) => string
   /** `label` names the undo step; "Edit person" by default. */
-  updatePerson: (id: string, patch: PersonPatch, label?: string) => void
+  updatePerson: (id: string, patch: PersonPatch, label?: MessageRef) => void
   /**
    * Returns what was removed along with the Person. `release` is called when this step leaves the undo history,
    * so a deleted photo Blob can be kept in memory until then.
@@ -81,13 +83,13 @@ export function createTreeStore(initial: Tree = emptyTree()) {
   return create<TreeState>()((set, get) => {
     const history = (): HistoryState => ({ past: get().past, future: get().future })
 
-    const commit = (label: string, before: Tree, after: Tree, release?: () => void) => {
+    const commit = (label: MessageRef, before: Tree, after: Tree, release?: () => void) => {
       if (get().readOnly) throw new Error('This tab is read-only: another tab is editing')
       const pushed = pushStep(history(), { id: nextStepId++, label, before, after, release }, HISTORY_LIMIT)
       set({ ...after, ...pushed.history })
       for (const step of pushed.discarded) step.release?.()
     }
-    const apply = (label: string, change: (tree: Tree) => Tree) => {
+    const apply = (label: MessageRef, change: (tree: Tree) => Tree) => {
       const before = pick(get())
       commit(label, before, change(before))
     }
@@ -102,28 +104,28 @@ export function createTreeStore(initial: Tree = emptyTree()) {
         set({ ...pick(tree), ...emptyHistory() })
         for (const step of discarded) step.release?.()
       },
-      addPerson: (input) => apply('Add person', (t) => addPerson(t, input)),
+      addPerson: (input) => apply(msg('step.addPerson'), (t) => addPerson(t, input)),
       addRelative: (request) => {
         const before = pick(get())
         const result = addRelative(before, request)
-        commit(`Add ${request.relation}`, before, result.tree)
+        commit(msg('step.addRelation', { relation: msg(`relation.${request.relation}` as MessageKey) }), before, result.tree)
         return result.personId
       },
-      updatePerson: (id, patch, label) => apply(label ?? 'Edit person', (t) => updatePerson(t, id, patch)),
+      updatePerson: (id, patch, label) => apply(label ?? msg('step.editPerson'), (t) => updatePerson(t, id, patch)),
       deletePerson: (id, options) => {
         const before = pick(get())
         const result = deletePerson(before, id)
-        commit(`Delete ${result.deleted.person.firstName}`, before, result.tree, options?.release)
+        commit(msg('step.delete', { name: result.deleted.person.firstName }), before, result.tree, options?.release)
         return result.deleted
       },
       addParentLink: (childId, parentId, kind) =>
-        apply('Add parent link', (t) => addParentLink(t, childId, parentId, kind)),
+        apply(msg('step.addParentLink'), (t) => addParentLink(t, childId, parentId, kind)),
       removeParentLink: (childId, parentId) =>
-        apply('Remove parent link', (t) => removeParentLink(t, childId, parentId)),
-      addPartnership: (input) => apply('Add partnership', (t) => addPartnership(t, input)),
-      updatePartnership: (id, patch) => apply('Edit partnership', (t) => updatePartnership(t, id, patch)),
-      removePartnership: (id) => apply('Remove partnership', (t) => removePartnership(t, id)),
-      setFocusPerson: (id) => apply('Change Focus person', (t) => setFocusPerson(t, id)),
+        apply(msg('step.removeParentLink'), (t) => removeParentLink(t, childId, parentId)),
+      addPartnership: (input) => apply(msg('step.addPartnership'), (t) => addPartnership(t, input)),
+      updatePartnership: (id, patch) => apply(msg('step.editPartnership'), (t) => updatePartnership(t, id, patch)),
+      removePartnership: (id) => apply(msg('step.removePartnership'), (t) => removePartnership(t, id)),
+      setFocusPerson: (id) => apply(msg('step.changeFocus'), (t) => setFocusPerson(t, id)),
       undo: () => {
         if (get().readOnly) return null
         const result = undoStep(history())

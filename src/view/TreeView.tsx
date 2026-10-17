@@ -4,6 +4,8 @@ import { deriveRelationships } from '../domain/labels.ts'
 import { useTreeStore } from '../domain/store.ts'
 import { formatNumber } from '../i18n/format.ts'
 import { useLanguageStore } from '../i18n/language.ts'
+import { msg } from '../i18n/messageRef.ts'
+import { useT } from '../i18n/useT.ts'
 import { photoCache, usePhotoVersion } from '../photos/photos.ts'
 import { useUiStore } from '../ui/uiStore.ts'
 import { TreeCanvas } from './TreeCanvas.tsx'
@@ -19,15 +21,15 @@ function announceLimitOnce(): void {
   } catch {
     // storage is unavailable: the notice may show again next time, which is better than never
   }
+  // the sentence is worded when the toast is drawn, so it follows a language switch; the number is Western digits either way
   useUiStore
     .getState()
-    .showToast(
-      `This tree has ${formatNumber(PERF_BUDGET.hardLimit, useLanguageStore.getState().language)} people or more, the most the app is made for. It is drawn with less detail, and may be slow.`,
-    )
+    .showToast(msg('tree.limit', { count: formatNumber(PERF_BUDGET.hardLimit, useLanguageStore.getState().language) }))
 }
 
 /** The Tree from the store, laid out and drawn. Clicking a Person opens them; the keyboard follows family links. */
 export function TreeView() {
+  const t = useT()
   const persons = useTreeStore((s) => s.persons)
   const parentLinks = useTreeStore((s) => s.parentLinks)
   const partnerships = useTreeStore((s) => s.partnerships)
@@ -52,7 +54,7 @@ export function TreeView() {
     [focusPersonId, persons, parentLinks, partnerships],
   )
   // a big Tree is laid out in a Worker: until the first layout is back there is nothing to draw yet
-  if (!laidOut) return <p aria-live="polite" className="p-4 text-stone-700">Laying out your tree…</p>
+  if (!laidOut) return <p aria-live="polite" className="p-4 text-stone-700">{t('tree.layingOut')}</p>
   return (
     <TreeCanvas
       layout={laidOut.layout}

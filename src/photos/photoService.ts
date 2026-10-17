@@ -1,8 +1,9 @@
 import type { TreeState } from '../domain/store.ts'
+import { type MessageRef, msg } from '../i18n/messageRef.ts'
 import type { PhotoGc } from './photoGc.ts'
 import { type PhotoStore, isQuotaError } from './photoStore.ts'
 
-export type PhotoResult = { ok: true } | { ok: false; message: string }
+export type PhotoResult = { ok: true } | { ok: false; message: MessageRef }
 
 export interface PhotoService {
   /** Stores the photo, then gives the Person it, as one undoable step. A failure leaves the Person untouched. */
@@ -31,21 +32,19 @@ export function createPhotoService({ store, photos, gc, newId = () => crypto.ran
       try {
         await photos.put(photoId, blob)
         gc.noteStored(photoId)
-        store.getState().updatePerson(personId, { photoId }, 'Change photo')
+        store.getState().updatePerson(personId, { photoId }, msg('step.changePhoto'))
         return { ok: true }
       } catch (error) {
         return {
           ok: false,
-          message: isQuotaError(error)
-            ? 'There is not enough storage space left for this photo, so it was not added. Everything else is saved.'
-            : 'The photo could not be saved, so it was not added. Everything else is saved.',
+          message: isQuotaError(error) ? msg('photo.noSpace') : msg('photo.notSaved'),
         }
       } finally {
         release()
       }
     },
     removePhoto(personId) {
-      store.getState().updatePerson(personId, { photoId: undefined }, 'Remove photo')
+      store.getState().updatePerson(personId, { photoId: undefined }, msg('step.removePhoto'))
     },
   }
 }

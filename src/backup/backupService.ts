@@ -1,4 +1,5 @@
 import type { Tree } from '../domain/schema.ts'
+import { type MessageRef, msg } from '../i18n/messageRef.ts'
 import type { PhotoGc } from '../photos/photoGc.ts'
 import { type PhotoStore, isQuotaError } from '../photos/photoStore.ts'
 import { buildExport, exportFileName } from './exportFile.ts'
@@ -13,13 +14,14 @@ export interface PreparedImport {
 
 export type ExportOutcome =
   | { ok: true; fileName: string; photoCount: number; missingPhotos: number }
-  | { ok: false; message: string }
+  | { ok: false; message: MessageRef }
 
+/** `message` is the technical detail of why the file was turned away (English, for the person who made the file). */
 export type PrepareOutcome =
   | { ok: true; prepared: PreparedImport }
   | { ok: false; rule: ImportFailureRule | 'unreadable'; message: string }
 
-export type ReplaceOutcome = { ok: true } | { ok: false; message: string }
+export type ReplaceOutcome = { ok: true } | { ok: false; message: MessageRef }
 
 interface Dependencies {
   store: { getState: () => Tree & { loadTree: (tree: Tree) => void } }
@@ -50,8 +52,7 @@ export interface BackupService {
   restoreSnapshot: (snapshotId: string) => Promise<ReplaceOutcome>
 }
 
-const SAFETY_COPY_FAILED =
-  'A safety copy of your current tree could not be saved, so nothing was replaced. Export your current tree first, then try again.'
+const SAFETY_COPY_FAILED = msg('backup.safetyCopyFailed')
 
 export function createBackupService({
   store,
@@ -90,7 +91,7 @@ export function createBackupService({
         log.getState().backedUp()
         return { ok: true, fileName, photoCount: built.photoCount, missingPhotos: built.missingPhotos }
       } catch {
-        return { ok: false, message: 'The backup could not be created. Nothing was downloaded.' }
+        return { ok: false, message: msg('backup.exportFailed') }
       }
     },
 
@@ -123,9 +124,7 @@ export function createBackupService({
       } catch (error) {
         return {
           ok: false,
-          message: isQuotaError(error)
-            ? 'There is not enough storage space left for the photos in this file, so nothing was replaced.'
-            : 'The photos in this file could not be saved, so nothing was replaced.',
+          message: isQuotaError(error) ? msg('backup.photosNoSpace') : msg('backup.photosNotSaved'),
         }
       } finally {
         for (const release of releases) release() // the Tree now refers to them, or the attempt is over
@@ -139,7 +138,7 @@ export function createBackupService({
       } catch {
         tree = undefined
       }
-      if (!tree) return { ok: false, message: 'That version could not be read any more.' }
+      if (!tree) return { ok: false, message: msg('backup.versionUnreadable') }
       if (!(await keepCurrent('restore'))) return { ok: false, message: SAFETY_COPY_FAILED }
       store.getState().loadTree(tree)
       return { ok: true }

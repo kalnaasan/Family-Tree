@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useTreeStore } from '../domain/store.ts'
+import { msg } from '../i18n/messageRef.ts'
 import { addParentLink, addPerson, emptyTree } from '../domain/tree.ts'
 import { TOAST_VISIBLE_MS, Toast } from './Toast.tsx'
 import { UndoControls } from './UndoControls.tsx'
@@ -125,7 +126,7 @@ describe('delete toast', () => {
   function deleteBen() {
     act(() => {
       useTreeStore.getState().deletePerson(id(1))
-      useUiStore.getState().showToast('Deleted Ben, with 2 parent links', useTreeStore.getState().past.at(-1)!.id)
+      useUiStore.getState().showToast(msg('toast.deletedWith', { name: 'Ben', parts: '2 parent links' }), useTreeStore.getState().past.at(-1)!.id)
     })
   }
 

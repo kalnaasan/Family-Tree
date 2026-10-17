@@ -1,3 +1,4 @@
+import type { MessageRef } from '../i18n/messageRef.ts'
 import type { Tree } from './schema.ts'
 
 /**
@@ -9,8 +10,11 @@ export const HISTORY_LIMIT = 50
 
 export interface HistoryStep {
   id: number
-  /** What the action was, e.g. "Add mother" or "Delete Ben"; used to announce an undo. */
-  label: string
+  /**
+   * What the action was, e.g. "Add mother" or "Delete Ben", as a message rather than a sentence so an undo is
+   * announced in the language in use when it happens (spec section 13.1).
+   */
+  label: MessageRef
   before: Tree
   after: Tree
   /**

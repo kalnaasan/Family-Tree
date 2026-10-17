@@ -1,3 +1,5 @@
+import { type MessageRef, msg } from '../i18n/messageRef.ts'
+
 /** Spec section 6: JPEG, PNG and WebP up to 25 MB. */
 export const MAX_PHOTO_BYTES = 25 * 1024 * 1024
 
@@ -18,20 +20,21 @@ export function sniffImage(bytes: Uint8Array): PhotoType | 'heic' | null {
   return null
 }
 
-export type PhotoCheck = { ok: true; type: PhotoType } | { ok: false; message: string }
-
-const megabytes = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+export type PhotoCheck = { ok: true; type: PhotoType } | { ok: false; message: MessageRef }
 
 /** Checks a chosen file before anything is decoded, with a message that says what to do about it. */
 export async function validatePhotoFile(file: Blob & { name?: string }): Promise<PhotoCheck> {
-  if (file.size === 0) return { ok: false, message: 'That file is empty.' }
+  if (file.size === 0) return { ok: false, message: msg('photo.empty') }
   if (file.size > MAX_PHOTO_BYTES) {
-    return { ok: false, message: `That file is ${megabytes(file.size)}. Photos can be up to 25 MB.` }
+    return {
+      ok: false,
+      message: msg('photo.tooBig', { size: msg('size.mb', { n: (file.size / (1024 * 1024)).toFixed(1) }) }),
+    }
   }
   const type = sniffImage(new Uint8Array(await file.slice(0, 16).arrayBuffer()))
   if (type === 'heic' || (type === null && /\.hei[cf]$/i.test(file.name ?? ''))) {
-    return { ok: false, message: 'That is a HEIC photo, which browsers cannot open. Convert it to JPEG first.' }
+    return { ok: false, message: msg('photo.heic') }
   }
-  if (type === null) return { ok: false, message: 'That file is not a JPEG, PNG or WebP photo.' }
+  if (type === null) return { ok: false, message: msg('photo.unsupported') }
   return { ok: true, type }
 }
