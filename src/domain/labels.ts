@@ -1,4 +1,4 @@
-import type { Language } from '../i18n/language.ts'
+import type { Language } from '../i18n/languageType.ts'
 import { labelForEnglish } from './labelsEn.ts'
 import type { Gender, Tree } from './schema.ts'
 
@@ -20,14 +20,19 @@ export type RelationDescriptor =
   | { kind: 'partner'; ex: boolean }
   /**
    * Blood or adoptive relative: `up` generations to the nearest common ancestor, then `down` generations.
-   * `ancestor` is the gender of that common ancestor (for a half-sibling: the parent they share), and `downFirst`
-   * the gender of the first Person below the ancestor on the way to this one (the sibling a nephew comes through,
-   * the uncle or aunt a cousin comes through, the child a grandchild comes through); absent in the direct line up.
+   * `sharedParent` is the gender of the one parent a half-sibling shares (only there is there exactly one common
+   * ancestor; for anyone else there can be two, and which would come first is not meaningful). `downFirst` is the
+   * gender of the first Person below the common ancestor on the way to this one: the sibling a nephew comes
+   * through, the uncle or aunt a cousin comes through, the child a grandchild comes through. It is absent in the
+   * direct line up.
    */
-  | { kind: 'blood'; up: number; down: number; half: boolean; side?: Side; ancestor?: Gender; downFirst?: Gender }
+  | { kind: 'blood'; up: number; down: number; half: boolean; side?: Side; sharedParent?: Gender; downFirst?: Gender }
   /** From a `step` Parent link only (dormant in the v1 interface). */
   | { kind: 'step'; direction: 'parent' | 'child' }
-  /** `link` is the gender of the relative the in-law comes through: the partner, the sibling or the child. */
+  /**
+   * `link` is the gender of the Focus person's own relative the connection runs through, which depends on `via`:
+   * `partner-parent` and `partner-sibling`: the partner; `sibling-partner`: the sibling; `child-partner`: the child.
+   */
   | { kind: 'in-law'; via: InLawVia; link?: Gender }
   /** The partner of an uncle or aunt: called uncle/aunt, without "in-law". `uncle` is that uncle's or aunt's gender. */
   | { kind: 'uncle-partner'; side?: Side; uncle?: Gender }
@@ -46,7 +51,11 @@ export interface Relationship {
 // The word for a descriptor, in a language
 // ---------------------------------------------------------------------------------------------
 
-/** One table per language. Arabic gets its own module in "Arabic relationship labels"; until then it reads as English. */
+/**
+ * One table per language. PLACEHOLDER: `ar` reads as English until "Arabic relationship labels" adds its own table
+ * module (docs/spec/arabic-relationship-labels.md) and replaces this entry. Arabic is not offered to users before
+ * that (`AVAILABLE_LANGUAGES`, spec section 13.8), so this cannot show English words in an Arabic interface.
+ */
 const TABLES: Record<Language, (descriptor: RelationDescriptor, gender: Gender) => string | null> = {
   en: labelForEnglish,
   ar: labelForEnglish,
@@ -202,7 +211,7 @@ export function deriveRelationships(tree: Tree): Map<string, Relationship> {
       down,
       half,
       ...(side ? { side } : {}),
-      ancestor: genderOf(ancestorId),
+      ...(half ? { sharedParent: genderOf(ancestorId) } : {}),
       ...(first ? { downFirst: genderOf(first) } : {}),
     })
   }

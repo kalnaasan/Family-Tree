@@ -1,7 +1,7 @@
 import { create } from 'zustand'
+import type { Language } from './languageType.ts'
 
-/** The languages the app has text for. Which of them users are offered is `AVAILABLE_LANGUAGES` (spec section 13.1). */
-export type Language = 'en' | 'ar'
+export type { Language }
 
 /** What the user chose in Settings: a language, or `auto` to follow the browser. */
 export type LanguageSetting = Language | 'auto'

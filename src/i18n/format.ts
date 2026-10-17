@@ -1,4 +1,4 @@
-import type { Language } from './language.ts'
+import type { Language } from './languageType.ts'
 
 /**
  * Western digits and the Gregorian calendar in every language, whatever the browser's region: `ar-EG` would give

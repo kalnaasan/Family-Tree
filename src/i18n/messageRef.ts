@@ -1,5 +1,7 @@
 import type { MessageKey } from './messages.ts'
-import type { Translate } from './useT.ts'
+
+/** What `t` is: the one translator type, so nothing re-declares its signature. */
+export type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
 
 /** A parameter of a message: text, a number, or another message (rendered in the same language first). */
 export type MessageParam = string | number | MessageRef

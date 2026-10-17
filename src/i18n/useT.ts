@@ -8,6 +8,3 @@ export function useT(store: LanguageStore = useLanguageStore) {
   const language = store((s) => s.language)
   return useMemo(() => createTranslator<MessageKey>(language, DICTIONARIES), [language])
 }
-
-/** What `t` is: the one translator type, so nothing re-declares its signature. */
-export type Translate = ReturnType<typeof useT>

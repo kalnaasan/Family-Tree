@@ -88,10 +88,15 @@ function usePartnersLine(model: Model): (personId: string) => string | null {
   )
 }
 
-function Item({ person, depth, model }: { person: Person; depth: number; model: Model }) {
+interface Words {
+  /** "Focus person" words are the caller's; this is the Relationship label, or null. */
+  labelOf: ReturnType<typeof useLabeler>
+  partnersLine: ReturnType<typeof usePartnersLine>
+}
+
+function Item({ person, depth, model, words }: { person: Person; depth: number; model: Model; words: Words }) {
   const t = useT()
-  const partnersLine = usePartnersLine(model)
-  const labelOf = useLabeler(model.relationships)
+  const { labelOf, partnersLine } = words
   const selectedId = useUiStore((s) => s.selectedId)
   const select = useUiStore((s) => s.select)
   // The first two generations start open; deeper ones are collapsed so a big Tree stays manageable.
@@ -145,7 +150,7 @@ function Item({ person, depth, model }: { person: Person; depth: number; model: 
       {open && expandable && (
         <ul className="ml-5 border-l border-stone-300 pl-2">
           {kids.map((kid) => (
-            <Item key={kid.id} person={kid} depth={depth + 1} model={model} />
+            <Item key={kid.id} person={kid} depth={depth + 1} model={model} words={words} />
           ))}
           {refs.map(({ person: other, home }) => (
             <li key={other.id} className="pl-11">
@@ -167,8 +172,10 @@ function Item({ person, depth, model }: { person: Person; depth: number; model: 
 export function ListView() {
   const t = useT()
   const model = useModel()
+  // made once for the whole list, not once per row: a row would add its own subscription to the language
   const partnersLine = usePartnersLine(model)
   const labelOf = useLabeler(model.relationships)
+  const words: Words = { labelOf, partnersLine }
   const persons = useTreeStore((s) => s.persons)
   const query = useUiStore((s) => s.query)
   const select = useUiStore((s) => s.select)
@@ -210,7 +217,7 @@ export function ListView() {
       ) : (
         <ul>
           {model.roots.map((person) => (
-            <Item key={person.id} person={person} depth={0} model={model} />
+            <Item key={person.id} person={person} depth={0} model={model} words={words} />
           ))}
         </ul>
       )}

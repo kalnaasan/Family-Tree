@@ -460,15 +460,25 @@ describe('what another language needs from a descriptor', () => {
         ['HalfByMom', 'Mom'], ['HalfByMom', 'X'],
       ],
     })
-    expect(f.rel('HalfByDad').descriptor).toMatchObject({ kind: 'blood', up: 1, down: 1, half: true, ancestor: 'male' })
-    expect(f.rel('HalfByMom').descriptor).toMatchObject({ half: true, ancestor: 'female' })
+    expect(f.rel('HalfByDad').descriptor).toMatchObject({ kind: 'blood', up: 1, down: 1, half: true, sharedParent: 'male' })
+    expect(f.rel('HalfByMom').descriptor).toMatchObject({ half: true, sharedParent: 'female' })
 
     const unknownParent = family({
       focus: 'Me',
       people: { Me: 'female', Mom: 'female', Q: 'unknown', Y: 'female', HalfByQ: 'unknown' },
       parents: [['Me', 'Mom'], ['Me', 'Q'], ['HalfByQ', 'Q'], ['HalfByQ', 'Y']],
     })
-    expect(unknownParent.rel('HalfByQ').descriptor).toMatchObject({ half: true, ancestor: 'unknown' })
+    expect(unknownParent.rel('HalfByQ').descriptor).toMatchObject({ half: true, sharedParent: 'unknown' })
+  })
+
+  it('names a shared parent only where there is one: a full sibling shares two, so the word would depend on which came first', () => {
+    const f = family({
+      focus: 'Me',
+      people: { ...home, Bro: 'male' },
+      parents: [...parents, ['Bro', 'Dad'], ['Bro', 'Mom']],
+    })
+    expect(f.rel('Bro').descriptor).not.toHaveProperty('sharedParent')
+    expect(f.rel('Dad').descriptor).not.toHaveProperty('sharedParent')
   })
 
   it('records the gender of the sibling a nephew or niece comes through, and of the child a grandchild comes through', () => {

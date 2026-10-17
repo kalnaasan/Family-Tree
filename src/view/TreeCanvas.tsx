@@ -1,7 +1,7 @@
 import { memo, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { relativesOf } from '../domain/groups.ts'
-import { type NavKey, type NavMemory, describeMove, freshMemory, move } from '../domain/navigation.ts'
 import type { Relationship } from '../domain/labels.ts'
+import { type NavKey, type NavMemory, describeMove, freshMemory, move } from '../domain/navigation.ts'
 import type { ParentLink, Partnership, Person } from '../domain/schema.ts'
 import { useLanguageStore } from '../i18n/language.ts'
 import { renderMessage } from '../i18n/messageRef.ts'

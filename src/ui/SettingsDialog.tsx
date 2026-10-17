@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import type { MessageRef } from '../i18n/messageRef.ts'
-import { type Translate, useT } from '../i18n/useT.ts'
+import type { MessageRef, Translate } from '../i18n/messageRef.ts'
+import { useT } from '../i18n/useT.ts'
 import { usePersistenceStatus } from '../persistence/saveStatus.ts'
 import { photoStore } from '../photos/photos.ts'
 import { BackupSection } from './BackupSection.tsx'
