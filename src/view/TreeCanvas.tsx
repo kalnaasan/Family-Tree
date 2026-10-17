@@ -1,11 +1,13 @@
 import { memo, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { relativesOf } from '../domain/groups.ts'
 import { type NavKey, type NavMemory, describeMove, freshMemory, move } from '../domain/navigation.ts'
+import type { Relationship } from '../domain/labels.ts'
 import type { ParentLink, Partnership, Person } from '../domain/schema.ts'
 import { useLanguageStore } from '../i18n/language.ts'
 import { renderMessage } from '../i18n/messageRef.ts'
 import { useT } from '../i18n/useT.ts'
 import type { TreeLayout } from '../layout/layoutTree.ts'
+import { useLabeler } from '../ui/useLabeler.ts'
 import { HEART_PATH, rootPaths, trunkPath } from './geometry.ts'
 import { GestureTracker, ZOOM_OUT_OF_DOT, resolveTap } from './gestures.ts'
 import { type LodBucket, lodBucket } from './lod.ts'
@@ -54,7 +56,7 @@ const Decor = memo(function Decor() {
 interface SceneContentsProps {
   scene: Scene
   persons: Person[]
-  labels: ReadonlyMap<string, string | null>
+  relationships: ReadonlyMap<string, Relationship>
   focusIndex: number
   selectedIndex: number
   /** The keyboard's Person: always drawn, even outside the drawn area, because it is the tab stop. */
@@ -74,7 +76,7 @@ export type PhotoUrlFor = (photoId: string, variant: 'full' | 'thumb') => string
 const SceneContents = memo(function SceneContents({
   scene,
   persons,
-  labels,
+  relationships,
   focusIndex,
   selectedIndex,
   cursorIndex,
@@ -84,6 +86,8 @@ const SceneContents = memo(function SceneContents({
 }: SceneContentsProps) {
   const t = useT()
   const language = useLanguageStore((s) => s.language)
+  // only the people drawn are worded, and in the language in use
+  const labelOf = useLabeler(relationships)
   const { layout } = scene
   const { bucket, rect } = drawn
   const visible = useMemo(() => {
@@ -149,7 +153,7 @@ const SceneContents = memo(function SceneContents({
             name={displayName(person)}
             initial={initialOf(person)}
             life={lifeSpan(person)}
-            ariaLabel={personAriaLabel(person, labels.get(person.id) ?? null, i === focusIndex, { t, language })}
+            ariaLabel={personAriaLabel(person, labelOf(person), i === focusIndex, { t, language })}
             gender={person.gender}
             deceased={person.deceased}
             isFocus={i === focusIndex}
@@ -176,8 +180,8 @@ export interface TreeCanvasProps {
   focusPersonId: string | null
   /** The links the arrow keys follow. Without them the keys only zoom and pan. */
   links?: { parentLinks: ParentLink[]; partnerships: Partnership[] }
-  /** Relationship labels by Person id, for the names screen readers read. */
-  labels?: ReadonlyMap<string, string | null>
+  /** Each Person's Relationship descriptor, worded for the names screen readers read when they are drawn. */
+  relationships?: ReadonlyMap<string, Relationship>
   /** `F` on a Person makes them the Focus person. */
   onSetFocusPerson?: (id: string) => void
   /** The open Person, drawn with a ring. */
@@ -202,7 +206,7 @@ export interface TreeCanvasProps {
  * and zooming never re-render React. React re-renders only when the level of detail changes or the screen leaves
  * the part of the Tree that is drawn (spec section 9).
  */
-const NO_LABELS: ReadonlyMap<string, string | null> = new Map()
+const NO_RELATIONSHIPS: ReadonlyMap<string, Relationship> = new Map()
 
 const NAV_KEYS: Record<string, NavKey> = {
   ArrowUp: 'up',
@@ -218,7 +222,7 @@ export function TreeCanvas({
   persons,
   focusPersonId,
   links,
-  labels = NO_LABELS,
+  relationships = NO_RELATIONSHIPS,
   onSetFocusPerson,
   selectedPersonId = null,
   onSelectPerson,
@@ -577,7 +581,7 @@ export function TreeCanvas({
               <SceneContents
                 scene={scene}
                 persons={persons}
-                labels={labels}
+                relationships={relationships}
                 focusIndex={focusIndex}
                 selectedIndex={selectedIndex}
                 cursorIndex={cursorIndex}

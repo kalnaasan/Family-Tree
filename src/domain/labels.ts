@@ -1,8 +1,14 @@
+import type { Language } from '../i18n/language.ts'
+import { labelForEnglish } from './labelsEn.ts'
 import type { Gender, Tree } from './schema.ts'
 
 /**
- * Relationship labels (spec section 3). Pure and DOM-free: one pass from the Focus person yields a
- * descriptor per Person; a separate English lookup turns it into a word. Nothing here is stored.
+ * Relationship labels (spec section 3). Pure and DOM-free: one pass from the Focus person yields a descriptor per
+ * Person; a table per language turns a descriptor into a word when it is drawn. Nothing here is stored.
+ *
+ * A descriptor also records the genders of the relatives the link passes through, which English ignores and
+ * languages with separate words for them (Arabic: a cousin through a father's brother, or a mother's sister) need.
+ * A gender that is not known is `'unknown'`.
  */
 
 export type Side = 'paternal' | 'maternal'
@@ -12,13 +18,19 @@ export type InLawVia = 'partner-parent' | 'partner-sibling' | 'sibling-partner' 
 export type RelationDescriptor =
   | { kind: 'self' }
   | { kind: 'partner'; ex: boolean }
-  /** Blood or adoptive relative: `up` generations to the nearest common ancestor, then `down` generations. */
-  | { kind: 'blood'; up: number; down: number; half: boolean; side?: Side }
+  /**
+   * Blood or adoptive relative: `up` generations to the nearest common ancestor, then `down` generations.
+   * `ancestor` is the gender of that common ancestor (for a half-sibling: the parent they share), and `downFirst`
+   * the gender of the first Person below the ancestor on the way to this one (the sibling a nephew comes through,
+   * the uncle or aunt a cousin comes through, the child a grandchild comes through); absent in the direct line up.
+   */
+  | { kind: 'blood'; up: number; down: number; half: boolean; side?: Side; ancestor?: Gender; downFirst?: Gender }
   /** From a `step` Parent link only (dormant in the v1 interface). */
   | { kind: 'step'; direction: 'parent' | 'child' }
-  | { kind: 'in-law'; via: InLawVia }
-  /** The partner of an uncle or aunt: called uncle/aunt, without "in-law". */
-  | { kind: 'uncle-partner' }
+  /** `link` is the gender of the relative the in-law comes through: the partner, the sibling or the child. */
+  | { kind: 'in-law'; via: InLawVia; link?: Gender }
+  /** The partner of an uncle or aunt: called uncle/aunt, without "in-law". `uncle` is that uncle's or aunt's gender. */
+  | { kind: 'uncle-partner'; side?: Side; uncle?: Gender }
   /** Connected to the Focus person, but by a relation v1 has no word for. */
   | { kind: 'other' }
   /** Not connected to the Focus person by any link. */
@@ -26,100 +38,26 @@ export type RelationDescriptor =
 
 export interface Relationship {
   descriptor: RelationDescriptor
-  /** null for the Focus person, who is marked visually instead. */
-  label: string | null
   /** For `other`: Person ids from the Focus person to this Person along the shortest chain of links. */
   path?: string[]
 }
 
 // ---------------------------------------------------------------------------------------------
-// English lookup
+// The word for a descriptor, in a language
 // ---------------------------------------------------------------------------------------------
 
-const pick = (gender: Gender, male: string, female: string, neutral: string) =>
-  gender === 'male' ? male : gender === 'female' ? female : neutral
-
-const great = (n: number) => 'great-'.repeat(Math.max(0, n))
-
-function ordinal(n: number): string {
-  const lastTwo = n % 100
-  if (lastTwo >= 11 && lastTwo <= 13) return `${n}th`
-  switch (n % 10) {
-    case 1:
-      return `${n}st`
-    case 2:
-      return `${n}nd`
-    case 3:
-      return `${n}rd`
-    default:
-      return `${n}th`
-  }
+/** One table per language. Arabic gets its own module in "Arabic relationship labels"; until then it reads as English. */
+const TABLES: Record<Language, (descriptor: RelationDescriptor, gender: Gender) => string | null> = {
+  en: labelForEnglish,
+  ar: labelForEnglish,
 }
 
-function bloodLabel(up: number, down: number, half: boolean, gender: Gender): string {
-  if (down === 0) {
-    // ancestors
-    if (up === 1) return pick(gender, 'father', 'mother', 'parent')
-    return great(up - 2) + 'grand' + pick(gender, 'father', 'mother', 'parent')
-  }
-  if (up === 0) {
-    // descendants
-    if (down === 1) return pick(gender, 'son', 'daughter', 'child')
-    return great(down - 2) + 'grand' + pick(gender, 'son', 'daughter', 'child')
-  }
-  if (up === 1 && down === 1) {
-    const sibling = pick(gender, 'brother', 'sister', 'sibling')
-    return half ? `half-${sibling}` : sibling
-  }
-  if (down === 1) return great(up - 2) + pick(gender, 'uncle', 'aunt', 'uncle/aunt')
-  if (up === 1) {
-    const nephew = pick(gender, 'nephew', 'niece', 'nephew/niece')
-    if (down === 2) return nephew
-    return great(down - 3) + 'grand' + nephew
-  }
-  // cousins: the degree comes from the shorter side, the removal from the difference
-  const degree = Math.min(up, down) - 1
-  const removal = Math.abs(up - down)
-  const base = degree === 1 ? 'cousin' : `${ordinal(degree)} cousin`
-  if (removal === 0) return base
-  if (removal === 1) return `${base} once removed`
-  if (removal === 2) return `${base} twice removed`
-  return `${base} ${removal} times removed`
-}
-
-/** The English word for a descriptor. Gendered when the gender is known, neutral otherwise. */
-export function labelFor(descriptor: RelationDescriptor, gender: Gender): string | null {
-  switch (descriptor.kind) {
-    case 'self':
-      return null
-    case 'partner': {
-      const word = pick(gender, 'husband', 'wife', 'partner')
-      return descriptor.ex ? `ex-${word}` : word
-    }
-    case 'blood':
-      return bloodLabel(descriptor.up, descriptor.down, descriptor.half, gender)
-    case 'step':
-      return descriptor.direction === 'parent'
-        ? pick(gender, 'stepfather', 'stepmother', 'step-parent')
-        : pick(gender, 'stepson', 'stepdaughter', 'stepchild')
-    case 'in-law':
-      switch (descriptor.via) {
-        case 'partner-parent':
-          return pick(gender, 'father-in-law', 'mother-in-law', 'parent-in-law')
-        case 'partner-sibling':
-        case 'sibling-partner':
-          return pick(gender, 'brother-in-law', 'sister-in-law', 'sibling-in-law')
-        case 'child-partner':
-          return pick(gender, 'son-in-law', 'daughter-in-law', 'child-in-law')
-      }
-      return null
-    case 'uncle-partner':
-      return pick(gender, 'uncle', 'aunt', 'uncle/aunt')
-    case 'other':
-      return 'Relative'
-    case 'unconnected':
-      return 'Not connected'
-  }
+/**
+ * The word for a descriptor in a language, gendered when the gender of the Person is known and neutral otherwise.
+ * Called when a label is drawn, so a language switch changes the words without deriving the Tree again.
+ */
+export function labelFor(descriptor: RelationDescriptor, gender: Gender, language: Language): string | null {
+  return TABLES[language](descriptor, gender)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -130,6 +68,10 @@ interface Candidate {
   up: number
   down: number
   via: string | undefined
+  /** The nearest common ancestor this path runs through. */
+  ancestorId: string
+  /** The first Person below that ancestor on the way down (none for the ancestor themself). */
+  first: string | undefined
 }
 
 /** Direct line beats collateral, then the shorter path, then the closer generation, then fewer steps up. */
@@ -183,9 +125,10 @@ export function deriveRelationships(tree: Tree): Map<string, Relationship> {
     addTo(partnersOf, b, { other: a, status })
   }
 
+  const genderOf = (id: string): Gender => gender.get(id) ?? 'unknown'
   const assign = (id: string, descriptor: RelationDescriptor) => {
     if (result.has(id)) return
-    result.set(id, { descriptor, label: labelFor(descriptor, gender.get(id) ?? 'unknown') })
+    result.set(id, { descriptor })
   }
   const currentPartners = (id: string) =>
     (partnersOf.get(id) ?? []).filter((p) => p.status === 'current').map((p) => p.other)
@@ -223,23 +166,25 @@ export function deriveRelationships(tree: Tree): Map<string, Relationship> {
   for (const [ancestorId, { up, via }] of ancestors) {
     const seen = new Set<string>([ancestorId])
     const down: [string, number][] = [[ancestorId, 0]]
+    const firstBelow = new Map<string, string>() // Person -> the first Person below the ancestor on the way to them
     for (let i = 0; i < down.length; i++) {
       const [id, distance] = down[i]!
       if (id !== focusId) {
-        const candidate: Candidate = { up, down: distance, via }
+        const candidate: Candidate = { up, down: distance, via, ancestorId, first: firstBelow.get(id) }
         const current = best.get(id)
         if (!current || better(candidate, current)) best.set(id, candidate)
       }
       for (const child of childrenOf.get(id) ?? []) {
         if (seen.has(child) || ancestors.has(child)) continue
         seen.add(child)
+        firstBelow.set(child, id === ancestorId ? child : firstBelow.get(id)!)
         down.push([child, distance + 1])
       }
     }
   }
 
   const focusParents = new Set(parentsOf.get(focusId) ?? [])
-  for (const [id, { up, down, via }] of best) {
+  for (const [id, { up, down, via, ancestorId, first }] of best) {
     let half = false
     if (up === 1 && down === 1) {
       // Exactly one shared parent, and at least one of the two has another parent who is not shared.
@@ -251,7 +196,15 @@ export function deriveRelationships(tree: Tree): Map<string, Relationship> {
     }
     const viaGender = via === undefined ? undefined : gender.get(via)
     const side: Side | undefined = viaGender === 'male' ? 'paternal' : viaGender === 'female' ? 'maternal' : undefined
-    assign(id, { kind: 'blood', up, down, half, ...(side ? { side } : {}) })
+    assign(id, {
+      kind: 'blood',
+      up,
+      down,
+      half,
+      ...(side ? { side } : {}),
+      ancestor: genderOf(ancestorId),
+      ...(first ? { downFirst: genderOf(first) } : {}),
+    })
   }
 
   // 3. Step relatives (only from `step` links).
@@ -260,20 +213,32 @@ export function deriveRelationships(tree: Tree): Map<string, Relationship> {
 
   // 4. In-laws, through current Partnerships only. Direct line before collateral.
   for (const partner of currentPartners(focusId)) {
-    for (const parent of parentsOf.get(partner) ?? []) assign(parent, { kind: 'in-law', via: 'partner-parent' })
+    for (const parent of parentsOf.get(partner) ?? []) {
+      assign(parent, { kind: 'in-law', via: 'partner-parent', link: genderOf(partner) })
+    }
   }
   for (const child of childrenOf.get(focusId) ?? []) {
-    for (const partner of currentPartners(child)) assign(partner, { kind: 'in-law', via: 'child-partner' })
+    for (const partner of currentPartners(child)) {
+      assign(partner, { kind: 'in-law', via: 'child-partner', link: genderOf(child) })
+    }
   }
   for (const partner of currentPartners(focusId)) {
-    for (const sibling of siblingsOf(partner)) assign(sibling, { kind: 'in-law', via: 'partner-sibling' })
+    for (const sibling of siblingsOf(partner)) {
+      assign(sibling, { kind: 'in-law', via: 'partner-sibling', link: genderOf(partner) })
+    }
   }
   for (const sibling of siblingsOf(focusId)) {
-    for (const partner of currentPartners(sibling)) assign(partner, { kind: 'in-law', via: 'sibling-partner' })
+    for (const partner of currentPartners(sibling)) {
+      assign(partner, { kind: 'in-law', via: 'sibling-partner', link: genderOf(sibling) })
+    }
   }
   for (const parent of parentsOf.get(focusId) ?? []) {
+    const parentGender = genderOf(parent)
+    const side: Side | undefined = parentGender === 'male' ? 'paternal' : parentGender === 'female' ? 'maternal' : undefined
     for (const uncle of siblingsOf(parent)) {
-      for (const partner of currentPartners(uncle)) assign(partner, { kind: 'uncle-partner' })
+      for (const partner of currentPartners(uncle)) {
+        assign(partner, { kind: 'uncle-partner', ...(side ? { side } : {}), uncle: genderOf(uncle) })
+      }
     }
   }
 

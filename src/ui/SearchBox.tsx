@@ -5,6 +5,7 @@ import { useTreeStore } from '../domain/store.ts'
 import { useT } from '../i18n/useT.ts'
 import { displayName, lifeSpan } from '../view/text.ts'
 import { useUiStore } from './uiStore.ts'
+import { useLabeler } from './useLabeler.ts'
 
 /** The results list shows this many; "keep typing" covers the rest. */
 export const MAX_RESULTS = 8
@@ -30,10 +31,11 @@ export function SearchBox() {
 
   const results = useMemo(() => searchPersons(persons, query), [persons, query])
   const shown = results.slice(0, MAX_RESULTS)
-  const labels = useMemo(
+  const relationships = useMemo(
     () => (query.trim() ? deriveRelationships({ focusPersonId, persons, parentLinks, partnerships }) : null),
     [query, focusPersonId, persons, parentLinks, partnerships],
   )
+  const labelOf = useLabeler(relationships)
 
   const popup = !listView && query.trim() !== '' && !dismissed
   const active = Math.min(activeIndex, Math.max(0, shown.length - 1))
@@ -117,7 +119,7 @@ export function SearchBox() {
         >
           <ul id={listId} role="listbox" aria-label={t('search.resultsLabel')}>
             {shown.map((person, n) => {
-              const label = person.id === focusPersonId ? t('person.focus') : labels?.get(person.id)?.label
+              const label = person.id === focusPersonId ? t('person.focus') : labelOf(person)
               const text = [displayName(person), label, lifeSpan(person)].filter(Boolean).join(' · ')
               return (
                 <li

@@ -46,11 +46,8 @@ export function TreeView() {
     if (atLimit) announceLimitOnce()
   }, [atLimit])
   const links = useMemo(() => ({ parentLinks, partnerships }), [parentLinks, partnerships])
-  const labels = useMemo(
-    () =>
-      new Map(
-        [...deriveRelationships({ focusPersonId, persons, parentLinks, partnerships })].map(([id, r]) => [id, r.label]),
-      ),
+  const relationships = useMemo(
+    () => deriveRelationships({ focusPersonId, persons, parentLinks, partnerships }),
     [focusPersonId, persons, parentLinks, partnerships],
   )
   // a big Tree is laid out in a Worker: until the first layout is back there is nothing to draw yet
@@ -62,7 +59,7 @@ export function TreeView() {
       reducedDetail={atLimit}
       focusPersonId={focusPersonId}
       links={links}
-      labels={labels}
+      relationships={relationships}
       onSetFocusPerson={(id) => {
         if (!useTreeStore.getState().readOnly) useTreeStore.getState().setFocusPerson(id)
       }}
