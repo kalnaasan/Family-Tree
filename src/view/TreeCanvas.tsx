@@ -188,6 +188,8 @@ export interface TreeCanvasProps {
   /** Where the Persons' photos come from. Without it everyone is drawn with the default figure. */
   photoUrlFor?: PhotoUrlFor
   photoVersion?: number
+  /** Draws no decorative detail at any zoom: for a Tree at the hard limit (spec section 9). */
+  reducedDetail?: boolean
 }
 
 /**
@@ -220,7 +222,9 @@ export function TreeCanvas({
   revealRequest = null,
   photoUrlFor,
   photoVersion = 0,
+  reducedDetail = false,
 }: TreeCanvasProps) {
+  const reducedRef = useRef(reducedDetail)
   const hintId = useId()
   const frameRef = useRef<HTMLDivElement>(null)
   const surfaceRef = useRef<HTMLDivElement>(null)
@@ -287,7 +291,7 @@ export function TreeCanvas({
       const size = sizeRef.current
       if (!size.width || !size.height) return
       const view = controller.view
-      const bucket = lodBucket(view.k)
+      const bucket = lodBucket(view.k, reducedRef.current)
       const screen = visibleRect(view, size)
       if (drawnNow && drawnNow.bucket === bucket && rectContains(drawnNow.rect, growRect(screen, REDRAW_MARGIN))) return
       drawnNow = { bucket, rect: growRect(screen, DRAW_MARGIN) }
@@ -368,8 +372,9 @@ export function TreeCanvas({
   useEffect(() => {
     layoutRef.current = layout
     focusRef.current = focusPersonId
+    reducedRef.current = reducedDetail
     syncRef.current()
-  }, [layout, focusPersonId])
+  }, [layout, focusPersonId, reducedDetail])
 
   /** Keeps a Person in view: if they are off screen, or near its edge, the view moves to them at the same zoom. */
   const ensureVisible = (personId: string) => {
@@ -525,7 +530,7 @@ export function TreeCanvas({
       screen,
       view: controller.view,
       layout: layoutRef.current,
-      bucket: lodBucket(controller.view.k),
+      bucket: lodBucket(controller.view.k, reducedRef.current),
     })
     if (target.type === 'zoom') {
       controller.zoomTowardPoint(ZOOM_OUT_OF_DOT, screen)
