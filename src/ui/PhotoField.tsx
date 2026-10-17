@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Person } from '../domain/schema.ts'
+import { type MessageRef, msg, renderMessage } from '../i18n/messageRef.ts'
+import { useT } from '../i18n/useT.ts'
 import { decodePhoto } from '../photos/encode.ts'
 import { photoCache, photoService, usePhotoVersion } from '../photos/photos.ts'
 import { validatePhotoFile } from '../photos/sniff.ts'
@@ -33,8 +35,9 @@ export function Avatar({ person, size }: { person: Pick<Person, 'photoId'>; size
  * here and never stops the other details from being saved.
  */
 export function PhotoField({ person }: { person: Person }) {
+  const t = useT()
   const input = useRef<HTMLInputElement>(null)
-  const [message, setMessage] = useState<string | null>(null)
+  const [message, setMessage] = useState<MessageRef | null>(null)
   const [bitmap, setBitmap] = useState<ImageBitmap | null>(null)
 
   // a decoded photo holds memory until it is closed
@@ -50,7 +53,7 @@ export function PhotoField({ person }: { person: Person }) {
     try {
       setBitmap(await decodePhoto(file))
     } catch {
-      setMessage('That photo could not be read. It may be damaged; try another one.')
+      setMessage(msg('photo.unreadable'))
     }
   }
 
@@ -63,7 +66,7 @@ export function PhotoField({ person }: { person: Person }) {
   return (
     <section aria-labelledby={`photo-${person.id}`} className="flex flex-col gap-2">
       <h3 id={`photo-${person.id}`} className="font-medium">
-        Photo
+        {t('photo.title')}
       </h3>
       <div className="flex items-center gap-3">
         <Avatar person={person} size={64} />
@@ -73,7 +76,7 @@ export function PhotoField({ person }: { person: Person }) {
             onClick={() => input.current?.click()}
             className="btn px-3"
           >
-            {person.photoId ? 'Change photo' : 'Choose photo'}
+            {person.photoId ? t('photo.change') : t('photo.choose')}
           </button>
           {person.photoId && (
             <button
@@ -84,7 +87,7 @@ export function PhotoField({ person }: { person: Person }) {
               }}
               className="btn px-3"
             >
-              Remove photo
+              {t('photo.remove')}
             </button>
           )}
         </div>
@@ -93,7 +96,7 @@ export function PhotoField({ person }: { person: Person }) {
         ref={input}
         type="file"
         accept="image/*,.heic,.heif"
-        aria-label="Photo file"
+        aria-label={t('photo.fileLabel')}
         hidden
         onChange={(event) => {
           const file = event.target.files?.[0]
@@ -103,7 +106,7 @@ export function PhotoField({ person }: { person: Person }) {
       />
       {message && (
         <p role="alert" className="text-red-800">
-          {message}
+          {renderMessage(t, message)}
         </p>
       )}
       {bitmap && <CropDialog bitmap={bitmap} onCancel={() => setBitmap(null)} onConfirm={onConfirm} />}

@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
-import { UNNAMED_PARENT, addRelative, previewFor, questionFor } from './addRelative.ts'
+import { renderEnglish } from '../i18n/testing.ts'
+import { addRelative, previewFor as previewRefs, questionFor } from './addRelative.ts'
+
+const UNNAMED_PARENT = 'Unnamed parent'
 import { IntegrityError } from './integrity.ts'
 import { deriveRelationships } from './labels.ts'
 import type { Tree } from './schema.ts'
@@ -26,17 +29,17 @@ describe('adding a parent', () => {
   it('asks nothing when the Person has no parents, and presets the gender', () => {
     const tree = withPeople('Ben')
     expect(questionFor(tree, id(1), 'father')).toEqual({ kind: 'none' })
-    const result = addRelative(tree, { anchorId: id(1), relation: 'father', person: { firstName: 'Karl' } })
+    const result = addRelative(tree, { unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'father', person: { firstName: 'Karl' } })
     expect(person(result.tree, 'Karl').gender).toBe('male')
     expect(parentsOf(result.tree, id(1))).toEqual(['Karl'])
     expect(result.tree.partnerships).toHaveLength(0)
   })
 
   it('with one parent, asks about the partnership and defaults to a current one', () => {
-    const base = addRelative(withPeople('Ben'), { anchorId: id(1), relation: 'father', person: { firstName: 'Karl' } }).tree
+    const base = addRelative(withPeople('Ben'), { unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'father', person: { firstName: 'Karl' } }).tree
     const question = questionFor(base, id(1), 'mother')
     expect(question.kind).toBe('parent-partnership')
-    const result = addRelative(base, { anchorId: id(1), relation: 'mother', person: { firstName: 'Maria' } })
+    const result = addRelative(base, { unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'mother', person: { firstName: 'Maria' } })
     expect(parentsOf(result.tree, id(1)).sort()).toEqual(['Karl', 'Maria'])
     expect(result.tree.partnerships).toHaveLength(1)
     expect(result.tree.partnerships[0]!.status).toBe('current')
@@ -46,8 +49,9 @@ describe('adding a parent', () => {
     ['ended', 1, 'ended'],
     ['none', 0, undefined],
   ] as const)('the answer "%s" sets the partnership accordingly', (answer, count, status) => {
-    const base = addRelative(withPeople('Ben'), { anchorId: id(1), relation: 'father', person: { firstName: 'Karl' } }).tree
+    const base = addRelative(withPeople('Ben'), { unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'father', person: { firstName: 'Karl' } }).tree
     const result = addRelative(base, {
+      unnamedParentName: UNNAMED_PARENT,
       anchorId: id(1),
       relation: 'mother',
       person: { firstName: 'Maria' },
@@ -61,8 +65,8 @@ describe('adding a parent', () => {
     const tree = benWithTwoParents()
     const question = questionFor(tree, id(1), 'father')
     expect(question.kind).toBe('blocked')
-    expect(question.kind === 'blocked' && question.message).toContain('two birth parents')
-    expect(() => addRelative(tree, { anchorId: id(1), relation: 'father', person: { firstName: 'Third' } })).toThrow(
+    expect(question.kind === 'blocked' && renderEnglish(question.message)).toContain('two birth parents')
+    expect(() => addRelative(tree, { unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'father', person: { firstName: 'Third' } })).toThrow(
       IntegrityError,
     )
   })
@@ -72,7 +76,7 @@ describe('adding a sibling', () => {
   it('with two parents asks which are shared; both is the default', () => {
     const tree = benWithTwoParents()
     expect(questionFor(tree, id(1), 'sister').kind).toBe('sibling-parents')
-    const result = addRelative(tree, { anchorId: id(1), relation: 'sister', person: { firstName: 'Anna' } })
+    const result = addRelative(tree, { unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'sister', person: { firstName: 'Anna' } })
     expect(parentsOf(result.tree, person(result.tree, 'Anna').id).sort()).toEqual(['Karl', 'Maria'])
     expect(person(result.tree, 'Anna').gender).toBe('female')
   })
@@ -80,6 +84,7 @@ describe('adding a sibling', () => {
   it('with two parents can share only one: a half-sibling', () => {
     const tree = benWithTwoParents()
     const result = addRelative(tree, {
+      unnamedParentName: UNNAMED_PARENT,
       anchorId: id(1),
       relation: 'brother',
       person: { firstName: 'Max' },
@@ -93,7 +98,7 @@ describe('adding a sibling', () => {
   it('rejects "only this parent" for someone who is not a parent', () => {
     const tree = addPerson(benWithTwoParents(), { id: id(9), firstName: 'Stranger' })
     expect(() =>
-      addRelative(tree, { anchorId: id(1), relation: 'brother', person: { firstName: 'Max' }, answers: { siblingParents: id(9) } }),
+      addRelative(tree, { unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'brother', person: { firstName: 'Max' }, answers: { siblingParents: id(9) } }),
     ).toThrow()
   })
 
@@ -101,7 +106,7 @@ describe('adding a sibling', () => {
     let tree = withPeople('Ben', 'Karl')
     tree = addParentLink(tree, id(1), id(2))
     expect(questionFor(tree, id(1), 'sister')).toEqual({ kind: 'none' })
-    const result = addRelative(tree, { anchorId: id(1), relation: 'sister', person: { firstName: 'Anna' } })
+    const result = addRelative(tree, { unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'sister', person: { firstName: 'Anna' } })
     expect(parentsOf(result.tree, person(result.tree, 'Anna').id)).toEqual(['Karl'])
     expect(result.tree.persons).toHaveLength(3)
   })
@@ -109,7 +114,7 @@ describe('adding a sibling', () => {
   it('with no parents creates an unnamed shared parent, who can be renamed', () => {
     const tree = withPeople('Ben')
     expect(questionFor(tree, id(1), 'sister')).toEqual({ kind: 'none' })
-    const result = addRelative(tree, { anchorId: id(1), relation: 'sister', person: { firstName: 'Anna' } })
+    const result = addRelative(tree, { unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'sister', person: { firstName: 'Anna' } })
     const parent = person(result.tree, UNNAMED_PARENT)
     expect(parentsOf(result.tree, id(1))).toEqual([UNNAMED_PARENT])
     expect(parentsOf(result.tree, person(result.tree, 'Anna').id)).toEqual([UNNAMED_PARENT])
@@ -121,7 +126,7 @@ describe('adding a child', () => {
   it('without partners is a single-parent child and asks nothing', () => {
     const tree = withPeople('Ben')
     expect(questionFor(tree, id(1), 'son')).toEqual({ kind: 'none' })
-    const result = addRelative(tree, { anchorId: id(1), relation: 'son', person: { firstName: 'Leo' } })
+    const result = addRelative(tree, { unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'son', person: { firstName: 'Leo' } })
     expect(parentsOf(result.tree, person(result.tree, 'Leo').id)).toEqual(['Ben'])
     expect(person(result.tree, 'Leo').gender).toBe('male')
   })
@@ -134,7 +139,7 @@ describe('adding a child', () => {
     const question = questionFor(tree, id(1), 'child')
     expect(question.kind === 'child-other-parent' && question.defaultParentId).toBe(id(4))
     expect(question.kind === 'child-other-parent' && question.partners).toHaveLength(3)
-    const result = addRelative(tree, { anchorId: id(1), relation: 'child', person: { firstName: 'Kid' } })
+    const result = addRelative(tree, { unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'child', person: { firstName: 'Kid' } })
     expect(parentsOf(result.tree, person(result.tree, 'Kid').id).sort()).toEqual(['Ben', 'New'])
   })
 
@@ -149,6 +154,7 @@ describe('adding a child', () => {
     let tree = withPeople('Ben', 'Eva')
     tree = addPartnership(tree, { personIds: [id(1), id(2)], status: 'current' })
     const alone = addRelative(tree, {
+      unnamedParentName: UNNAMED_PARENT,
       anchorId: id(1),
       relation: 'daughter',
       person: { firstName: 'Mia' },
@@ -156,6 +162,7 @@ describe('adding a child', () => {
     })
     expect(parentsOf(alone.tree, person(alone.tree, 'Mia').id)).toEqual(['Ben'])
     const both = addRelative(tree, {
+      unnamedParentName: UNNAMED_PARENT,
       anchorId: id(1),
       relation: 'daughter',
       person: { firstName: 'Mia' },
@@ -167,6 +174,7 @@ describe('adding a child', () => {
   it('cannot name the Person themselves as the other parent', () => {
     expect(() =>
       addRelative(withPeople('Ben'), {
+        unnamedParentName: UNNAMED_PARENT,
         anchorId: id(1),
         relation: 'child',
         person: { firstName: 'Kid' },
@@ -180,10 +188,11 @@ describe('adding a partner', () => {
   it('always asks current or ended, defaulting to current', () => {
     const tree = withPeople('Ben')
     expect(questionFor(tree, id(1), 'wife')).toEqual({ kind: 'partner-status' })
-    const current = addRelative(tree, { anchorId: id(1), relation: 'wife', person: { firstName: 'Eva' } })
+    const current = addRelative(tree, { unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'wife', person: { firstName: 'Eva' } })
     expect(current.tree.partnerships[0]!.status).toBe('current')
     expect(person(current.tree, 'Eva').gender).toBe('female')
     const ended = addRelative(tree, {
+      unnamedParentName: UNNAMED_PARENT,
       anchorId: id(1),
       relation: 'partner',
       person: { firstName: 'Sam' },
@@ -195,6 +204,7 @@ describe('adding a partner', () => {
 
   it('a chosen gender overrides the preset', () => {
     const result = addRelative(withPeople('Ben'), {
+      unnamedParentName: UNNAMED_PARENT,
       anchorId: id(1),
       relation: 'husband',
       person: { firstName: 'Alex', gender: 'other' },
@@ -209,6 +219,7 @@ describe('as one store action', () => {
     const listener = vi.fn()
     store.subscribe(listener)
     const newId = store.getState().addRelative({
+      unnamedParentName: UNNAMED_PARENT,
       anchorId: id(1),
       relation: 'brother',
       person: { firstName: 'Max' },
@@ -219,10 +230,10 @@ describe('as one store action', () => {
   })
 
   it('a flow that creates a parent, links and a partnership is still one update', () => {
-    const store = createTreeStore(addRelative(withPeople('Ben'), { anchorId: id(1), relation: 'father', person: { firstName: 'Karl' } }).tree)
+    const store = createTreeStore(addRelative(withPeople('Ben'), { unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'father', person: { firstName: 'Karl' } }).tree)
     const listener = vi.fn()
     store.subscribe(listener)
-    store.getState().addRelative({ anchorId: id(1), relation: 'mother', person: { firstName: 'Maria' } })
+    store.getState().addRelative({ unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'mother', person: { firstName: 'Maria' } })
     expect(listener).toHaveBeenCalledTimes(1)
     expect(store.getState().partnerships).toHaveLength(1)
   })
@@ -233,35 +244,38 @@ describe('as one store action', () => {
     const listener = vi.fn()
     store.subscribe(listener)
     expect(() =>
-      store.getState().addRelative({ anchorId: id(1), relation: 'mother', person: { firstName: 'Third' } }),
+      store.getState().addRelative({ unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'mother', person: { firstName: 'Third' } }),
     ).toThrow(IntegrityError)
     expect(listener).not.toHaveBeenCalled()
     expect(store.getState().persons).toBe(before)
   })
 })
 
+/** What the user reads: the lines of the preview, in English. */
+const previewFor = (...args: Parameters<typeof previewRefs>) => previewRefs(...args).map(renderEnglish)
+
 describe('previewFor', () => {
   it('words what will be created', () => {
     const tree = benWithTwoParents()
-    expect(previewFor(tree, { anchorId: id(1), relation: 'sister', person: { firstName: 'Anna' } })).toEqual([
+    expect(previewFor(tree, { unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'sister', person: { firstName: 'Anna' } })).toEqual([
       'Anna, sister of Ben',
       'Same parents: Karl and Maria',
     ])
     expect(
-      previewFor(tree, { anchorId: id(1), relation: 'sister', person: { firstName: 'Anna' }, answers: { siblingParents: id(2) } }),
+      previewFor(tree, { unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'sister', person: { firstName: 'Anna' }, answers: { siblingParents: id(2) } }),
     ).toEqual(['Anna, sister of Ben', 'Half-sibling: shares only Karl as parent'])
-    expect(previewFor(withPeople('Ben'), { anchorId: id(1), relation: 'brother', person: { firstName: 'Max' } })[1]).toContain(
+    expect(previewFor(withPeople('Ben'), { unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'brother', person: { firstName: 'Max' } })[1]).toContain(
       UNNAMED_PARENT,
     )
     expect(
-      previewFor(withPeople('Ben'), { anchorId: id(1), relation: 'wife', person: { firstName: 'Eva' }, answers: { partnerStatus: 'ended' } }),
+      previewFor(withPeople('Ben'), { unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'wife', person: { firstName: 'Eva' }, answers: { partnerStatus: 'ended' } }),
     ).toEqual(['Eva, wife of Ben', 'An ended partnership'])
   })
 
   it('names the other parent of a child and uses a placeholder before a name is typed', () => {
     let tree = withPeople('Ben', 'Eva')
     tree = addPartnership(tree, { personIds: [id(1), id(2)], status: 'current' })
-    expect(previewFor(tree, { anchorId: id(1), relation: 'son', person: { firstName: '' } })).toEqual([
+    expect(previewFor(tree, { unnamedParentName: UNNAMED_PARENT, anchorId: id(1), relation: 'son', person: { firstName: '' } })).toEqual([
       'The new person, son of Ben and Eva',
     ])
   })

@@ -1,8 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { deriveRelationships } from '../domain/labels.ts'
 import type { Person } from '../domain/schema.ts'
 import { searchPersons } from '../domain/search.ts'
 import { useTreeStore } from '../domain/store.ts'
+import { formatList } from '../i18n/format.ts'
+import { useLanguageStore } from '../i18n/language.ts'
+import { useT } from '../i18n/useT.ts'
 import { displayName, lifeSpan } from '../view/text.ts'
 import { useUiStore } from './uiStore.ts'
 
@@ -15,7 +18,8 @@ interface Model {
   /** Children who have this parent too but are listed under their first parent; shown as a pointer. */
   refs: Map<string, { person: Person; home: Person }[]>
   labels: Map<string, string | null>
-  partners: Map<string, string>
+  /** Each Person's partners, worded when drawn. */
+  partners: Map<string, { name: string; former: boolean }[]>
   focusPersonId: string | null
 }
 
@@ -43,13 +47,13 @@ function useModel(): Model {
       else push(refs, link.parentId, { person: child, home: homeParent })
     }
 
-    const partnerNames = new Map<string, string[]>()
+    const partners = new Map<string, { name: string; former: boolean }[]>()
     for (const partnership of partnerships) {
       const [a, b] = partnership.personIds.map((id) => byId.get(id))
       if (!a || !b) continue
-      const note = (other: Person) => (partnership.status === 'ended' ? `${other.firstName} (former)` : other.firstName)
-      push(partnerNames, a.id, note(b))
-      push(partnerNames, b.id, note(a))
+      const former = partnership.status === 'ended'
+      push(partners, a.id, { name: b.firstName, former })
+      push(partners, b.id, { name: a.firstName, former })
     }
 
     const labels = new Map(
@@ -61,7 +65,7 @@ function useModel(): Model {
       kids,
       refs,
       labels,
-      partners: new Map([...partnerNames].map(([id, names]) => [id, names.join(', ')])),
+      partners,
       focusPersonId,
     }
   }, [persons, parentLinks, partnerships, focusPersonId])
@@ -69,7 +73,24 @@ function useModel(): Model {
 
 const buttonClass = 'min-h-11 rounded px-2 text-left hover:bg-stone-100'
 
+/** "with Ana, Ben (former)": the partners of a Person, or nothing. */
+function usePartnersLine(model: Model): (personId: string) => string | null {
+  const t = useT()
+  const language = useLanguageStore((s) => s.language)
+  return useCallback(
+    (personId) => {
+      const partners = model.partners.get(personId)
+      if (!partners) return null
+      const names = partners.map((p) => (p.former ? t('list.former', { name: p.name }) : p.name))
+      return t('list.with', { names: formatList(names, language) })
+    },
+    [model, t, language],
+  )
+}
+
 function Item({ person, depth, model }: { person: Person; depth: number; model: Model }) {
+  const t = useT()
+  const partnersLine = usePartnersLine(model)
   const selectedId = useUiStore((s) => s.selectedId)
   const select = useUiStore((s) => s.select)
   // The first two generations start open; deeper ones are collapsed so a big Tree stays manageable.
@@ -90,8 +111,8 @@ function Item({ person, depth, model }: { person: Person; depth: number; model: 
   const kids = model.kids.get(person.id) ?? []
   const refs = model.refs.get(person.id) ?? []
   const expandable = kids.length > 0 || refs.length > 0
-  const relationship = person.id === model.focusPersonId ? 'Focus person' : model.labels.get(person.id)
-  const partners = model.partners.get(person.id)
+  const relationship = person.id === model.focusPersonId ? t('person.focus') : model.labels.get(person.id)
+  const partners = partnersLine(person.id)
   const name = displayName(person)
 
   return (
@@ -101,7 +122,7 @@ function Item({ person, depth, model }: { person: Person; depth: number; model: 
           <button
             type="button"
             aria-expanded={open}
-            aria-label={`${open ? 'Collapse' : 'Expand'} ${person.firstName}'s family`}
+            aria-label={t(open ? 'list.collapse' : 'list.expand', { name: person.firstName })}
             onClick={() => setOpen(!open)}
             className="grid size-11 shrink-0 place-items-center rounded hover:bg-stone-100"
           >
@@ -117,7 +138,7 @@ function Item({ person, depth, model }: { person: Person; depth: number; model: 
           className={`${buttonClass} flex-1 ${selectedId === person.id ? 'bg-stone-200 font-semibold' : ''}`}
         >
           {[name, relationship, lifeSpan(person)].filter(Boolean).join(' · ')}
-          {partners && <span className="block text-sm text-stone-700">with {partners}</span>}
+          {partners && <span className="block text-sm text-stone-700">{partners}</span>}
         </button>
       </div>
       {open && expandable && (
@@ -128,7 +149,7 @@ function Item({ person, depth, model }: { person: Person; depth: number; model: 
           {refs.map(({ person: other, home }) => (
             <li key={other.id} className="pl-11">
               <button type="button" onClick={() => select(other.id)} className={buttonClass}>
-                {displayName(other)} · also a child here, listed under {home.firstName}
+                {t('list.alsoChild', { name: displayName(other), home: home.firstName })}
               </button>
             </li>
           ))}
@@ -143,7 +164,9 @@ function Item({ person, depth, model }: { person: Person; depth: number; model: 
  * same detail panel with its add/edit actions as the drawing, for anyone who finds a list easier than a graph.
  */
 export function ListView() {
+  const t = useT()
   const model = useModel()
+  const partnersLine = usePartnersLine(model)
   const persons = useTreeStore((s) => s.persons)
   const query = useUiStore((s) => s.query)
   const select = useUiStore((s) => s.select)
@@ -156,14 +179,14 @@ export function ListView() {
   return (
     <section aria-labelledby="list-title" style={{ paddingBottom: sheetHeight + 16 }} className="h-full overflow-auto bg-white p-4">
       <h2 id="list-title" className="sr-only">
-        Family list
+        {t('list.title')}
       </h2>
       {filtering ? (
         matches.length > 0 ? (
           <ul>
             {matches.map((person) => {
-              const relationship = person.id === model.focusPersonId ? 'Focus person' : model.labels.get(person.id)
-              const partners = model.partners.get(person.id)
+              const relationship = person.id === model.focusPersonId ? t('person.focus') : model.labels.get(person.id)
+              const partners = partnersLine(person.id)
               return (
                 <li key={person.id}>
                   <button
@@ -173,14 +196,14 @@ export function ListView() {
                     className={`${buttonClass} w-full ${selectedId === person.id ? 'bg-stone-200 font-semibold' : ''}`}
                   >
                     {[displayName(person), relationship, lifeSpan(person)].filter(Boolean).join(' · ')}
-                    {partners && <span className="block text-sm text-stone-700">with {partners}</span>}
+                    {partners && <span className="block text-sm text-stone-700">{partners}</span>}
                   </button>
                 </li>
               )
             })}
           </ul>
         ) : (
-          <p className="px-2 text-stone-700">No one matches “{query.trim()}”.</p>
+          <p className="px-2 text-stone-700">{t('list.noMatch', { query: query.trim() })}</p>
         )
       ) : (
         <ul>

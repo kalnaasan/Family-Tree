@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HISTORY_LIMIT } from '../domain/history.ts'
 import { createTreeStore } from '../domain/store.ts'
+import { msg } from '../i18n/messageRef.ts'
 import { type MemoryPhotoStore, memoryPhotoStore } from './memoryPhotoStore.ts'
 import { createPhotoGc, referencedPhotoIds } from './photoGc.ts'
 
@@ -24,7 +25,7 @@ beforeEach(() => {
 const setup = () => createPhotoGc(store, photos, (photoId) => deleted.push(photoId))
 const givePhoto = async (photoId: string) => {
   await photos.put(photoId, blob())
-  store.getState().updatePerson(ANNA, { photoId }, 'Change photo')
+  store.getState().updatePerson(ANNA, { photoId }, msg('step.changePhoto'))
 }
 
 describe('referencedPhotoIds', () => {
@@ -134,7 +135,7 @@ describe('the photo lifecycle with undo', () => {
     const gc = setup()
     gc.start()
     await givePhoto(A)
-    store.getState().updatePerson(ANNA, { photoId: undefined }, 'Remove photo')
+    store.getState().updatePerson(ANNA, { photoId: undefined }, msg('step.removePhoto'))
     await flush()
     expect(photos.blobs.has(A)).toBe(true)
     store.getState().undo()

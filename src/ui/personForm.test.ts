@@ -3,7 +3,7 @@ import { DATE_HELP, emptyValues, toPersonFields, validate, valuesOf } from './pe
 
 describe('validate', () => {
   it('needs a first name', () => {
-    expect(validate(emptyValues()).firstName).toBe('Enter a first name')
+    expect(validate(emptyValues()).firstName).toBe('person.errorFirstName')
     expect(validate({ ...emptyValues(), firstName: '   ' }).firstName).toBeDefined()
     expect(validate({ ...emptyValues(), firstName: 'Ana' })).toEqual({})
   })

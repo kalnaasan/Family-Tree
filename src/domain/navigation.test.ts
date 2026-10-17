@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { type NavKey, type NavMemory, describeMove, freshMemory, move } from './navigation.ts'
+import { renderEnglish } from '../i18n/testing.ts'
+import { type NavKey, type NavMemory, describeMove as describeMoveRef, freshMemory, move } from './navigation.ts'
 import type { Tree } from './schema.ts'
 import { addParentLink, addPartnership, addPerson, emptyTree } from './tree.ts'
 
@@ -37,7 +38,7 @@ function walk(start: number, keys: NavKey[]): string[] {
     const result = move(tree, at, key, memory)
     memory = result.memory
     if (result.kind === 'moved') at = result.target.id
-    visited.push(result.kind === 'moved' ? result.target.firstName : `(${result.message})`)
+    visited.push(result.kind === 'moved' ? result.target.firstName : `(${renderEnglish(result.message)})`)
   }
   return visited
 }
@@ -109,7 +110,7 @@ describe('announcements', () => {
   const said = (start: number, key: NavKey) => {
     const result = move(tree, id(start), key, freshMemory())
     if (result.kind !== 'moved') throw new Error('expected a move')
-    return describeMove(tree, result)
+    return renderEnglish(describeMoveRef(tree, result))
   }
 
   it('names the Person, how they relate to where we were, and how many children they have', () => {
@@ -124,9 +125,9 @@ describe('announcements', () => {
     expect(said(5, 'right')).toBe('Max, half-brother of Tim')
     const toEva = move(tree, id(3), 'partner', freshMemory())
     const toZoe = move(tree, id(6 - 1), 'partner', toEva.memory) // pressed again, from Eva
-    expect(toZoe.kind === 'moved' && toZoe.word).toBe('ex-wife')
+    expect(toZoe.kind === 'moved' && renderEnglish(toZoe.word)).toBe('ex-wife')
     // cycling names the Person the cycle began at, not Eva, whose partner Zoe is not
-    expect(toZoe.kind === 'moved' && describeMove(tree, toZoe)).toBe('Zoe, ex-wife of Ben')
+    expect(toZoe.kind === 'moved' && renderEnglish(describeMoveRef(tree, toZoe))).toBe('Zoe, ex-wife of Ben')
   })
 
   it('uses a neutral word when gender is not known', () => {
@@ -136,7 +137,7 @@ describe('announcements', () => {
       id(2),
     )
     const result = move(t, id(1), 'up', freshMemory())
-    expect(result.kind === 'moved' && result.word).toBe('parent')
+    expect(result.kind === 'moved' && renderEnglish(result.word)).toBe('parent')
   })
 
   it('every name in these tests belongs to someone', () => {

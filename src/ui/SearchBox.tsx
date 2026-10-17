@@ -2,13 +2,12 @@ import { type KeyboardEvent, useId, useMemo, useState } from 'react'
 import { deriveRelationships } from '../domain/labels.ts'
 import { searchPersons } from '../domain/search.ts'
 import { useTreeStore } from '../domain/store.ts'
+import { useT } from '../i18n/useT.ts'
 import { displayName, lifeSpan } from '../view/text.ts'
 import { useUiStore } from './uiStore.ts'
 
 /** The results list shows this many; "keep typing" covers the rest. */
 export const MAX_RESULTS = 8
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
 /**
  * Search over first and last name (spec section 11). With the tree showing it is a combobox: type, arrow to a result,
@@ -16,6 +15,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
  * the list instead (see `ListView`), so there is no pop-up there.
  */
 export function SearchBox() {
+  const t = useT()
   const listId = useId()
   const query = useUiStore((s) => s.query)
   const setQuery = useUiStore((s) => s.setQuery)
@@ -71,18 +71,18 @@ export function SearchBox() {
   const summary = !query.trim()
     ? ''
     : results.length === 0
-      ? 'No one found'
+      ? t('search.none')
       : listView
-        ? `Showing ${plural(results.length, 'person')}`
-        : `${plural(results.length, 'result')}`
+        ? t('search.showing', { count: results.length })
+        : t('search.results', { count: results.length })
 
   return (
     <div className="relative min-w-0 flex-1 sm:max-w-sm">
       <input
         type="text"
         role={listView ? 'searchbox' : 'combobox'}
-        aria-label="Search people"
-        placeholder="Search people"
+        aria-label={t('search.label')}
+        placeholder={t('search.label')}
         autoComplete="off"
         autoCorrect="off"
         spellCheck={false}
@@ -115,9 +115,9 @@ export function SearchBox() {
           onMouseDown={(event) => event.preventDefault()}
           className="absolute top-full left-0 z-40 mt-1 max-h-[60dvh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded border border-line-strong bg-white shadow-lg"
         >
-          <ul id={listId} role="listbox" aria-label="Search results">
+          <ul id={listId} role="listbox" aria-label={t('search.resultsLabel')}>
             {shown.map((person, n) => {
-              const label = person.id === focusPersonId ? 'Focus person' : labels?.get(person.id)?.label
+              const label = person.id === focusPersonId ? t('person.focus') : labels?.get(person.id)?.label
               const text = [displayName(person), label, lifeSpan(person)].filter(Boolean).join(' · ')
               return (
                 <li
@@ -133,10 +133,10 @@ export function SearchBox() {
               )
             })}
           </ul>
-          {results.length === 0 && <p className="flex min-h-11 items-center px-3 text-stone-700">No one found</p>}
+          {results.length === 0 && <p className="flex min-h-11 items-center px-3 text-stone-700">{t('search.none')}</p>}
           {results.length > shown.length && (
             <p className="flex min-h-11 items-center px-3 text-sm text-stone-700">
-              {results.length - shown.length} more: keep typing to narrow it down
+              {t('search.more', { count: results.length - shown.length })}
             </p>
           )}
         </div>

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Tree } from '../domain/schema.ts'
 import { createTreeStore } from '../domain/store.ts'
+import { msg } from '../i18n/messageRef.ts'
 import { addPerson, emptyTree } from '../domain/tree.ts'
 import { memoryPhotoStore } from '../photos/memoryPhotoStore.ts'
 import { createBackupLogStore } from './backupLog.ts'
@@ -160,7 +161,7 @@ describe('import', () => {
     const prepared = await service.prepareImport(await fileOf(treeOf('Cleo'), true))
     if (!prepared.ok) throw new Error(prepared.message)
     const result = await service.applyImport(prepared.prepared)
-    expect(result).toMatchObject({ ok: false, message: expect.stringContaining('safety copy') })
+    expect(result).toEqual({ ok: false, message: msg('backup.safetyCopyFailed') })
     expect(names(store)).toEqual(['Anna', 'Ben'])
     expect(photos.blobs.size).toBe(0)
   })
@@ -171,7 +172,7 @@ describe('import', () => {
     if (!prepared.ok) throw new Error(prepared.message)
     photos.failWith = new DOMException('full', 'QuotaExceededError')
     const result = await service.applyImport(prepared.prepared)
-    expect(result).toMatchObject({ ok: false, message: expect.stringContaining('not enough storage space') })
+    expect(result).toEqual({ ok: false, message: msg('backup.photosNoSpace') })
     expect(names(store)).toEqual(['Anna', 'Ben'])
     expect(releases.every((release) => release.mock.calls.length === 1)).toBe(true)
   })

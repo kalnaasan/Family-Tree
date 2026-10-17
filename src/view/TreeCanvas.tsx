@@ -2,6 +2,9 @@ import { memo, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { relativesOf } from '../domain/groups.ts'
 import { type NavKey, type NavMemory, describeMove, freshMemory, move } from '../domain/navigation.ts'
 import type { ParentLink, Partnership, Person } from '../domain/schema.ts'
+import { useLanguageStore } from '../i18n/language.ts'
+import { renderMessage } from '../i18n/messageRef.ts'
+import { useT } from '../i18n/useT.ts'
 import type { TreeLayout } from '../layout/layoutTree.ts'
 import { HEART_PATH, rootPaths, trunkPath } from './geometry.ts'
 import { GestureTracker, ZOOM_OUT_OF_DOT, resolveTap } from './gestures.ts'
@@ -79,6 +82,8 @@ const SceneContents = memo(function SceneContents({
   photoUrlFor,
   drawn,
 }: SceneContentsProps) {
+  const t = useT()
+  const language = useLanguageStore((s) => s.language)
   const { layout } = scene
   const { bucket, rect } = drawn
   const visible = useMemo(() => {
@@ -144,7 +149,7 @@ const SceneContents = memo(function SceneContents({
             name={displayName(person)}
             initial={initialOf(person)}
             life={lifeSpan(person)}
-            ariaLabel={personAriaLabel(person, labels.get(person.id) ?? null, i === focusIndex)}
+            ariaLabel={personAriaLabel(person, labels.get(person.id) ?? null, i === focusIndex, { t, language })}
             gender={person.gender}
             deceased={person.deceased}
             isFocus={i === focusIndex}
@@ -263,6 +268,7 @@ export function TreeCanvas({
     ])
   }, [selectedPersonId, selectedIndex, links, persons, focusPersonId])
 
+  const t = useT()
   // The keyboard's place in the tree: the one Person in the tab order. It starts at the Focus person.
   const [cursorId, setCursorId] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState('')
@@ -435,10 +441,10 @@ export function TreeCanvas({
     const result = move(tree, cursorPersonId, key, navMemory.current)
     navMemory.current = result.memory
     if (result.kind === 'none') {
-      announce(result.message)
+      announce(renderMessage(t, result.message))
       return
     }
-    announce(describeMove(tree, result))
+    announce(renderMessage(t, describeMove(tree, result)))
     setCursorId(result.target.id)
     focusCursorAfterRender.current = true
     ensureVisible(result.target.id)
@@ -461,7 +467,7 @@ export function TreeCanvas({
       onSelectPerson?.(id)
     } else if ((event.key === 'f' || event.key === 'F') && cursorPersonId) {
       onSetFocusPerson?.(cursorPersonId)
-      announce(`${persons[cursorIndex]?.firstName ?? 'This person'} is now the Focus person`)
+      announce(t('tree.nowFocus', { name: persons[cursorIndex]?.firstName ?? t('tree.thisPerson') }))
     } else if (event.key === '+' || event.key === '=') controller.zoomBy(KEY_ZOOM)
     else if (event.key === '-' || event.key === '_') controller.zoomBy(1 / KEY_ZOOM)
     else if (event.key === '0') controller.fit()
@@ -469,7 +475,7 @@ export function TreeCanvas({
       showFocus()
       focusCursorAfterRender.current = true
       const name = focusIndex >= 0 ? persons[focusIndex]?.firstName : undefined
-      announce(name ? `${name}, Focus person` : 'No Focus person')
+      announce(name ? t('tree.homeFocus', { name }) : t('tree.noFocus'))
     } else if (event.shiftKey && event.key === 'ArrowLeft') controller.panBy(KEY_PAN_PX, 0)
     else if (event.shiftKey && event.key === 'ArrowRight') controller.panBy(-KEY_PAN_PX, 0)
     else if (event.shiftKey && event.key === 'ArrowUp') controller.panBy(0, KEY_PAN_PX)
@@ -546,7 +552,7 @@ export function TreeCanvas({
     <div
       ref={frameRef}
       role="group"
-      aria-label="Family tree"
+      aria-label={t('tree.label')}
       aria-describedby={hintId}
       // One tab stop: the keyboard's Person once there is one, else the tree itself.
       tabIndex={cursorPersonId ? -1 : 0}
@@ -585,9 +591,7 @@ export function TreeCanvas({
         </svg>
       </div>
       <p id={hintId} className="sr-only">
-        Arrow keys move to a parent, child or sibling. P moves to a partner. Enter opens a person. F makes them the
-        Focus person. Home returns to the Focus person. Plus and minus zoom, 0 shows the whole tree, Shift with an arrow
-        pans.
+        {t('tree.hint')}
       </p>
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {announcement}
@@ -599,16 +603,16 @@ export function TreeCanvas({
         style={{ top: `calc((100% - ${coveredBottom}px) / 2)` }}
         className="absolute right-2 flex -translate-y-1/2 flex-col gap-2"
       >
-        <ControlButton label="Zoom in" onClick={() => controllerRef.current?.zoomBy(KEY_ZOOM)}>
+        <ControlButton label={t('tree.zoomIn')} onClick={() => controllerRef.current?.zoomBy(KEY_ZOOM)}>
           <path d="M12 5v14M5 12h14" />
         </ControlButton>
-        <ControlButton label="Zoom out" onClick={() => controllerRef.current?.zoomBy(1 / KEY_ZOOM)}>
+        <ControlButton label={t('tree.zoomOut')} onClick={() => controllerRef.current?.zoomBy(1 / KEY_ZOOM)}>
           <path d="M5 12h14" />
         </ControlButton>
-        <ControlButton label="Show whole tree" onClick={() => controllerRef.current?.fit()}>
+        <ControlButton label={t('tree.fit')} onClick={() => controllerRef.current?.fit()}>
           <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
         </ControlButton>
-        <ControlButton label="Back to Focus person" disabled={focusIndex < 0} onClick={showFocus}>
+        <ControlButton label={t('tree.backToFocus')} disabled={focusIndex < 0} onClick={showFocus}>
           <circle cx="12" cy="12" r="3.5" />
           <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
         </ControlButton>

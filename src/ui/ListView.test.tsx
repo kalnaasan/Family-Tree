@@ -112,7 +112,7 @@ describe('ListView', () => {
   it('follows the Tree: a new relative appears', () => {
     render(<ListView />)
     expect(screen.queryByRole('button', { name: /^Tom/ })).toBeNull()
-    act(() => void useTreeStore.getState().addRelative({ anchorId: id(3), relation: 'son', person: { firstName: 'Tom' } }))
+    act(() => void useTreeStore.getState().addRelative({ unnamedParentName: 'Unnamed parent', anchorId: id(3), relation: 'son', person: { firstName: 'Tom' } }))
     expect(item('Tom')).toBeInTheDocument() // Ben's child: generation 2, so shown
   })
 })

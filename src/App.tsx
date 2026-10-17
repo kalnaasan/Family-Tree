@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { SaveIndicator } from './components/SaveIndicator.tsx'
 import { useTreeStore } from './domain/store.ts'
+import { isolate } from './i18n/format.ts'
+import { useT } from './i18n/useT.ts'
 import { usePersistenceStatus } from './persistence/saveStatus.ts'
 import { usePersistence } from './persistence/usePersistence.ts'
 import { BackupBanner } from './ui/BackupBanner.tsx'
@@ -21,6 +23,7 @@ import { TreeView } from './view/TreeView.tsx'
 export function App() {
   usePersistence()
   useUndoShortcuts()
+  const t = useT()
   const load = usePersistenceStatus((s) => s.load)
   const loadMessage = usePersistenceStatus((s) => s.loadMessage)
   const persons = useTreeStore((s) => s.persons)
@@ -43,14 +46,14 @@ export function App() {
     <main className="flex h-dvh flex-col">
       <header className="border-b border-line bg-paper-deep/60 px-4 py-2">
         <div className="flex items-center gap-2">
-          <h1 className="mr-auto text-xl font-semibold tracking-tight text-bark sm:text-2xl">Family Tree</h1>
+          <h1 className="mr-auto text-xl font-semibold tracking-tight text-bark sm:text-2xl">{t('app.title')}</h1>
           <SaveIndicator />
           <UndoControls />
           <button
             type="button"
             onClick={() => setSettingsOpen(true)}
-            aria-label="Settings"
-            title="Settings"
+            aria-label={t('app.settings')}
+            title={t('app.settings')}
             className="btn btn-icon"
           >
             <SettingsIcon />
@@ -66,7 +69,7 @@ export function App() {
               className="btn shrink-0 px-3 aria-pressed:border-leaf-deep aria-pressed:bg-leaf-deep aria-pressed:text-white"
             >
               <ListIcon />
-              List view
+              {t('app.listView')}
             </button>
           </div>
         )}
@@ -74,14 +77,12 @@ export function App() {
 
       {load === 'invalid' && (
         <p role="alert" className="mx-4 mt-2 rounded border border-red-800 p-3 text-red-800">
-          Your saved tree could not be read ({loadMessage}). It has not been changed, and nothing will be saved
-          until this is resolved.
+          {t('app.loadInvalid', { detail: isolate(loadMessage ?? '') })}
         </p>
       )}
       {load === 'unavailable' && (
         <p role="alert" className="mx-4 mt-2 rounded border border-red-800 p-3 text-red-800">
-          Saving is not available in this browser ({loadMessage}). Changes will be lost when you leave; export a
-          backup to keep them.
+          {t('app.loadUnavailable', { detail: isolate(loadMessage ?? '') })}
         </p>
       )}
 

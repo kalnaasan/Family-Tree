@@ -1,3 +1,5 @@
+import { type MessageRef, msg } from '../i18n/messageRef.ts'
+import type { MessageKey } from '../i18n/messages.ts'
 import { relativesOf } from './groups.ts'
 import type { Gender, Person, Tree } from './schema.ts'
 
@@ -10,6 +12,8 @@ import type { Gender, Person, Tree } from './schema.ts'
  * - Left/right walk a ring of the Person and their siblings in the order the Persons were added, wrapping round.
  * - Partner goes to the first partner; pressing it again right away cycles through the partners of the Person you
  *   started from, so every partner can be reached.
+ *
+ * The words this says are messages, not sentences: the interface turns them into the language in use.
  */
 export type NavKey = 'up' | 'down' | 'left' | 'right' | 'partner'
 
@@ -26,46 +30,59 @@ export const freshMemory = (): NavMemory => ({ lastKey: null, origin: null, inde
 
 export type Move =
   /** `relativeTo` is who `word` is about: the Person we moved from, or, when cycling partners, who the cycle began at. */
-  | { kind: 'moved'; target: Person; relativeTo: Person; word: string; memory: NavMemory }
-  | { kind: 'none'; message: string; memory: NavMemory }
+  | { kind: 'moved'; target: Person; relativeTo: Person; word: MessageRef; memory: NavMemory }
+  | { kind: 'none'; message: MessageRef; memory: NavMemory }
 
-const pick = (gender: Gender, male: string, female: string, neutral: string) =>
-  gender === 'male' ? male : gender === 'female' ? female : neutral
+const pick = (gender: Gender, male: MessageKey, female: MessageKey, neutral: MessageKey): MessageRef =>
+  msg(gender === 'male' ? male : gender === 'female' ? female : neutral)
 
 export function move(tree: Tree, currentId: string, key: NavKey, memory: NavMemory): Move {
   const current = tree.persons.find((p) => p.id === currentId)
-  if (!current) return { kind: 'none', message: 'Nobody is selected', memory }
+  if (!current) return { kind: 'none', message: msg('nav.nobodySelected'), memory }
   const relatives = relativesOf(tree, currentId)
   const next = (patch: Partial<NavMemory>): NavMemory => ({ ...memory, lastKey: key, ...patch })
+  const nothing = (message: MessageKey): Move => ({
+    kind: 'none',
+    message: msg(message, { name: current.firstName }),
+    memory: next({ origin: null }),
+  })
 
   switch (key) {
     case 'up': {
       const target = relatives.parents[0]
-      if (!target) return { kind: 'none', message: `${current.firstName} has no recorded parents`, memory: next({ origin: null }) }
+      if (!target) return nothing('nav.noParents')
       const cameFrom = new Map(memory.cameFrom).set(target.id, current.id)
       return {
         kind: 'moved',
         target,
         relativeTo: current,
-        word: pick(target.gender, 'father', 'mother', 'parent'),
+        word: pick(target.gender, 'relation.father', 'relation.mother', 'relation.parent'),
         memory: next({ origin: null, cameFrom }),
       }
     }
     case 'down': {
       const remembered = relatives.children.find((c) => c.id === memory.cameFrom.get(currentId))
       const target = remembered ?? relatives.children[0]
-      if (!target) return { kind: 'none', message: `${current.firstName} has no recorded children`, memory: next({ origin: null }) }
-      return { kind: 'moved', target, relativeTo: current, word: pick(target.gender, 'son', 'daughter', 'child'), memory: next({ origin: null }) }
+      if (!target) return nothing('nav.noChildren')
+      return {
+        kind: 'moved',
+        target,
+        relativeTo: current,
+        word: pick(target.gender, 'relation.son', 'relation.daughter', 'relation.child'),
+        memory: next({ origin: null }),
+      }
     }
     case 'left':
     case 'right': {
       const order = new Map(tree.persons.map((p, i) => [p.id, i]))
       const ring = [current, ...relatives.siblings.map((s) => s.person)].sort((a, b) => order.get(a.id)! - order.get(b.id)!)
-      if (ring.length === 1) return { kind: 'none', message: `${current.firstName} has no recorded siblings`, memory: next({ origin: null }) }
+      if (ring.length === 1) return nothing('nav.noSiblings')
       const at = ring.findIndex((p) => p.id === currentId)
       const target = ring[(at + (key === 'right' ? 1 : -1) + ring.length) % ring.length]!
       const half = relatives.siblings.find((s) => s.person.id === target.id)?.half ?? false
-      const word = `${half ? 'half-' : ''}${pick(target.gender, 'brother', 'sister', 'sibling')}`
+      const word = half
+        ? pick(target.gender, 'relation.halfBrother', 'relation.halfSister', 'relation.halfSibling')
+        : pick(target.gender, 'relation.brother', 'relation.sister', 'relation.sibling')
       return { kind: 'moved', target, relativeTo: current, word, memory: next({ origin: null }) }
     }
     case 'partner': {
@@ -73,17 +90,18 @@ export function move(tree: Tree, currentId: string, key: NavKey, memory: NavMemo
       const originPartners = repeating ? relativesOf(tree, memory.origin!).partners : []
       const cycling = repeating && originPartners.length > 1
       const partners = cycling ? originPartners : relatives.partners
-      if (partners.length === 0) {
-        return { kind: 'none', message: `${current.firstName} has no recorded partners`, memory: next({ origin: null }) }
-      }
+      if (partners.length === 0) return nothing('nav.noPartners')
       const index = cycling ? (memory.index + 1) % partners.length : 0
       const { person, status } = partners[index]!
-      const word = pick(person.gender, 'husband', 'wife', 'partner')
+      const word =
+        status === 'ended'
+          ? pick(person.gender, 'relation.exHusband', 'relation.exWife', 'relation.exPartner')
+          : pick(person.gender, 'relation.husband', 'relation.wife', 'relation.partner')
       return {
         kind: 'moved',
         target: person,
         relativeTo: cycling ? tree.persons.find((p) => p.id === memory.origin)! : current,
-        word: status === 'ended' ? `ex-${word}` : word,
+        word,
         memory: next({ origin: cycling ? memory.origin : currentId, index }),
       }
     }
@@ -91,12 +109,8 @@ export function move(tree: Tree, currentId: string, key: NavKey, memory: NavMemo
 }
 
 /** The announcement for a move, e.g. "Karl, father of Ben, 2 children". */
-export function describeMove(tree: Tree, moved: Extract<Move, { kind: 'moved' }>): string {
+export function describeMove(tree: Tree, moved: Extract<Move, { kind: 'moved' }>): MessageRef {
   const children = relativesOf(tree, moved.target.id).children.length
-  return [
-    `${moved.target.firstName}, ${moved.word} of ${moved.relativeTo.firstName}`,
-    children > 0 ? `${children} ${children === 1 ? 'child' : 'children'}` : null,
-  ]
-    .filter(Boolean)
-    .join(', ')
+  const params = { target: moved.target.firstName, word: moved.word, relativeTo: moved.relativeTo.firstName }
+  return children > 0 ? msg('nav.movedChildren', { ...params, count: children }) : msg('nav.moved', params)
 }

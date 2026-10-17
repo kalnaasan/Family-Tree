@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Tree } from '../domain/schema.ts'
 import { useTreeStore } from '../domain/store.ts'
+import { msg } from '../i18n/messageRef.ts'
+import { renderEnglish } from '../i18n/testing.ts'
 import { addParentLink, addPartnership, addPerson, emptyTree } from '../domain/tree.ts'
 import { PersonPanel } from './PersonPanel.tsx'
 import { useUiStore } from './uiStore.ts'
@@ -208,7 +210,9 @@ describe('edit and delete', () => {
     await user.click(screen.getByRole('button', { name: 'Delete Ben' }))
     expect(people()).not.toContain('Ben')
     const toast = useUiStore.getState().toast!
-    expect(toast.message).toBe('Deleted Ben, with 2 parent links')
+    expect(renderEnglish(toast.message)).toBe('Deleted Ben, with 2 parent links')
+    // what went with Ben is a message too, so the toast is worded in the language in use when it is drawn
+    expect(toast.message).toEqual(msg('toast.deletedWith', { name: 'Ben', parts: msg('toast.parentLinks', { count: 2 }) }))
     expect(toast.undoStepId).toBe(useTreeStore.getState().past.at(-1)!.id)
     expect(onClose).toHaveBeenCalled()
   })

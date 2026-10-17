@@ -1,4 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import type { MessageRef } from '../i18n/messageRef.ts'
+import { type Translate, useT } from '../i18n/useT.ts'
 import { usePersistenceStatus } from '../persistence/saveStatus.ts'
 import { photoStore } from '../photos/photos.ts'
 import { BackupSection } from './BackupSection.tsx'
@@ -7,11 +9,11 @@ import { RestoreSection } from './RestoreSection.tsx'
 import { useUiStore } from './uiStore.ts'
 
 /** "1.4 MB", "820 KB". */
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} bytes`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
+function formatBytes(bytes: number, t: Translate): string {
+  if (bytes < 1024) return t('size.bytes', { n: bytes })
+  if (bytes < 1024 * 1024) return t('size.kb', { n: Math.round(bytes / 1024) })
+  if (bytes < 1024 * 1024 * 1024) return t('size.mb', { n: (bytes / (1024 * 1024)).toFixed(1) })
+  return t('size.gb', { n: (bytes / (1024 * 1024 * 1024)).toFixed(1) })
 }
 
 interface Usage {
@@ -28,13 +30,14 @@ async function readUsage(): Promise<Usage> {
 
 /** Settings: storage use (spec section 6), backup and import, and restoring a previous version (section 10). */
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
+  const t = useT()
   const titleId = useId()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const persistent = usePersistenceStatus((s) => s.persistent)
   const [usage, setUsage] = useState<Usage | null>(null)
 
   /** The whole tree was replaced (import or restore): close, drop the open Person, and say so. */
-  const replaced = (message: string) => {
+  const replaced = (message: MessageRef) => {
     onClose()
     useUiStore.getState().select(null)
     useUiStore.getState().showToast(message)
@@ -64,40 +67,43 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       className="m-auto max-h-[90dvh] w-[min(92vw,32rem)] overflow-y-auto rounded-xl border border-stone-400 bg-white p-5 shadow-xl backdrop:bg-black/50"
     >
       <h2 id={titleId} className="text-xl font-semibold">
-        Settings
+        {t('app.settings')}
       </h2>
 
       <LanguageSetting />
 
       <section aria-labelledby={`${titleId}-storage`} className="mt-4">
         <h3 id={`${titleId}-storage`} className="font-semibold">
-          Storage
+          {t('settings.storage')}
         </h3>
         {usage === null ? (
-          <p className="mt-1 text-stone-700">Checking…</p>
+          <p className="mt-1 text-stone-700">{t('common.checking')}</p>
         ) : (
           <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-            <dt className="text-stone-700">Photos</dt>
+            <dt className="text-stone-700">{t('settings.photos')}</dt>
             <dd>
               {usage.photos === 'unavailable'
-                ? 'Could not be read'
+                ? t('settings.photosUnavailable')
                 : usage.photos.count === 0
-                  ? 'None'
-                  : `${usage.photos.count} ${usage.photos.count === 1 ? 'photo' : 'photos'}, ${formatBytes(usage.photos.bytes)}`}
+                  ? t('settings.photosNone')
+                  : t('settings.photosCount', { count: usage.photos.count, size: formatBytes(usage.photos.bytes, t) })}
             </dd>
-            <dt className="text-stone-700">This browser</dt>
+            <dt className="text-stone-700">{t('settings.browser')}</dt>
             <dd>
               {usage.browser
-                ? `${formatBytes(usage.browser.used)} of ${formatBytes(usage.browser.quota)} used`
-                : 'Not reported by this browser'}
+                ? t('settings.browserUsage', {
+                    used: formatBytes(usage.browser.used, t),
+                    quota: formatBytes(usage.browser.quota, t),
+                  })
+                : t('settings.browserUnreported')}
             </dd>
-            <dt className="text-stone-700">Kept safe</dt>
+            <dt className="text-stone-700">{t('settings.safe')}</dt>
             <dd>
               {persistent === null
-                ? 'Not asked yet'
+                ? t('settings.safeUnknown')
                 : persistent
-                  ? 'Yes, the browser will not clear it'
-                  : 'No, the browser may clear it if space runs low'}
+                  ? t('settings.safeYes')
+                  : t('settings.safeNo')}
             </dd>
           </dl>
         )}
@@ -108,7 +114,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
       <div className="mt-5 flex justify-end">
         <button type="button" onClick={onClose} className="btn px-4">
-          Close
+          {t('common.close')}
         </button>
       </div>
     </dialog>

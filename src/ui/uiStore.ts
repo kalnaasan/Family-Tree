@@ -1,7 +1,9 @@
 import { create } from 'zustand'
+import type { MessageRef } from '../i18n/messageRef.ts'
 
 export interface ToastMessage {
-  message: string
+  /** A message, not words: the toast is translated when it is drawn, so it follows a language switch. */
+  message: MessageRef
   /** The history step a "· Undo" button reverts. The button shows only while that step is still the latest. */
   undoStepId?: number
 }
@@ -24,7 +26,7 @@ interface UiState {
   /** Opens a Person and asks the tree to pan to them, keeping the zoom. */
   reveal: (id: string) => void
   select: (id: string | null) => void
-  showToast: (message: string, undoStepId?: number) => void
+  showToast: (message: MessageRef, undoStepId?: number) => void
   clearToast: () => void
   setListView: (on: boolean) => void
   setSheet: (sheet: 'peek' | 'expanded') => void

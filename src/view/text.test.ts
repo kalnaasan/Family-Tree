@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { displayName, hashId, initialOf, lifeSpan, personAriaLabel } from './text.ts'
+import { DICTIONARIES } from '../i18n/messages.ts'
+import { createTranslator } from '../i18n/translate.ts'
+import { displayName, hashId, initialOf, lifeSpan, personAriaLabel as ariaLabelWith } from './text.ts'
+
+const english = { t: createTranslator('en', DICTIONARIES), language: 'en' as const }
+const personAriaLabel = (...args: Parameters<typeof ariaLabelWith> extends [infer A, infer B, infer C, ...unknown[]] ? [A, B, C] : never) =>
+  ariaLabelWith(...args, english)
 
 describe('personAriaLabel', () => {
   const maria = { firstName: 'Maria', lastName: 'Keller', birthDate: '1962-04-17', deceased: false }
@@ -24,6 +30,20 @@ describe('personAriaLabel', () => {
   it('uses the whole name, not the shortened one drawn in the tree', () => {
     const long = { firstName: 'Maximiliana-Theodora', lastName: 'von Hohenzollern', deceased: false }
     expect(personAriaLabel(long, null, false)).toBe('Maximiliana-Theodora von Hohenzollern')
+  })
+})
+
+describe('personAriaLabel in another language', () => {
+  const dictionaries = {
+    en: DICTIONARIES.en,
+    ar: { 'person.born': 'وُلد {year}', 'person.died': 'توفي {year}', 'person.deceased': 'متوفى', 'person.focus': 'الشخص المحوري' },
+  }
+  const arabic = { t: createTranslator('ar', dictionaries), language: 'ar' as const }
+  const maria = { firstName: 'مريم', lastName: 'كيلر', birthDate: '1962-04-17', deathDate: '2001-09', deceased: true }
+
+  it('words born, died and Focus person from the dictionary and joins with the language\'s comma', () => {
+    expect(ariaLabelWith(maria, null, true, arabic)).toBe('مريم كيلر، الشخص المحوري، وُلد 1962، توفي 2001')
+    expect(ariaLabelWith({ firstName: 'مريم', deceased: true }, null, false, arabic)).toBe('مريم، متوفى')
   })
 })
 
