@@ -2,6 +2,8 @@ import { useEffect, useMemo } from 'react'
 import { PERF_BUDGET } from '../config/perf-budget.ts'
 import { deriveRelationships } from '../domain/labels.ts'
 import { useTreeStore } from '../domain/store.ts'
+import { formatNumber } from '../i18n/format.ts'
+import { useLanguageStore } from '../i18n/language.ts'
 import { photoCache, usePhotoVersion } from '../photos/photos.ts'
 import { useUiStore } from '../ui/uiStore.ts'
 import { TreeCanvas } from './TreeCanvas.tsx'
@@ -20,7 +22,7 @@ function announceLimitOnce(): void {
   useUiStore
     .getState()
     .showToast(
-      `This tree has ${PERF_BUDGET.hardLimit.toLocaleString('en')} people or more, the most the app is made for. It is drawn with less detail, and may be slow.`,
+      `This tree has ${formatNumber(PERF_BUDGET.hardLimit, useLanguageStore.getState().language)} people or more, the most the app is made for. It is drawn with less detail, and may be slow.`,
     )
 }
 

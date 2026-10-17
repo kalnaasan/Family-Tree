@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { backupService, useBackupLog } from '../backup/backup.ts'
 import type { PreparedImport } from '../backup/backupService.ts'
 import { useTreeStore } from '../domain/store.ts'
+import { useLanguageStore } from '../i18n/language.ts'
 import { formatWhen } from './dates.ts'
 import { describeExport } from './exportBackup.ts'
 
@@ -17,6 +18,7 @@ export function BackupSection({ onReplaced }: { onReplaced: (message: string) =>
   const lastBackupAt = useBackupLog((s) => s.lastBackupAt)
   const currentCount = useTreeStore((s) => s.persons.length)
   const readOnly = useTreeStore((s) => s.readOnly)
+  const language = useLanguageStore((s) => s.language)
   const input = useRef<HTMLInputElement>(null)
   const confirmHeading = useRef<HTMLHeadingElement>(null)
   const [includePhotos, setIncludePhotos] = useState(true)
@@ -68,7 +70,7 @@ export function BackupSection({ onReplaced }: { onReplaced: (message: string) =>
       <h3 id={titleId} className="font-semibold">
         Backup
       </h3>
-      <p className="mt-1">Last backup: {lastBackupAt ? formatWhen(lastBackupAt) : 'never'}</p>
+      <p className="mt-1">Last backup: {lastBackupAt ? formatWhen(lastBackupAt, language) : 'never'}</p>
 
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <label className="flex min-h-11 items-center gap-2">

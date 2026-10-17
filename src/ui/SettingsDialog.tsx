@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { usePersistenceStatus } from '../persistence/saveStatus.ts'
 import { photoStore } from '../photos/photos.ts'
 import { BackupSection } from './BackupSection.tsx'
+import { LanguageSetting } from './LanguageSetting.tsx'
 import { RestoreSection } from './RestoreSection.tsx'
 import { useUiStore } from './uiStore.ts'
 
@@ -65,6 +66,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       <h2 id={titleId} className="text-xl font-semibold">
         Settings
       </h2>
+
+      <LanguageSetting />
 
       <section aria-labelledby={`${titleId}-storage`} className="mt-4">
         <h3 id={`${titleId}-storage`} className="font-semibold">
