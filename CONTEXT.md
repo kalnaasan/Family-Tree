@@ -35,3 +35,7 @@ _Avoid_: Family, graph
 **Snapshot**:
 An automatic safety copy of the **Tree** kept by the app so an earlier version can be restored. Distinct from an export, which the user saves as a file. At most five are kept: one when the app opens, at most one an hour while the Tree is being edited, and one just before an import or a restore replaces the Tree. The screen that lists them is called "Restore a previous version".
 _Avoid_: Backup (that means the user's exported file), version
+
+**Editing tab**:
+The one browser tab that may change the **Tree** at a time. Any other tab open on the same Tree is read-only until the user chooses "Take over editing"; tabs never update each other live.
+_Avoid_: Master tab, leader

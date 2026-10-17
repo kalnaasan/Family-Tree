@@ -41,6 +41,7 @@ export function PersonPanel({ personId, onClose }: Props) {
   const parentLinks = useTreeStore((s) => s.parentLinks)
   const partnerships = useTreeStore((s) => s.partnerships)
   const focusPersonId = useTreeStore((s) => s.focusPersonId)
+  const readOnly = useTreeStore((s) => s.readOnly)
   const select = useUiStore((s) => s.select)
   const [mode, setMode] = useState<Mode>({ kind: 'view' })
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -202,7 +203,7 @@ export function PersonPanel({ personId, onClose }: Props) {
         </button>
       </div>
 
-      {mode.kind === 'add' && (
+      {mode.kind === 'add' && !readOnly && (
         <div className="mt-4">
           <AddRelativeForm
             anchor={person}
@@ -213,7 +214,7 @@ export function PersonPanel({ personId, onClose }: Props) {
         </div>
       )}
 
-      {mode.kind === 'edit' && (
+      {mode.kind === 'edit' && !readOnly && (
         <EditForm
           person={person}
           onDone={backToOverview}
@@ -222,16 +223,18 @@ export function PersonPanel({ personId, onClose }: Props) {
 
       {peeking && (
         <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              focusAddAfterOpen.current = true
-              setSheet('expanded')
-            }}
-            className="min-h-11 flex-1 rounded bg-green-800 px-4 font-medium text-white"
-          >
-            Add relative
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => {
+                focusAddAfterOpen.current = true
+                setSheet('expanded')
+              }}
+              className="min-h-11 flex-1 rounded bg-green-800 px-4 font-medium text-white"
+            >
+              Add relative
+            </button>
+          )}
           <button type="button" onClick={() => setSheet('expanded')} className="min-h-11 flex-1 rounded border border-stone-500 px-4">
             Details
           </button>
@@ -256,7 +259,8 @@ export function PersonPanel({ personId, onClose }: Props) {
                 </h3>
                 {entries.length > 0 ? <ul className="mt-1 flex flex-wrap gap-2">{entries}</ul> : <p className="text-sm text-stone-700">None recorded</p>}
                 <div className="mt-1 flex flex-wrap gap-2">
-                  {group.add.map((relation) => (
+                  {!readOnly &&
+                    group.add.map((relation) => (
                     <button
                       key={relation}
                       type="button"
@@ -272,6 +276,7 @@ export function PersonPanel({ personId, onClose }: Props) {
             )
           })}
 
+          {!readOnly && (
           <div className="mt-6 flex flex-col gap-2 border-t border-stone-300 pt-4">
             <button type="button" onClick={() => setMode({ kind: 'edit' })} className="min-h-11 rounded border border-stone-500 px-4">
               Edit details
@@ -289,6 +294,7 @@ export function PersonPanel({ personId, onClose }: Props) {
               Delete {person.firstName}
             </button>
           </div>
+          )}
         </>
       )}
     </aside>

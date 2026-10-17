@@ -48,4 +48,46 @@ describe('tree store', () => {
     expect(store.getState().persons.map((p) => p.firstName)).toEqual(['Zoe'])
     expect(store.getState().focusPersonId).toBe(id(5))
   })
+
+  describe('read-only (another tab is editing)', () => {
+    it('refuses every change and leaves the Tree as it was', () => {
+      const store = createTreeStore()
+      store.getState().addPerson({ id: id(1), firstName: 'Anna' })
+      store.getState().setReadOnly(true)
+      const s = () => store.getState()
+      expect(() => s().addPerson({ id: id(2), firstName: 'Ben' })).toThrow(/read-only/)
+      expect(() => s().updatePerson(id(1), { firstName: 'Anne' })).toThrow(/read-only/)
+      expect(() => s().deletePerson(id(1))).toThrow(/read-only/)
+      expect(() => s().setFocusPerson(id(1))).toThrow(/read-only/)
+      expect(s().persons.map((p) => p.firstName)).toEqual(['Anna'])
+    })
+
+    it('undo and redo do nothing', () => {
+      const store = createTreeStore()
+      store.getState().addPerson({ id: id(1), firstName: 'Anna' })
+      store.getState().setReadOnly(true)
+      expect(store.getState().undo()).toBeNull()
+      expect(store.getState().persons).toHaveLength(1)
+      store.getState().setReadOnly(false)
+      expect(store.getState().undo()).not.toBeNull()
+      store.getState().setReadOnly(true)
+      expect(store.getState().redo()).toBeNull()
+      expect(store.getState().persons).toHaveLength(0)
+    })
+
+    it('can still load a Tree, and changes work again once editing is allowed', () => {
+      const store = createTreeStore()
+      store.getState().setReadOnly(true)
+      store.getState().loadTree({
+        focusPersonId: id(5),
+        persons: [{ id: id(5), firstName: 'Zoe', gender: 'unknown', deceased: false }],
+        parentLinks: [],
+        partnerships: [],
+      })
+      expect(store.getState().persons).toHaveLength(1)
+      store.getState().setReadOnly(false)
+      store.getState().addPerson({ id: id(6), firstName: 'Max' })
+      expect(store.getState().persons).toHaveLength(2)
+    })
+  })
 })

@@ -4,8 +4,8 @@ import { redoLatest, undoLatest } from './undo.ts'
 const buttonClass = 'min-h-11 rounded border border-stone-500 px-3 disabled:opacity-50'
 
 export function UndoControls() {
-  const canUndo = useTreeStore((s) => s.past.length > 0)
-  const canRedo = useTreeStore((s) => s.future.length > 0)
+  const canUndo = useTreeStore((s) => s.past.length > 0 && !s.readOnly)
+  const canRedo = useTreeStore((s) => s.future.length > 0 && !s.readOnly)
   return (
     <div role="group" aria-label="History" className="flex gap-2">
       <button type="button" disabled={!canUndo} onClick={undoLatest} aria-keyshortcuts="Control+Z Meta+Z" className={buttonClass}>

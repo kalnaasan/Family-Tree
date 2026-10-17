@@ -207,4 +207,48 @@ describe('persistence session', () => {
     expect(save).not.toHaveBeenCalled()
     expect(beforeUnload()).toBe(false)
   })
+
+  describe('as a read-only tab (another tab is editing)', () => {
+    it('shows the saved Tree but refuses changes, and never saves, sweeps or snapshots', async () => {
+      const saved = addPerson(emptyTree(), { id: id(1), firstName: 'Anna' })
+      const { storage, save } = fakeStorage(async () => ({ status: 'loaded', tree: saved }))
+      const gc = { sweep: vi.fn(), start: vi.fn(), stop: vi.fn() }
+      const onLoaded = vi.fn(() => () => {})
+      const store = createTreeStore()
+      stop = await startPersistence(store, storage, gc, onLoaded, 'reader')
+
+      expect(store.getState().persons).toEqual(saved.persons)
+      expect(store.getState().readOnly).toBe(true)
+      expect(() => store.getState().addPerson({ id: id(2), firstName: 'Ben' })).toThrow(/read-only/)
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(save).not.toHaveBeenCalled()
+      expect(gc.sweep).not.toHaveBeenCalled()
+      expect(onLoaded).not.toHaveBeenCalled()
+      expect(beforeUnload()).toBe(false)
+      expect(persist).not.toHaveBeenCalled()
+    })
+
+    it('becoming the editing tab allows changes and saves them', async () => {
+      const { storage, save } = fakeStorage(async () => ({ status: 'empty' }))
+      const store = createTreeStore()
+      const reader = await startPersistence(store, storage, undefined, undefined, 'reader')
+      reader()
+      stop = await startPersistence(store, storage, undefined, undefined, 'writer')
+      expect(store.getState().readOnly).toBe(false)
+      store.getState().addPerson({ id: id(1), firstName: 'Anna' })
+      await vi.advanceTimersByTimeAsync(600)
+      expect(save).toHaveBeenCalledTimes(1)
+    })
+
+    it('an editing tab asked to let go can save what is pending first', async () => {
+      const { storage, save } = fakeStorage(async () => ({ status: 'empty' }))
+      const store = createTreeStore()
+      const editing = await startPersistence(store, storage)
+      stop = editing
+      store.getState().addPerson({ id: id(1), firstName: 'Anna' })
+      expect(save).not.toHaveBeenCalled()
+      await editing.flush()
+      expect(save).toHaveBeenCalledTimes(1)
+    })
+  })
 })
