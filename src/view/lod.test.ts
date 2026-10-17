@@ -20,4 +20,12 @@ describe('lodBucket', () => {
     expect(lodBucket(0.44)).not.toBe('full')
     expect(lodBucket(0.44)).not.toBe('noLeaves')
   })
+
+  it('never draws the decorative leaves with reduced detail (the hard limit)', () => {
+    expect(lodBucket(2.5, true)).toBe('noLeaves')
+    expect(lodBucket(0.8, true)).toBe('noLeaves')
+    expect(lodBucket(0.5, true)).toBe('noLeaves')
+    expect(lodBucket(0.3, true)).toBe('initial')
+    expect(lodBucket(0.1, true)).toBe('dot')
+  })
 })

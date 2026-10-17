@@ -10,6 +10,8 @@ it('matches the budget in spec section 9', () => {
     firstPaintMs: { 200: 1000, 1000: 2000, 5000: 5000 },
     layoutComputeMs: { 200: 50, 1000: 200, 5000: 1500 },
     editToRedrawMs: { 200: 100, 1000: 300, 5000: 1000 },
+    workerLayoutAbove: 1000,
+    hardLimit: 5000,
     domElementCap: 2500,
   })
 })
