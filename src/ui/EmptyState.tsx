@@ -6,6 +6,7 @@ import { useUiStore } from './uiStore.ts'
 
 /** First run: the one thing to do. The first Person becomes the Focus person (spec section 5). */
 export function EmptyState() {
+  const readOnly = useTreeStore((s) => s.readOnly)
   const [values, setValues] = useState<PersonFormValues>(emptyValues())
   const [submitted, setSubmitted] = useState(false)
   const errors = submitted ? validate(values) : {}
@@ -17,6 +18,17 @@ export function EmptyState() {
     const id = crypto.randomUUID()
     useTreeStore.getState().addPerson({ ...toPersonFields(values), id })
     useUiStore.getState().select(id)
+  }
+
+  if (readOnly) {
+    return (
+      <section aria-labelledby="empty-title" className="mx-auto w-full max-w-md px-4 py-8">
+        <h2 id="empty-title" className="text-xl font-semibold">
+          No tree to show yet
+        </h2>
+        <p className="mt-2 text-stone-700">Start the tree in the tab that is editing, or take over editing here.</p>
+      </section>
+    )
   }
 
   return (

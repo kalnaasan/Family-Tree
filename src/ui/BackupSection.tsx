@@ -16,6 +16,7 @@ export function BackupSection({ onReplaced }: { onReplaced: (message: string) =>
   const titleId = useId()
   const lastBackupAt = useBackupLog((s) => s.lastBackupAt)
   const currentCount = useTreeStore((s) => s.persons.length)
+  const readOnly = useTreeStore((s) => s.readOnly)
   const input = useRef<HTMLInputElement>(null)
   const confirmHeading = useRef<HTMLHeadingElement>(null)
   const [includePhotos, setIncludePhotos] = useState(true)
@@ -90,7 +91,7 @@ export function BackupSection({ onReplaced }: { onReplaced: (message: string) =>
         <button
           type="button"
           onClick={() => input.current?.click()}
-          disabled={busy !== null || prepared !== null}
+          disabled={busy !== null || prepared !== null || readOnly}
           className="min-h-11 rounded border border-stone-500 px-4 disabled:opacity-60"
         >
           Import a file

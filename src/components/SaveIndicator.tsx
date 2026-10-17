@@ -1,3 +1,4 @@
+import { useTreeStore } from '../domain/store.ts'
 import { usePersistenceStatus } from '../persistence/saveStatus.ts'
 import { exportAndAnnounce } from '../ui/exportBackup.ts'
 
@@ -5,6 +6,12 @@ const LABELS = { saved: 'Saved', saving: 'Saving…', error: 'Could not save' } 
 
 export function SaveIndicator() {
   const save = usePersistenceStatus((s) => s.save)
+  const readOnly = useTreeStore((s) => s.readOnly)
+  if (readOnly) return (
+      <span role="status" className="text-stone-700">
+        Read-only
+      </span>
+    )
   return (
     <div className="flex items-center gap-3">
       <span role="status" data-status={save} className={save === 'error' ? 'font-medium text-red-800' : 'text-stone-700'}>

@@ -17,6 +17,7 @@ const people = (count: number) => `${count} ${count === 1 ? 'person' : 'people'}
 export function RestoreSection({ onRestored }: { onRestored: (message: string) => void }) {
   const titleId = useId()
   const currentCount = useTreeStore((s) => s.persons.length)
+  const readOnly = useTreeStore((s) => s.readOnly)
   const [versions, setVersions] = useState<SnapshotInfo[] | 'unavailable' | null>(null)
   const [choosing, setChoosing] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -50,6 +51,9 @@ export function RestoreSection({ onRestored }: { onRestored: (message: string) =
       <h3 id={titleId} className="font-semibold">
         Restore a previous version
       </h3>
+      {readOnly && (
+        <p className="mt-1 text-stone-700">Importing and restoring are for the tab that is editing.</p>
+      )}
       {versions === null ? (
         <p className="mt-1 text-stone-700">Checking…</p>
       ) : versions === 'unavailable' ? (
@@ -75,7 +79,7 @@ export function RestoreSection({ onRestored }: { onRestored: (message: string) =
                         setProblem(null)
                         setChoosing(version.id)
                       }}
-                      disabled={busy}
+                      disabled={busy || readOnly}
                       className="min-h-11 rounded border border-stone-500 px-3 disabled:opacity-60"
                     >
                       Restore

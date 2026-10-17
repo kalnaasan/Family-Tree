@@ -34,7 +34,9 @@ export function TreeView() {
       focusPersonId={focusPersonId}
       links={links}
       labels={labels}
-      onSetFocusPerson={(id) => useTreeStore.getState().setFocusPerson(id)}
+      onSetFocusPerson={(id) => {
+        if (!useTreeStore.getState().readOnly) useTreeStore.getState().setFocusPerson(id)
+      }}
       selectedPersonId={selectedId}
       // tapping the tree always brings the sheet back to its short peek
       onSelectPerson={(id) => {

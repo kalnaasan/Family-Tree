@@ -16,10 +16,18 @@ const treeOf = (state: Tree): Tree => ({
   partnerships: state.partnerships,
 })
 
+/** Ends a session. `flush` writes what is still pending first (nothing for a tab that only looks). */
+export type PersistenceSession = (() => void) & { flush: () => Promise<void> }
+
+const session = (stop: () => void, flush: () => Promise<void> = async () => {}): PersistenceSession =>
+  Object.assign(stop, { flush })
+
 /**
  * Loads the saved Tree into the store, then keeps saving changes. Returns a cleanup function.
  *
  * If the stored document cannot be read, autosave is NOT started, so the unreadable data is never overwritten.
+ * In `reader` mode (another tab is the one editing) the Tree is only loaded: the store refuses changes, and nothing is
+ * saved, swept or snapshotted from here, so this tab cannot overwrite what the other one writes.
  * If storage itself is unavailable, autosave still starts: every write fails visibly ("Could not save") while
  * the Tree stays in memory and can be exported.
  */
@@ -29,7 +37,9 @@ export async function startPersistence(
   photoGc?: Pick<PhotoGc, 'sweep' | 'start' | 'stop'>,
   /** Starts what needs the saved Tree to be in the store (automatic Snapshots); returns its cleanup. */
   onTreeLoaded?: () => () => void,
-): Promise<() => void> {
+  mode: 'writer' | 'reader' = 'writer',
+): Promise<PersistenceSession> {
+  store.getState().setReadOnly(mode === 'reader')
   setStatus({ load: 'loading', loadMessage: null, save: 'saved' })
   let treeLoaded = false
   try {
@@ -37,13 +47,15 @@ export async function startPersistence(
     if (loaded.status === 'loaded') store.getState().loadTree(loaded.tree)
     if (loaded.status === 'invalid') {
       setStatus({ load: 'invalid', loadMessage: `${loaded.rule}: ${loaded.message}` })
-      return () => {}
+      return session(() => {})
     }
     setStatus({ load: 'ready' })
     treeLoaded = true
   } catch (error) {
     setStatus({ load: 'unavailable', loadMessage: error instanceof Error ? error.message : String(error) })
   }
+
+  if (mode === 'reader') return session(() => {})
 
   // Photos nothing refers to are deleted on load, then after every change. Only once the saved Tree is really in the
   // store: with an unreadable or unavailable document the Tree here is not the user's, and a sweep would wipe photos.
@@ -83,12 +95,12 @@ export async function startPersistence(
   window.addEventListener('pagehide', onPageHide)
   document.addEventListener('visibilitychange', onVisibilityChange)
 
-  return () => {
+  return session(() => {
     window.removeEventListener('beforeunload', onBeforeUnload)
     window.removeEventListener('pagehide', onPageHide)
     document.removeEventListener('visibilitychange', onVisibilityChange)
     photoGc?.stop()
     stopOnLoaded?.()
     autosave.dispose()
-  }
+  }, autosave.flush)
 }

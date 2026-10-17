@@ -7,6 +7,7 @@ import { BackupBanner } from './ui/BackupBanner.tsx'
 import { EmptyState } from './ui/EmptyState.tsx'
 import { ListView } from './ui/ListView.tsx'
 import { PersonPanel } from './ui/PersonPanel.tsx'
+import { ReadOnlyBanner } from './ui/ReadOnlyBanner.tsx'
 import { SearchBox } from './ui/SearchBox.tsx'
 import { SettingsDialog } from './ui/SettingsDialog.tsx'
 import { Toast } from './ui/Toast.tsx'
@@ -22,6 +23,7 @@ export function App() {
   const load = usePersistenceStatus((s) => s.load)
   const loadMessage = usePersistenceStatus((s) => s.loadMessage)
   const persons = useTreeStore((s) => s.persons)
+  const readOnly = useTreeStore((s) => s.readOnly)
   const selectedId = useUiStore((s) => s.selectedId)
   const select = useUiStore((s) => s.select)
   const listView = useUiStore((s) => s.listView)
@@ -77,7 +79,8 @@ export function App() {
         </p>
       )}
 
-      {persons.length > 0 && (load === 'ready' || load === 'unavailable') && <BackupBanner />}
+      <ReadOnlyBanner />
+      {!readOnly && persons.length > 0 && (load === 'ready' || load === 'unavailable') && <BackupBanner />}
 
       {load !== 'loading' && load !== 'invalid' && (
         <>

@@ -30,6 +30,11 @@ import {
 
 export interface TreeActions {
   /**
+   * While another tab is the one that edits, this tab only shows the Tree. Every change is refused (it throws, since the
+   * screen must not offer one) and undo and redo do nothing; loading a Tree is still allowed.
+   */
+  setReadOnly: (readOnly: boolean) => void
+  /**
    * Replaces the whole Tree (load from storage, import, restore) and clears the undo history: these are not
    * undoable (spec section 10).
    */
@@ -55,7 +60,7 @@ export interface TreeActions {
   redo: () => HistoryStep | null
 }
 
-export type TreeState = Tree & HistoryState & TreeActions
+export type TreeState = Tree & HistoryState & TreeActions & { readOnly: boolean }
 
 /** The Tree's own fields; the store state also holds the history and the action functions. */
 const pick = (state: Tree): Tree => ({
@@ -77,6 +82,7 @@ export function createTreeStore(initial: Tree = emptyTree()) {
     const history = (): HistoryState => ({ past: get().past, future: get().future })
 
     const commit = (label: string, before: Tree, after: Tree, release?: () => void) => {
+      if (get().readOnly) throw new Error('This tab is read-only: another tab is editing')
       const pushed = pushStep(history(), { id: nextStepId++, label, before, after, release }, HISTORY_LIMIT)
       set({ ...after, ...pushed.history })
       for (const step of pushed.discarded) step.release?.()
@@ -89,6 +95,8 @@ export function createTreeStore(initial: Tree = emptyTree()) {
     return {
       ...initial,
       ...emptyHistory(),
+      readOnly: false,
+      setReadOnly: (readOnly) => set({ readOnly }),
       loadTree: (tree) => {
         const discarded = allSteps(history())
         set({ ...pick(tree), ...emptyHistory() })
@@ -117,12 +125,14 @@ export function createTreeStore(initial: Tree = emptyTree()) {
       removePartnership: (id) => apply('Remove partnership', (t) => removePartnership(t, id)),
       setFocusPerson: (id) => apply('Change Focus person', (t) => setFocusPerson(t, id)),
       undo: () => {
+        if (get().readOnly) return null
         const result = undoStep(history())
         if (!result) return null
         set({ ...pick(result.step.before), ...result.history })
         return result.step
       },
       redo: () => {
+        if (get().readOnly) return null
         const result = redoStep(history())
         if (!result) return null
         set({ ...pick(result.step.after), ...result.history })
