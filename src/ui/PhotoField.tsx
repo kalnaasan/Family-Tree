@@ -71,7 +71,7 @@ export function PhotoField({ person }: { person: Person }) {
           <button
             type="button"
             onClick={() => input.current?.click()}
-            className="min-h-11 rounded border border-stone-500 px-3"
+            className="btn px-3"
           >
             {person.photoId ? 'Change photo' : 'Choose photo'}
           </button>
@@ -82,7 +82,7 @@ export function PhotoField({ person }: { person: Person }) {
                 setMessage(null)
                 photoService.removePhoto(person.id)
               }}
-              className="min-h-11 rounded border border-stone-500 px-3"
+              className="btn px-3"
             >
               Remove photo
             </button>

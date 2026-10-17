@@ -104,7 +104,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       <RestoreSection onRestored={replaced} />
 
       <div className="mt-5 flex justify-end">
-        <button type="button" onClick={onClose} className="min-h-11 rounded border border-stone-500 px-4">
+        <button type="button" onClick={onClose} className="btn px-4">
           Close
         </button>
       </div>

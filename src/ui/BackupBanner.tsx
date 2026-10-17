@@ -35,11 +35,11 @@ export function BackupBanner() {
       <button
         type="button"
         onClick={() => void exportAndAnnounce()}
-        className="min-h-11 rounded bg-green-800 px-3 font-medium text-white"
+        className="btn-primary  px-3 font-medium text-white"
       >
         Export a backup
       </button>
-      <button type="button" onClick={log.dismissed} className="min-h-11 rounded border border-stone-500 px-3">
+      <button type="button" onClick={log.dismissed} className="btn px-3">
         Dismiss
       </button>
     </section>

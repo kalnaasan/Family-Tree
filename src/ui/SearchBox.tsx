@@ -77,7 +77,7 @@ export function SearchBox() {
         : `${plural(results.length, 'result')}`
 
   return (
-    <div className="relative">
+    <div className="relative min-w-0 flex-1 sm:max-w-sm">
       <input
         type="text"
         role={listView ? 'searchbox' : 'combobox'}
@@ -103,7 +103,7 @@ export function SearchBox() {
               'aria-autocomplete': 'list' as const,
               'aria-activedescendant': popup && shown.length > 0 ? optionId(active) : undefined,
             })}
-        className="min-h-11 w-44 rounded border border-stone-500 bg-white px-3 sm:w-64"
+        className="min-h-11 w-full rounded-lg border border-line-strong bg-white px-3 placeholder:text-ink-soft"
       />
       <div aria-live="polite" className="sr-only">
         {summary}
@@ -113,7 +113,7 @@ export function SearchBox() {
           hidden={!popup}
           // keep the box focused while a result is pressed
           onMouseDown={(event) => event.preventDefault()}
-          className="absolute top-full left-0 z-40 mt-1 max-h-[60dvh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded border border-stone-500 bg-white shadow-lg"
+          className="absolute top-full left-0 z-40 mt-1 max-h-[60dvh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded border border-line-strong bg-white shadow-lg"
         >
           <ul id={listId} role="listbox" aria-label="Search results">
             {shown.map((person, n) => {

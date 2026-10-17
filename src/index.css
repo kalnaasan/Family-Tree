@@ -1,5 +1,85 @@
 @import 'tailwindcss';
 
+/* Colours follow the tree canvas (src/view/palette.ts): parchment, bark brown, leaf green. */
+@theme {
+  --color-paper: #f6efe0;
+  --color-paper-deep: #ebe0c9;
+  --color-ink: #2b2118;
+  --color-ink-soft: #5a4b3b;
+  --color-bark: #7a4f2b;
+  --color-leaf: #2f6b34;
+  --color-leaf-deep: #245428;
+  --color-line: #cdbfa6;
+  --color-line-strong: #8a7556;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-leaf);
+  outline-offset: 2px;
+}
+
+@layer components {
+  .btn {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--color-line-strong);
+    background: rgb(255 255 255 / 0.55);
+    transition: background-color 150ms, transform 100ms;
+  }
+  .btn:hover:not(:disabled) {
+    background: #fff;
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  .btn-primary {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    background: var(--color-leaf-deep);
+    color: #fff;
+    font-weight: 500;
+    transition: background-color 150ms, transform 100ms;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: #1b4020;
+  }
+  .btn-primary:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  .btn-icon {
+    padding: 0;
+    width: 2.75rem;
+  }
+  button:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .btn-primary {
+    transition: none;
+  }
+  .btn:active:not(:disabled),
+  .btn-primary:active:not(:disabled) {
+    transform: none;
+  }
+}
+
 /* The keyboard focus ring of a Person in the tree is drawn by PersonNode, only while it has keyboard focus. */
 .cursor-ring {
   display: none;

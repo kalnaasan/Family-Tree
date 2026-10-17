@@ -9,7 +9,7 @@ const GENDERS: { value: Gender; label: string }[] = [
   { value: 'unknown', label: 'Not specified' },
 ]
 
-const inputClass = 'mt-1 block min-h-11 w-full rounded border border-stone-500 bg-white px-2'
+const inputClass = 'mt-1 block min-h-11 w-full rounded border border-line-strong bg-white px-2'
 
 interface Props {
   values: PersonFormValues

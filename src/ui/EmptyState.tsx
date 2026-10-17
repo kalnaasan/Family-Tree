@@ -41,7 +41,7 @@ export function EmptyState() {
       </p>
       <form onSubmit={onSubmit} noValidate className="mt-6 flex flex-col gap-4">
         <PersonFields values={values} onChange={setValues} errors={errors} autoFocusFirstName />
-        <button type="submit" className="min-h-11 rounded bg-green-800 px-4 font-medium text-white">
+        <button type="submit" className="btn-primary  px-4 font-medium text-white">
           Add the first person
         </button>
       </form>

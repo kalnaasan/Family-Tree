@@ -20,6 +20,8 @@ export interface LayoutOptions {
   /** Radius of the oldest generation. */
   innerRadius?: number
   spanDegrees?: number
+  /** Angle between two neighbours that sit one `gapX` apart. A small tree spans only as many degrees as it needs. */
+  stepDegrees?: number
   /** Minimum distance along a ring between neighbours. Must stay above two node radii. */
   nodeGap?: number
   /** Drawn radius of a Person, used for the bounds only. */
@@ -65,6 +67,7 @@ const DEFAULTS = {
   ringStep: 140,
   innerRadius: 130,
   spanDegrees: 270,
+  stepDegrees: 30,
   nodeGap: 100,
   nodeRadius: 32,
   iterations: 40,
@@ -243,9 +246,11 @@ export function layoutTree(tree: Tree, options: LayoutOptions = {}): TreeLayout 
   const width = n > 0 ? maxX - minX : 0
 
   // --- fan crown --------------------------------------------------------------------------
-  const half = ((o.spanDegrees / 2) * Math.PI) / 180
+  // The row is centred above the trunk and spans one step per `gapX` of width, up to the full crown. Spreading
+  // a handful of people over the whole 270 degrees would put a couple, or a parent and child, on opposite sides.
+  const span = Math.min((o.spanDegrees * Math.PI) / 180, (width / o.gapX) * ((o.stepDegrees * Math.PI) / 180))
   const theta = new Float32Array(n)
-  for (let i = 0; i < n; i++) theta[i] = width > 0 ? -half + (lineX[i]! / width) * 2 * half : 0
+  for (let i = 0; i < n; i++) theta[i] = width > 0 ? (lineX[i]! / width - 0.5) * span : 0
 
   const ringRadius = new Float64Array(rowCount)
   let previousRadius = o.innerRadius - o.ringStep

@@ -198,7 +198,7 @@ export function PersonPanel({ personId, onClose }: Props) {
             </p>
           )}
         </div>
-        <button type="button" onClick={onClose} className="min-h-11 rounded border border-stone-500 px-3">
+        <button type="button" onClick={onClose} className="btn px-3">
           Close
         </button>
       </div>
@@ -230,12 +230,12 @@ export function PersonPanel({ personId, onClose }: Props) {
                 focusAddAfterOpen.current = true
                 setSheet('expanded')
               }}
-              className="min-h-11 flex-1 rounded bg-green-800 px-4 font-medium text-white"
+              className="btn-primary flex-1  px-4 font-medium text-white"
             >
               Add relative
             </button>
           )}
-          <button type="button" onClick={() => setSheet('expanded')} className="min-h-11 flex-1 rounded border border-stone-500 px-4">
+          <button type="button" onClick={() => setSheet('expanded')} className="min-h-11 flex-1 rounded border border-line-strong px-4">
             Details
           </button>
         </div>
@@ -266,7 +266,7 @@ export function PersonPanel({ personId, onClose }: Props) {
                       type="button"
                       aria-label={`Add ${relation}`}
                       onClick={() => setMode({ kind: 'add', relation })}
-                      className="min-h-11 rounded border border-green-800 px-3 text-green-900"
+                      className="min-h-11 rounded border border-leaf-deep px-3 text-leaf-deep"
                     >
                       + {relation[0]!.toUpperCase() + relation.slice(1)}
                     </button>
@@ -278,14 +278,14 @@ export function PersonPanel({ personId, onClose }: Props) {
 
           {!readOnly && (
           <div className="mt-6 flex flex-col gap-2 border-t border-stone-300 pt-4">
-            <button type="button" onClick={() => setMode({ kind: 'edit' })} className="min-h-11 rounded border border-stone-500 px-4">
+            <button type="button" onClick={() => setMode({ kind: 'edit' })} className="btn px-4">
               Edit details
             </button>
             {!isFocus && (
               <button
                 type="button"
                 onClick={() => useTreeStore.getState().setFocusPerson(person.id)}
-                className="min-h-11 rounded border border-stone-500 px-4"
+                className="btn px-4"
               >
                 Make Focus person
               </button>
@@ -319,10 +319,10 @@ function EditForm({ person, onDone }: { person: Person; onDone: () => void }) {
       <PhotoField person={person} />
       <PersonFields values={values} onChange={setValues} errors={errors} showDates autoFocusFirstName />
       <div className="flex gap-2">
-        <button type="submit" className="min-h-11 flex-1 rounded bg-green-800 px-4 font-medium text-white">
+        <button type="submit" className="btn-primary flex-1  px-4 font-medium text-white">
           Save
         </button>
-        <button type="button" onClick={onDone} className="min-h-11 rounded border border-stone-500 px-4">
+        <button type="button" onClick={onDone} className="btn px-4">
           Cancel
         </button>
       </div>
