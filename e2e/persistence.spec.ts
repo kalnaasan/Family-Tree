@@ -7,6 +7,8 @@ const indicator = (page: Page) => page.getByRole('status')
 /** The first person through the empty state; each later one as a child of the person who is open. */
 async function addPerson(page: Page, name: string) {
   const first = page.getByRole('button', { name: 'Add the first person' })
+  // the page is ready once it shows either (the saved Tree is loaded after the tab has claimed the editing role)
+  await first.or(page.getByRole('button', { name: 'Add child' })).first().waitFor()
   if (await first.isVisible()) {
     await page.getByLabel('First name').fill(name)
     await first.click()
