@@ -72,7 +72,7 @@ describe('undo and redo in the store', () => {
   it('undo of an add-relative restores the exact prior document, and redo brings it back', () => {
     const store = family()
     const before = snapshot(store)
-    store.getState().addRelative({ anchorId: id(1), relation: 'brother', person: { firstName: 'Tom' } })
+    store.getState().addRelative({ unnamedParentName: 'Unnamed parent', anchorId: id(1), relation: 'brother', person: { firstName: 'Tom' } })
     const after = snapshot(store)
     expect(after.persons).toHaveLength(5)
 
@@ -91,7 +91,7 @@ describe('undo and redo in the store', () => {
   it('a flow that created a Person, links and a Partnership is undone in one step', () => {
     const store = createTreeStore(addPerson(emptyTree(), { id: id(1), firstName: 'Ben' }))
     const before = snapshot(store)
-    store.getState().addRelative({ anchorId: id(1), relation: 'sister', person: { firstName: 'Anna' } })
+    store.getState().addRelative({ unnamedParentName: 'Unnamed parent', anchorId: id(1), relation: 'sister', person: { firstName: 'Anna' } })
     expect(store.getState().persons).toHaveLength(3) // Ben, Anna, the unnamed shared parent
     expect(store.getState().past).toHaveLength(1)
     store.getState().undo()
@@ -149,7 +149,7 @@ describe('undo and redo in the store', () => {
 
   it('a refused action records no step', () => {
     const store = family()
-    expect(() => store.getState().addRelative({ anchorId: id(1), relation: 'father', person: { firstName: 'Third' } })).toThrow()
+    expect(() => store.getState().addRelative({ unnamedParentName: 'Unnamed parent', anchorId: id(1), relation: 'father', person: { firstName: 'Third' } })).toThrow()
     expect(store.getState().past).toHaveLength(0)
   })
 
@@ -157,7 +157,7 @@ describe('undo and redo in the store', () => {
     const store = family()
     const listener = vi.fn()
     store.subscribe(listener)
-    store.getState().addRelative({ anchorId: id(1), relation: 'son', person: { firstName: 'Leo' } })
+    store.getState().addRelative({ unnamedParentName: 'Unnamed parent', anchorId: id(1), relation: 'son', person: { firstName: 'Leo' } })
     store.getState().undo()
     store.getState().redo()
     expect(listener).toHaveBeenCalledTimes(3)

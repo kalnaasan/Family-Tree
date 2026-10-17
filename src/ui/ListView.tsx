@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { deriveRelationships } from '../domain/labels.ts'
 import type { Person } from '../domain/schema.ts'
 import { searchPersons } from '../domain/search.ts'
@@ -77,12 +77,15 @@ const buttonClass = 'min-h-11 rounded px-2 text-left hover:bg-stone-100'
 function usePartnersLine(model: Model): (personId: string) => string | null {
   const t = useT()
   const language = useLanguageStore((s) => s.language)
-  return (personId) => {
-    const partners = model.partners.get(personId)
-    if (!partners) return null
-    const names = partners.map((p) => (p.former ? t('list.former', { name: p.name }) : p.name))
-    return t('list.with', { names: formatList(names, language) })
-  }
+  return useCallback(
+    (personId) => {
+      const partners = model.partners.get(personId)
+      if (!partners) return null
+      const names = partners.map((p) => (p.former ? t('list.former', { name: p.name }) : p.name))
+      return t('list.with', { names: formatList(names, language) })
+    },
+    [model, t, language],
+  )
 }
 
 function Item({ person, depth, model }: { person: Person; depth: number; model: Model }) {

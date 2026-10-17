@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { SaveIndicator } from './components/SaveIndicator.tsx'
 import { useTreeStore } from './domain/store.ts'
+import { isolate } from './i18n/format.ts'
 import { useT } from './i18n/useT.ts'
 import { usePersistenceStatus } from './persistence/saveStatus.ts'
 import { usePersistence } from './persistence/usePersistence.ts'
@@ -76,12 +77,12 @@ export function App() {
 
       {load === 'invalid' && (
         <p role="alert" className="mx-4 mt-2 rounded border border-red-800 p-3 text-red-800">
-          {t('app.loadInvalid', { detail: loadMessage ?? '' })}
+          {t('app.loadInvalid', { detail: isolate(loadMessage ?? '') })}
         </p>
       )}
       {load === 'unavailable' && (
         <p role="alert" className="mx-4 mt-2 rounded border border-red-800 p-3 text-red-800">
-          {t('app.loadUnavailable', { detail: loadMessage ?? '' })}
+          {t('app.loadUnavailable', { detail: isolate(loadMessage ?? '') })}
         </p>
       )}
 

@@ -1,7 +1,7 @@
 import type { Person } from '../domain/schema.ts'
 import { formatList } from '../i18n/format.ts'
 import type { Language } from '../i18n/language.ts'
-import type { MessageKey } from '../i18n/messages.ts'
+import type { Translate } from '../i18n/useT.ts'
 
 const MAX_NAME_LENGTH = 18
 
@@ -27,7 +27,7 @@ export function lifeSpan(person: Pick<Person, 'birthDate' | 'deathDate'>): strin
 
 /** The words a sentence is made of: the translator and the Language it speaks (for the list separators). */
 export interface Words {
-  t: (key: MessageKey, params?: Record<string, string | number>) => string
+  t: Translate
   language: Language
 }
 

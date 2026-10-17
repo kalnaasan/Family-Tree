@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { backupService, useBackupLog } from '../backup/backup.ts'
 import type { PreparedImport } from '../backup/backupService.ts'
 import { useTreeStore } from '../domain/store.ts'
+import { isolate } from '../i18n/format.ts'
 import { type MessageRef, msg, renderMessage } from '../i18n/messageRef.ts'
 import { useT } from '../i18n/useT.ts'
 import { useWhen } from './dates.ts'
@@ -53,7 +54,7 @@ export function BackupSection({ onReplaced }: { onReplaced: (message: MessageRef
       setProblem(
         result.rule === 'unreadable'
           ? msg('backup.rejectedUnreadable')
-          : msg('backup.rejected', { detail: result.message, rule: result.rule }),
+          : msg('backup.rejected', { detail: isolate(result.message), rule: isolate(result.rule) }),
       )
     }
     setBusy(null)
@@ -143,14 +144,17 @@ export function BackupSection({ onReplaced }: { onReplaced: (message: MessageRef
           <p className="mt-1">
             {renderMessage(
               t,
-              prepared.photos.size > 0
-                ? msg('backup.confirmFilePhotos', {
-                    people: msg('common.people', { count: prepared.tree.persons.length }),
-                    photos: msg('common.photos', { count: prepared.photos.size }),
-                  })
-                : msg('backup.confirmFile', { people: msg('common.people', { count: prepared.tree.persons.length }) }),
-            )}{' '}
-            {renderMessage(t, msg('backup.confirmTree', { people: msg('common.people', { count: currentCount }) }))}
+              msg('backup.confirm', {
+                file:
+                  prepared.photos.size > 0
+                    ? msg('backup.confirmFilePhotos', {
+                        people: msg('common.people', { count: prepared.tree.persons.length }),
+                        photos: msg('common.photos', { count: prepared.photos.size }),
+                      })
+                    : msg('backup.confirmFile', { people: msg('common.people', { count: prepared.tree.persons.length }) }),
+                tree: msg('backup.confirmTree', { people: msg('common.people', { count: currentCount }) }),
+              }),
+            )}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button

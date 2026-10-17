@@ -1,7 +1,6 @@
 import { create } from 'zustand'
-import { type MessageKey } from '../i18n/messages.ts'
 import { type MessageRef, msg } from '../i18n/messageRef.ts'
-import { type AddRelativeRequest, addRelative } from './addRelative.ts'
+import { type AddRelativeRequest, addRelative, relationRef } from './addRelative.ts'
 import {
   HISTORY_LIMIT,
   type HistoryState,
@@ -108,7 +107,7 @@ export function createTreeStore(initial: Tree = emptyTree()) {
       addRelative: (request) => {
         const before = pick(get())
         const result = addRelative(before, request)
-        commit(msg('step.addRelation', { relation: msg(`relation.${request.relation}` as MessageKey) }), before, result.tree)
+        commit(msg('step.addRelation', { relation: relationRef(request.relation) }), before, result.tree)
         return result.personId
       },
       updatePerson: (id, patch, label) => apply(label ?? msg('step.editPerson'), (t) => updatePerson(t, id, patch)),

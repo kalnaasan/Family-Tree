@@ -1,5 +1,5 @@
 import { type FormEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react'
-import type { Relation } from '../domain/addRelative.ts'
+import { RELATION_KEY, type Relation } from '../domain/addRelative.ts'
 import { relativesOf } from '../domain/groups.ts'
 import { deriveRelationships } from '../domain/labels.ts'
 import type { Person, Tree } from '../domain/schema.ts'
@@ -134,7 +134,7 @@ export function PersonPanel({ personId, onClose }: Props) {
   }
 
   const labelOf = (id: string) => relationships.get(id)?.label ?? null
-  const relationWord = (relation: Relation) => t(`relation.${relation}`)
+  const relationWord = (relation: Relation) => t(RELATION_KEY[relation])
   const relativeButton = (relative: Person, note?: string) => {
     const details = [labelOf(relative.id), note].filter((part): part is string => Boolean(part))
     return (

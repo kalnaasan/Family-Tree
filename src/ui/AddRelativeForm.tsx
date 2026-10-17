@@ -2,6 +2,7 @@ import { type FormEvent, type ReactNode, useId, useMemo, useState } from 'react'
 import {
   type AddRelativeRequest,
   RELATIONS,
+  RELATION_KEY,
   type Relation,
   type RelativeAnswers,
   previewFor,
@@ -9,6 +10,7 @@ import {
 } from '../domain/addRelative.ts'
 import type { Person, Tree } from '../domain/schema.ts'
 import { useTreeStore } from '../domain/store.ts'
+import { isolate } from '../i18n/format.ts'
 import { renderMessage } from '../i18n/messageRef.ts'
 import type { MessageKey } from '../i18n/messages.ts'
 import { useT } from '../i18n/useT.ts'
@@ -80,7 +82,7 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
       onDone(personId)
     } catch (error) {
       // the reason is a rule of the Tree's integrity, technical detail that stays in English
-      setFailure(t('addForm.failure', { detail: error instanceof Error ? error.message : String(error) }))
+      setFailure(t('addForm.failure', { detail: isolate(error instanceof Error ? error.message : String(error)) }))
     }
   }
 
@@ -209,7 +211,7 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
 
       <div className="flex gap-2">
         <button type="submit" className="btn-primary flex-1  px-4 font-medium text-white">
-          {t('addForm.submit', { relation: t(`relation.${relation}`) })}
+          {t('addForm.submit', { relation: t(RELATION_KEY[relation]) })}
         </button>
         <button type="button" onClick={onCancel} className="btn px-4">
           {t('common.cancel')}

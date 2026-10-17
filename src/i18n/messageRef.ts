@@ -1,4 +1,5 @@
 import type { MessageKey } from './messages.ts'
+import type { Translate } from './useT.ts'
 
 /** A parameter of a message: text, a number, or another message (rendered in the same language first). */
 export type MessageParam = string | number | MessageRef
@@ -17,8 +18,6 @@ export const msg = (key: MessageKey, params?: Record<string, MessageParam>): Mes
   params ? { key, params } : { key }
 
 const isMessageRef = (value: MessageParam): value is MessageRef => typeof value === 'object'
-
-type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
 
 /** The words of a message in the language `t` speaks. */
 export function renderMessage(t: Translate, ref: MessageRef): string {

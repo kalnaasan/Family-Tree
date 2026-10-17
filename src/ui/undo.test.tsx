@@ -112,7 +112,7 @@ describe('after an undo that removes the open Person', () => {
     render(<Harness />)
     let newId = ''
     act(() => {
-      newId = useTreeStore.getState().addRelative({ anchorId: id(1), relation: 'sister', person: { firstName: 'Anna' } })
+      newId = useTreeStore.getState().addRelative({ unnamedParentName: 'Unnamed parent', anchorId: id(1), relation: 'sister', person: { firstName: 'Anna' } })
       useUiStore.getState().select(newId)
     })
     fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true })

@@ -1,15 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { MessageRef } from '../i18n/messageRef.ts'
-import type { MessageKey } from '../i18n/messages.ts'
-import { useT } from '../i18n/useT.ts'
+import { type Translate, useT } from '../i18n/useT.ts'
 import { usePersistenceStatus } from '../persistence/saveStatus.ts'
 import { photoStore } from '../photos/photos.ts'
 import { BackupSection } from './BackupSection.tsx'
 import { LanguageSetting } from './LanguageSetting.tsx'
 import { RestoreSection } from './RestoreSection.tsx'
 import { useUiStore } from './uiStore.ts'
-
-type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
 
 /** "1.4 MB", "820 KB". */
 function formatBytes(bytes: number, t: Translate): string {

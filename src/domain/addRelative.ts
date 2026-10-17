@@ -36,11 +36,22 @@ export const RELATIONS: Record<Relation, { kind: RelationKind; gender: Gender }>
   child: { kind: 'child', gender: 'unknown' },
 }
 
-/**
- * Name given to the parent created for a sibling of a Person with no recorded parents. Renameable. It is stored with
- * the Person, so the interface passes it in the language in use (`unnamedParentName`); this is the default.
- */
-export const UNNAMED_PARENT = 'Unnamed parent'
+/** The words for each relation, one dictionary key per `Relation` (the type fails the build if one is missing). */
+export const RELATION_KEY: Record<Relation, MessageKey> = {
+  father: 'relation.father',
+  mother: 'relation.mother',
+  brother: 'relation.brother',
+  sister: 'relation.sister',
+  husband: 'relation.husband',
+  wife: 'relation.wife',
+  partner: 'relation.partner',
+  son: 'relation.son',
+  daughter: 'relation.daughter',
+  child: 'relation.child',
+}
+
+/** "father", "sister"… as a message, for the undo label and the preview. */
+export const relationRef = (relation: Relation): MessageRef => msg(RELATION_KEY[relation])
 
 export type ParentPartnershipAnswer = 'current' | 'ended' | 'none'
 
@@ -71,8 +82,11 @@ export interface AddRelativeRequest {
   /** `gender` overrides the one the relation presets. */
   person: Omit<NewPerson, 'id'>
   answers?: RelativeAnswers
-  /** The name of the parent made for a sibling of a Person with no parents; default `UNNAMED_PARENT`. */
-  unnamedParentName?: string
+  /**
+   * The name of the parent made for a sibling of a Person with no parents. It is stored with the Person, so the
+   * interface passes it in the language in use; the domain has no words of its own.
+   */
+  unnamedParentName: string
 }
 
 const name = (person: Person) => person.firstName
@@ -181,7 +195,7 @@ export function addRelative(tree: Tree, request: AddRelativeRequest): { tree: Tr
       let parentIds = siblingParentIds(tree, anchorId, answers)
       if (parentIds.length === 0) {
         const parentId = crypto.randomUUID()
-        next = addPerson(next, { id: parentId, firstName: request.unnamedParentName ?? UNNAMED_PARENT })
+        next = addPerson(next, { id: parentId, firstName: request.unnamedParentName })
         next = addParentLink(next, anchorId, parentId)
         parentIds = [parentId]
       }
@@ -208,7 +222,7 @@ export function previewFor(tree: Tree, request: AddRelativeRequest): MessageRef[
   const anchor = personOf(tree, anchorId)
   const typed = request.person.firstName.trim()
   const who: MessageParam = typed || msg('preview.newPerson')
-  const relationWord = msg(`relation.${relation}` as MessageKey)
+  const relationWord = relationRef(relation)
   const relationLine = () => msg('preview.relationOf', { who, relation: relationWord, name: name(anchor) })
   const lines: MessageRef[] = []
 
@@ -230,7 +244,7 @@ export function previewFor(tree: Tree, request: AddRelativeRequest): MessageRef[
       lines.push(relationLine())
       const parents = birthParentsOf(tree, anchorId)
       if (parents.length === 0) {
-        lines.push(msg('preview.newParent', { name: request.unnamedParentName ?? UNNAMED_PARENT }))
+        lines.push(msg('preview.newParent', { name: request.unnamedParentName }))
       } else {
         const shared = siblingParentIds(tree, anchorId, answers).map((id) => name(personOf(tree, id)))
         lines.push(

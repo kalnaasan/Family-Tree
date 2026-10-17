@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { capitalise, formatDateTime, formatList, formatNumber } from './format.ts'
+import { capitalise, formatDateTime, formatList, formatNumber, isolate } from './format.ts'
 
 const ARABIC_INDIC_DIGITS = /[٠-٩۰-۹]/
 
@@ -45,5 +45,10 @@ describe('dates and numbers', () => {
     expect(capitalise('half-sister')).toBe('Half-sister')
     expect(capitalise('أب')).toBe('أب')
     expect(capitalise('')).toBe('')
+  })
+
+  it('isolates a piece of text from the direction of the sentence around it', () => {
+    // first-strong isolate ... pop isolate: an English detail inside an Arabic sentence keeps its own order and punctuation
+    expect(isolate('not-json')).toBe('\u2068not-json\u2069')
   })
 })

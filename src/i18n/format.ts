@@ -61,3 +61,9 @@ export function capitalise(text: string): string {
   const [first = '', ...rest] = Array.from(text)
   return first.toLocaleUpperCase() + rest.join('')
 }
+
+/**
+ * Text that keeps its own direction inside a sentence of the other one: an English rule name (`not-json`) in an
+ * Arabic sentence would otherwise pull the punctuation around it into the wrong place. Invisible in English.
+ */
+export const isolate = (text: string): string => `⁨${text}⁩`
