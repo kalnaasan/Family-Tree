@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { deriveRelationships } from '../domain/labels.ts'
+import { type Relationship, deriveRelationships } from '../domain/labels.ts'
 import type { Person } from '../domain/schema.ts'
 import { searchPersons } from '../domain/search.ts'
 import { useTreeStore } from '../domain/store.ts'
@@ -8,6 +8,7 @@ import { useLanguageStore } from '../i18n/language.ts'
 import { useT } from '../i18n/useT.ts'
 import { displayName, lifeSpan } from '../view/text.ts'
 import { useUiStore } from './uiStore.ts'
+import { useLabeler } from './useLabeler.ts'
 
 interface Model {
   /** Child id -> the parent they are listed under. */
@@ -17,7 +18,8 @@ interface Model {
   kids: Map<string, Person[]>
   /** Children who have this parent too but are listed under their first parent; shown as a pointer. */
   refs: Map<string, { person: Person; home: Person }[]>
-  labels: Map<string, string | null>
+  /** Each Person's descriptor; the words are made when they are drawn, in the language in use. */
+  relationships: Map<string, Relationship>
   /** Each Person's partners, worded when drawn. */
   partners: Map<string, { name: string; former: boolean }[]>
   focusPersonId: string | null
@@ -56,15 +58,13 @@ function useModel(): Model {
       push(partners, b.id, { name: a.firstName, former })
     }
 
-    const labels = new Map(
-      [...deriveRelationships({ focusPersonId, persons, parentLinks, partnerships })].map(([id, r]) => [id, r.label]),
-    )
+    const relationships = deriveRelationships({ focusPersonId, persons, parentLinks, partnerships })
     return {
       home,
       roots: persons.filter((p) => !home.has(p.id)),
       kids,
       refs,
-      labels,
+      relationships,
       partners,
       focusPersonId,
     }
@@ -88,9 +88,15 @@ function usePartnersLine(model: Model): (personId: string) => string | null {
   )
 }
 
-function Item({ person, depth, model }: { person: Person; depth: number; model: Model }) {
+interface Words {
+  /** "Focus person" words are the caller's; this is the Relationship label, or null. */
+  labelOf: ReturnType<typeof useLabeler>
+  partnersLine: ReturnType<typeof usePartnersLine>
+}
+
+function Item({ person, depth, model, words }: { person: Person; depth: number; model: Model; words: Words }) {
   const t = useT()
-  const partnersLine = usePartnersLine(model)
+  const { labelOf, partnersLine } = words
   const selectedId = useUiStore((s) => s.selectedId)
   const select = useUiStore((s) => s.select)
   // The first two generations start open; deeper ones are collapsed so a big Tree stays manageable.
@@ -111,7 +117,7 @@ function Item({ person, depth, model }: { person: Person; depth: number; model: 
   const kids = model.kids.get(person.id) ?? []
   const refs = model.refs.get(person.id) ?? []
   const expandable = kids.length > 0 || refs.length > 0
-  const relationship = person.id === model.focusPersonId ? t('person.focus') : model.labels.get(person.id)
+  const relationship = person.id === model.focusPersonId ? t('person.focus') : labelOf(person)
   const partners = partnersLine(person.id)
   const name = displayName(person)
 
@@ -144,7 +150,7 @@ function Item({ person, depth, model }: { person: Person; depth: number; model: 
       {open && expandable && (
         <ul className="ml-5 border-l border-stone-300 pl-2">
           {kids.map((kid) => (
-            <Item key={kid.id} person={kid} depth={depth + 1} model={model} />
+            <Item key={kid.id} person={kid} depth={depth + 1} model={model} words={words} />
           ))}
           {refs.map(({ person: other, home }) => (
             <li key={other.id} className="pl-11">
@@ -166,7 +172,10 @@ function Item({ person, depth, model }: { person: Person; depth: number; model: 
 export function ListView() {
   const t = useT()
   const model = useModel()
+  // made once for the whole list, not once per row: a row would add its own subscription to the language
   const partnersLine = usePartnersLine(model)
+  const labelOf = useLabeler(model.relationships)
+  const words: Words = { labelOf, partnersLine }
   const persons = useTreeStore((s) => s.persons)
   const query = useUiStore((s) => s.query)
   const select = useUiStore((s) => s.select)
@@ -185,7 +194,7 @@ export function ListView() {
         matches.length > 0 ? (
           <ul>
             {matches.map((person) => {
-              const relationship = person.id === model.focusPersonId ? t('person.focus') : model.labels.get(person.id)
+              const relationship = person.id === model.focusPersonId ? t('person.focus') : labelOf(person)
               const partners = partnersLine(person.id)
               return (
                 <li key={person.id}>
@@ -208,7 +217,7 @@ export function ListView() {
       ) : (
         <ul>
           {model.roots.map((person) => (
-            <Item key={person.id} person={person} depth={0} model={model} />
+            <Item key={person.id} person={person} depth={0} model={model} words={words} />
           ))}
         </ul>
       )}

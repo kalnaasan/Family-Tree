@@ -1,4 +1,4 @@
-import type { Language } from './language.ts'
+import type { Language } from './languageType.ts'
 
 export type Params = Record<string, string | number>
 

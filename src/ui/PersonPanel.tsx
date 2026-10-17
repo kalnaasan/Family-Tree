@@ -14,6 +14,7 @@ import { PersonFields } from './PersonFields.tsx'
 import { Avatar, PhotoField } from './PhotoField.tsx'
 import { type PersonFormValues, toPersonFields, validate, valuesOf } from './personForm.ts'
 import { useUiStore } from './uiStore.ts'
+import { useLabeler } from './useLabeler.ts'
 import { useWideScreen } from './useWideScreen.ts'
 
 /** A swipe on the sheet's handle must travel this far, in pixels, to count (a shorter press is a tap). */
@@ -89,6 +90,7 @@ export function PersonPanel({ personId, onClose }: Props) {
   )
   const person = persons.find((p) => p.id === personId)
   const relationships = useMemo(() => deriveRelationships(tree), [tree])
+  const labelOf = useLabeler(relationships)
   const relatives = useMemo(() => (person ? relativesOf(tree, person.id) : null), [tree, person])
 
   useEffect(() => {
@@ -97,7 +99,7 @@ export function PersonPanel({ personId, onClose }: Props) {
 
   if (!person || !relatives) return null
   const isFocus = focusPersonId === person.id
-  const label = relationships.get(person.id)?.label
+  const label = labelOf(person)
 
   // Below 768 px the panel is a bottom sheet: a short peek, or expanded to the full details (spec section 8).
   const peeking = !wide && sheet === 'peek' && mode.kind === 'view'
@@ -133,10 +135,9 @@ export function PersonPanel({ personId, onClose }: Props) {
     queueMicrotask(() => headingRef.current?.focus())
   }
 
-  const labelOf = (id: string) => relationships.get(id)?.label ?? null
   const relationWord = (relation: Relation) => t(RELATION_KEY[relation])
   const relativeButton = (relative: Person, note?: string) => {
-    const details = [labelOf(relative.id), note].filter((part): part is string => Boolean(part))
+    const details = [labelOf(relative), note].filter((part): part is string => Boolean(part))
     return (
       <li key={relative.id}>
         <button

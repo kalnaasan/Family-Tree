@@ -39,7 +39,7 @@ function mount(count: number, options: { focus?: boolean } = {}) {
 function mountTree(tree: Tree, options: { focus?: boolean } = {}) {
   const layout = layoutTree(tree, { nodeRadius: NODE_RADIUS, trunkHeight: TRUNK_HEIGHT, rootsDepth: ROOTS_DEPTH })
   const focusPersonId = options.focus === false ? null : tree.focusPersonId
-  const labels = new Map([...deriveRelationships({ ...tree, focusPersonId })].map(([id, r]) => [id, r.label]))
+  const relationships = deriveRelationships({ ...tree, focusPersonId })
   const commits = vi.fn()
   const onSetFocusPerson = vi.fn()
   const onSelectPerson = vi.fn()
@@ -50,7 +50,7 @@ function mountTree(tree: Tree, options: { focus?: boolean } = {}) {
         persons={tree.persons}
         focusPersonId={focusPersonId}
         links={{ parentLinks: tree.parentLinks, partnerships: tree.partnerships }}
-        labels={labels}
+        relationships={relationships}
         onSetFocusPerson={onSetFocusPerson}
         onSelectPerson={onSelectPerson}
       />

@@ -1,7 +1,7 @@
 import type { Person } from '../domain/schema.ts'
 import { formatList } from '../i18n/format.ts'
-import type { Language } from '../i18n/language.ts'
-import type { Translate } from '../i18n/useT.ts'
+import type { Language } from '../i18n/languageType.ts'
+import type { Translate } from '../i18n/messageRef.ts'
 
 const MAX_NAME_LENGTH = 18
 

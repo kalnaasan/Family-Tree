@@ -4,7 +4,7 @@ import { addRelative, previewFor as previewRefs, questionFor } from './addRelati
 
 const UNNAMED_PARENT = 'Unnamed parent'
 import { IntegrityError } from './integrity.ts'
-import { deriveRelationships } from './labels.ts'
+import { deriveRelationships, labelFor } from './labels.ts'
 import type { Tree } from './schema.ts'
 import { createTreeStore } from './store.ts'
 import { addParentLink, addPartnership, addPerson, emptyTree, updatePerson } from './tree.ts'
@@ -91,8 +91,9 @@ describe('adding a sibling', () => {
       answers: { siblingParents: id(2) },
     })
     expect(parentsOf(result.tree, person(result.tree, 'Max').id)).toEqual(['Karl'])
-    const labels = deriveRelationships({ ...result.tree, focusPersonId: id(1) })
-    expect(labels.get(person(result.tree, 'Max').id)!.label).toBe('half-brother')
+    const max = person(result.tree, 'Max')
+    const relationships = deriveRelationships({ ...result.tree, focusPersonId: id(1) })
+    expect(labelFor(relationships.get(max.id)!.descriptor, max.gender, 'en')).toBe('half-brother')
   })
 
   it('rejects "only this parent" for someone who is not a parent', () => {

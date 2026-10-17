@@ -35,7 +35,11 @@ function family(spec: Spec) {
   const relationships = deriveRelationships(tree)
   return {
     ids,
-    labels: (...who: string[]) => who.map((name) => relationships.get(ids[name]!)?.label),
+    labels: (...who: string[]) =>
+      who.map((name) => {
+        const relationship = relationships.get(ids[name]!)
+        return relationship && labelFor(relationship.descriptor, spec.people[name]!, 'en')
+      }),
     rel: (name: string) => relationships.get(ids[name]!)!,
   }
 }
@@ -82,7 +86,8 @@ describe('direct line', () => {
 
   it('shows no label for the Focus person', () => {
     const f = family({ focus: 'Me', people: { Me: 'female' } })
-    expect(f.rel('Me')).toEqual({ descriptor: { kind: 'self' }, label: null })
+    expect(f.rel('Me')).toEqual({ descriptor: { kind: 'self' } })
+    expect(labelFor({ kind: 'self' }, 'female', 'en')).toBeNull()
   })
 
   it('returns nothing without a Focus person', () => {
@@ -213,8 +218,8 @@ describe('cousins', () => {
   ]
   it.each(cases)('(up %i, down %i) is "%s"', (up, down, expected) => {
     const descriptor: RelationDescriptor = { kind: 'blood', up, down, half: false }
-    expect(labelFor(descriptor, 'unknown')).toBe(expected)
-    expect(labelFor(descriptor, 'female')).toBe(expected) // cousins are not gendered
+    expect(labelFor(descriptor, 'unknown', 'en')).toBe(expected)
+    expect(labelFor(descriptor, 'female', 'en')).toBe(expected) // cousins are not gendered
   })
 
   it('derives a first cousin and a cousin once removed from links', () => {
@@ -270,7 +275,9 @@ describe('partners', () => {
         { id: uuid(2001), personIds: [w, me], status: 'current' },
       ],
     }
-    expect(deriveRelationships(tree).get(w)?.label).toBe('wife')
+    const wife = deriveRelationships(tree).get(w)!.descriptor
+    expect(wife).toEqual({ kind: 'partner', ex: false })
+    expect(labelFor(wife, 'female', 'en')).toBe('wife')
   })
 
   it('labels a partner as partner even when they are also a cousin', () => {
@@ -436,5 +443,107 @@ describe('size', () => {
     const elapsed = performance.now() - start
     expect(result.size).toBe(people)
     expect(elapsed).toBeLessThan(1000)
+  })
+})
+
+describe('what another language needs from a descriptor', () => {
+  const home: Record<string, Gender> = { Me: 'female', Dad: 'male', Mom: 'female' }
+  const parents: [string, string][] = [['Me', 'Dad'], ['Me', 'Mom']]
+
+  it('records the gender of the parent a half-sibling shares', () => {
+    const f = family({
+      focus: 'Me',
+      people: { ...home, Y: 'female', X: 'male', HalfByDad: 'male', HalfByMom: 'female' },
+      parents: [
+        ...parents,
+        ['HalfByDad', 'Dad'], ['HalfByDad', 'Y'],
+        ['HalfByMom', 'Mom'], ['HalfByMom', 'X'],
+      ],
+    })
+    expect(f.rel('HalfByDad').descriptor).toMatchObject({ kind: 'blood', up: 1, down: 1, half: true, sharedParent: 'male' })
+    expect(f.rel('HalfByMom').descriptor).toMatchObject({ half: true, sharedParent: 'female' })
+
+    const unknownParent = family({
+      focus: 'Me',
+      people: { Me: 'female', Mom: 'female', Q: 'unknown', Y: 'female', HalfByQ: 'unknown' },
+      parents: [['Me', 'Mom'], ['Me', 'Q'], ['HalfByQ', 'Q'], ['HalfByQ', 'Y']],
+    })
+    expect(unknownParent.rel('HalfByQ').descriptor).toMatchObject({ half: true, sharedParent: 'unknown' })
+  })
+
+  it('names a shared parent only where there is one: a full sibling shares two, so the word would depend on which came first', () => {
+    const f = family({
+      focus: 'Me',
+      people: { ...home, Bro: 'male' },
+      parents: [...parents, ['Bro', 'Dad'], ['Bro', 'Mom']],
+    })
+    expect(f.rel('Bro').descriptor).not.toHaveProperty('sharedParent')
+    expect(f.rel('Dad').descriptor).not.toHaveProperty('sharedParent')
+  })
+
+  it('records the gender of the sibling a nephew or niece comes through, and of the child a grandchild comes through', () => {
+    const f = family({
+      focus: 'Me',
+      people: { ...home, Bro: 'male', Sis: 'female', Sib: 'unknown', BroKid: 'male', SisKid: 'female', SibKid: 'male', BroGrandKid: 'female', Son: 'male', Daughter: 'female', SonKid: 'male', DaughterKid: 'female' },
+      parents: [
+        ...parents,
+        ['Bro', 'Dad'], ['Bro', 'Mom'], ['Sis', 'Dad'], ['Sis', 'Mom'], ['Sib', 'Dad'], ['Sib', 'Mom'],
+        ['BroKid', 'Bro'], ['SisKid', 'Sis'], ['SibKid', 'Sib'], ['BroGrandKid', 'BroKid'],
+        ['Son', 'Me'], ['Daughter', 'Me'], ['SonKid', 'Son'], ['DaughterKid', 'Daughter'],
+      ],
+    })
+    expect(f.rel('BroKid').descriptor).toMatchObject({ up: 1, down: 2, downFirst: 'male' })
+    expect(f.rel('SisKid').descriptor).toMatchObject({ up: 1, down: 2, downFirst: 'female' })
+    expect(f.rel('SibKid').descriptor).toMatchObject({ up: 1, down: 2, downFirst: 'unknown' })
+    expect(f.rel('BroGrandKid').descriptor).toMatchObject({ up: 1, down: 3, downFirst: 'male' })
+    expect(f.rel('SonKid').descriptor).toMatchObject({ up: 0, down: 2, downFirst: 'male' })
+    expect(f.rel('DaughterKid').descriptor).toMatchObject({ up: 0, down: 2, downFirst: 'female' })
+    // an ancestor has nobody below the common ancestor on the way to them
+    expect(f.rel('Dad').descriptor).not.toHaveProperty('downFirst')
+  })
+
+  it('records the gender of the uncle or aunt a cousin comes through, with the side of the family', () => {
+    const f = family({
+      focus: 'Me',
+      people: { ...home, GF: 'male', MGF: 'male', DadBro: 'male', DadSis: 'female', MomBro: 'male', MomSis: 'female', CDB: 'female', CDS: 'male', CMB: 'female', CMS: 'male' },
+      parents: [
+        ...parents, ['Dad', 'GF'], ['DadBro', 'GF'], ['DadSis', 'GF'], ['Mom', 'MGF'], ['MomBro', 'MGF'], ['MomSis', 'MGF'],
+        ['CDB', 'DadBro'], ['CDS', 'DadSis'], ['CMB', 'MomBro'], ['CMS', 'MomSis'],
+      ],
+    })
+    expect(f.rel('CDB').descriptor).toMatchObject({ up: 2, down: 2, side: 'paternal', downFirst: 'male' })
+    expect(f.rel('CDS').descriptor).toMatchObject({ up: 2, down: 2, side: 'paternal', downFirst: 'female' })
+    expect(f.rel('CMB').descriptor).toMatchObject({ up: 2, down: 2, side: 'maternal', downFirst: 'male' })
+    expect(f.rel('CMS').descriptor).toMatchObject({ up: 2, down: 2, side: 'maternal', downFirst: 'female' })
+  })
+
+  it('records the gender of the relative an in-law comes through', () => {
+    const base: Spec = {
+      focus: 'Me',
+      people: { Me: 'male', Spouse: 'female', SP: 'male', SB: 'male', Dad: 'male', Sis: 'female', SisHusband: 'male', Kid: 'female', KidHusband: 'male' },
+      parents: [['Spouse', 'SP'], ['SB', 'SP'], ['Me', 'Dad'], ['Sis', 'Dad'], ['Kid', 'Me']],
+      partners: [['Me', 'Spouse'], ['Sis', 'SisHusband'], ['Kid', 'KidHusband']],
+    }
+    const f = family(base)
+    expect(f.rel('SP').descriptor).toEqual({ kind: 'in-law', via: 'partner-parent', link: 'female' })
+    expect(f.rel('SB').descriptor).toEqual({ kind: 'in-law', via: 'partner-sibling', link: 'female' })
+    expect(f.rel('SisHusband').descriptor).toEqual({ kind: 'in-law', via: 'sibling-partner', link: 'female' })
+    expect(f.rel('KidHusband').descriptor).toEqual({ kind: 'in-law', via: 'child-partner', link: 'female' })
+
+    const other = family({ ...base, people: { ...base.people, Spouse: 'unknown', Sis: 'male', Kid: 'unknown' } })
+    expect(other.rel('SB').descriptor).toMatchObject({ link: 'unknown' })
+    expect(other.rel('SisHusband').descriptor).toMatchObject({ link: 'male' })
+    expect(other.rel('KidHusband').descriptor).toMatchObject({ link: 'unknown' })
+  })
+
+  it('records the side and the gender of the uncle or aunt whose partner this is', () => {
+    const f = family({
+      focus: 'Me',
+      people: { ...home, GF: 'male', MGF: 'male', Uncle: 'male', UncleWife: 'female', Aunt: 'female', AuntHusband: 'male' },
+      parents: [...parents, ['Dad', 'GF'], ['Uncle', 'GF'], ['Mom', 'MGF'], ['Aunt', 'MGF']],
+      partners: [['Uncle', 'UncleWife'], ['Aunt', 'AuntHusband']],
+    })
+    expect(f.rel('UncleWife').descriptor).toEqual({ kind: 'uncle-partner', side: 'paternal', uncle: 'male' })
+    expect(f.rel('AuntHusband').descriptor).toEqual({ kind: 'uncle-partner', side: 'maternal', uncle: 'female' })
   })
 })
