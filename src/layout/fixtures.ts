@@ -77,12 +77,13 @@ export function generateTree(size: number, seed = 1, options: { names?: 'default
     const r = random()
     return r < 0.48 ? 'female' : r < 0.96 ? 'male' : r < 0.98 ? 'other' : 'unknown'
   }
-  const addPerson = (generation: number): number => {
+  /** `family`: the family name a child takes from a parent (Arabic names); anyone else gets one at random. */
+  const addPerson = (generation: number, family?: string): number => {
     const index = persons.length
     persons.push({
       id: uuid(index + 1),
       firstName: arabic ? pickOf(ARABIC_GIVEN_NAMES) : `P${index + 1}`,
-      ...(arabic ? { lastName: pickOf(ARABIC_FAMILY_NAMES) } : {}),
+      ...(arabic ? { lastName: family ?? pickOf(ARABIC_FAMILY_NAMES) } : {}),
       gender: pickGender(),
       deceased: generation < 2 && random() < 0.7,
     })
@@ -97,7 +98,7 @@ export function generateTree(size: number, seed = 1, options: { names?: 'default
     })
   }
   const addChild = (couple: Couple, generation: number): number => {
-    const child = addPerson(generation)
+    const child = addPerson(generation, persons[couple.a]?.lastName)
     for (const parent of [couple.a, couple.b]) {
       if (parent === null) continue
       parentLinks.push({ childId: persons[child]!.id, parentId: persons[parent]!.id, kind: 'birth' })

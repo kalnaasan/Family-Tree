@@ -47,6 +47,18 @@ describe('generateTree with Arabic names', () => {
     expect(new Set(tree.persons.map((p) => p.firstName)).size).toBeGreaterThan(20)
   })
 
+  it('gives a child a family name of one of their parents, so many people share one', () => {
+    const tree = generateTree(300, 4, { names: 'arabic' })
+    const familyOf = new Map(tree.persons.map((p) => [p.id, p.lastName]))
+    const parentsOfChild = new Map<string, string[]>()
+    for (const link of tree.parentLinks) parentsOfChild.set(link.childId, [...(parentsOfChild.get(link.childId) ?? []), link.parentId])
+    for (const [child, parents] of parentsOfChild) {
+      expect(parents.map((p) => familyOf.get(p)), child).toContain(familyOf.get(child))
+    }
+    // far fewer family names than people
+    expect(new Set(tree.persons.map((p) => p.lastName)).size).toBeLessThanOrEqual(20)
+  })
+
   it('does not change the shape of the Tree: the same people, links and partnerships as with the default names', () => {
     for (const size of [15, 150, 1000]) {
       const plain = generateTree(size, 9)

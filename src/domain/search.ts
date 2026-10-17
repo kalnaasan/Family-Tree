@@ -18,7 +18,8 @@ const ARABIC: Record<string, string> = { ٱ: 'ا', ى: 'ي', ة: 'ه', ک: 'ك',
  */
 export function normalizeName(text: string): string {
   return text
-    .normalize('NFD')
+    // compatibility decomposition, so presentation forms pasted from a PDF ("ﻣﺤﻤﺪ", the ligature "ﻻ") are plain letters too
+    .normalize('NFKD')
     .replace(/\p{M}/gu, '')
     .toLowerCase()
     .replace(/[ßøæœđłı]/g, (letter) => PLAIN[letter]!)
@@ -28,10 +29,12 @@ export function normalizeName(text: string): string {
 }
 
 /**
- * A normalised name word without its Arabic article "ال" ("الحسن" → "حسن"), for ranking and for initials. The
- * article is not taken off a word that is just the article, or the article and one letter: that is not a word.
+ * A normalised name word without its Arabic article "ال" ("الحسن" → "حسن"), for matching and ranking. The article
+ * is not taken off a word that is just the article, or the article and one letter: that is not a word. A word that
+ * merely begins with those two letters (a name such as "ألين") is treated as if it had the article: that can only
+ * change the order of the results, never whether a name is found.
  */
-export function withoutArticle(word: string): string {
+function withoutArticle(word: string): string {
   return word.startsWith('ال') && Array.from(word).length >= 4 ? word.slice(2) : word
 }
 
@@ -50,9 +53,14 @@ export function searchPersons<T extends Pick<Person, 'firstName' | 'lastName'>>(
   const ranked: { person: T; rank: number; order: number }[] = []
   persons.forEach((person, order) => {
     const full = fullNameOf(person)
-    if (!words.every((word) => full.includes(word))) return
     const nameWords = full.split(' ')
-    const startsWord = (w: string) => nameWords.some((n) => n.startsWith(w) || withoutArticle(n).startsWith(w))
+    const startsAWord = (w: string) => nameWords.some((n) => n.startsWith(w) || withoutArticle(n).startsWith(w))
+    // The article does not have to be typed, or to be in the name: "الحسن" finds "حسن" and "حسن" finds "الحسن". What
+    // is typed without the article has to start a name word, so it does not find a name that holds it mid-word.
+    if (!words.every((word) => full.includes(word) || (withoutArticle(word) !== word && startsAWord(withoutArticle(word))))) {
+      return
+    }
+    const startsWord = (w: string) => startsAWord(w) || startsAWord(withoutArticle(w))
     const rank = full.startsWith(typed) ? 0 : words.every(startsWord) ? 1 : 2
     ranked.push({ person, rank, order })
   })

@@ -48,7 +48,7 @@ function wordsIn(node: ts.Node): ts.Node[] {
 /** The words a source file writes by itself where a person will read them, with where they are. */
 function hardcodedText(path: string, code: string): string[] {
   // a `.ts` file is not markup: read as TSX, a generic arrow such as `<T>(x: T) => x` would look like a tag
-  const kind = path.endsWith('.tsx') || path === 'example.tsx' ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+  const kind = path.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
   const source = ts.createSourceFile(path, code, ts.ScriptTarget.Latest, true, kind)
   const found: string[] = []
   const report = (node: ts.Node, what: string) =>
@@ -88,7 +88,8 @@ describe('interface text', () => {
   })
 
   it('reads a .ts file as code, not markup: a generic arrow function is not a tag', () => {
-    expect(hardcodedText('helper.ts', 'const first = <T>(items: readonly T[]): T => items[0]!\\nconst r = 1 < 2 && 3 > 2')).toEqual([])
+    const code = ['const first = <T>(items: readonly T[]): T => items[0]!', 'const r = 1 < 2 && 3 > 2', "const x = 'words'"].join('\n')
+    expect(hardcodedText('helper.ts', code)).toEqual([])
   })
 
   it('does catch words in a ternary, an && expression, a template and a showing call', () => {

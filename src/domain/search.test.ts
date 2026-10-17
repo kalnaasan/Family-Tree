@@ -87,6 +87,8 @@ describe('Arabic names', () => {
     ['كريـــم', 'كريم'], // tatweel
     ['مُحَمَّد', 'محمد'], // short vowels and shadda
     ['کریم', 'كريم'], // Persian kaf and ya
+    ['ﻣﺤﻤﺪ', 'محمد'], // presentation forms, as pasted from a PDF
+    ['ﻻ', 'لا'], // the lam-alef ligature
   ])('folds %s to %s', (typed, folded) => {
     expect(normalizeName(typed)).toBe(folded)
   })
@@ -123,6 +125,12 @@ describe('Arabic names', () => {
       // "الف" is ال + ف: one letter is not a word on its own, so ف in it is only a containing match
       const people = [person('بف'), person('الف')]
       expect(names(searchPersons(people, 'ف'))).toEqual(['بف', 'الف'])
+    })
+
+    it('matches both ways: typing the article finds a name stored without it, and the reverse', () => {
+      expect(names(searchPersons([person('حسن')], 'الحسن'))).toEqual(['حسن'])
+      expect(names(searchPersons([person('الأحمد')], 'احمد'))).toEqual(['الأحمد'])
+      expect(names(searchPersons([person('حسن'), person('الحسن')], 'الحسن'))).toEqual(['الحسن', 'حسن'])
     })
 
     it('does not change the stored name', () => {
