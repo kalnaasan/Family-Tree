@@ -27,6 +27,8 @@ export async function startPersistence(
   store: StoreApi<TreeState>,
   storage: TreeStorage,
   photoGc?: Pick<PhotoGc, 'sweep' | 'start' | 'stop'>,
+  /** Starts what needs the saved Tree to be in the store (automatic Snapshots); returns its cleanup. */
+  onTreeLoaded?: () => () => void,
 ): Promise<() => void> {
   setStatus({ load: 'loading', loadMessage: null, save: 'saved' })
   let treeLoaded = false
@@ -49,13 +51,18 @@ export async function startPersistence(
     void photoGc.sweep()
     photoGc.start()
   }
+  // Likewise the Snapshot of the loaded Tree: with an unreadable document it would keep a copy of nothing.
+  const stopOnLoaded = treeLoaded ? onTreeLoaded?.() : undefined
 
   const autosave = createAutosave({
     subscribe: (onChange) => store.subscribe((state, previous) => onChange(treeOf(state), treeOf(previous))),
     save: (tree) => storage.save(tree),
     onStatus: (save) => setStatus({ save }),
     onFirstChange: () => {
-      void navigator.storage?.persist?.().then(
+      const request = navigator.storage?.persist?.()
+      // a browser without the call (Safari, older ones) cannot promise to keep the data: the same as a refusal
+      if (!request) return setStatus({ persistent: false })
+      void request.then(
         (persistent) => setStatus({ persistent }),
         () => setStatus({ persistent: false }),
       )
@@ -81,6 +88,7 @@ export async function startPersistence(
     window.removeEventListener('pagehide', onPageHide)
     document.removeEventListener('visibilitychange', onVisibilityChange)
     photoGc?.stop()
+    stopOnLoaded?.()
     autosave.dispose()
   }
 }

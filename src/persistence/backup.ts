@@ -1,15 +1,13 @@
-import { serializeDocument } from '../domain/document.ts'
-import type { Tree } from '../domain/schema.ts'
-
-/** Downloads the current Tree as a JSON file. Photos are added by the Export ticket. */
-export function downloadBackup(tree: Tree, now: Date = new Date()): void {
-  const blob = new Blob([JSON.stringify(serializeDocument(tree, now), null, 2)], { type: 'application/json' })
+/** Hands the user a file to keep (an export), as a download. */
+export function downloadTextFile(text: string, fileName: string): void {
+  const blob = new Blob([text], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `family-tree-${now.toISOString().slice(0, 10)}.json`
+  link.download = fileName
   document.body.append(link)
   link.click()
   link.remove()
-  URL.revokeObjectURL(url)
+  // the browser starts reading the file after the click returns; letting go of it at once can cancel the download
+  setTimeout(() => URL.revokeObjectURL(url), 10_000)
 }

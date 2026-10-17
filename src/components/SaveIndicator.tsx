@@ -1,6 +1,5 @@
-import { useTreeStore } from '../domain/store.ts'
-import { downloadBackup } from '../persistence/backup.ts'
 import { usePersistenceStatus } from '../persistence/saveStatus.ts'
+import { exportAndAnnounce } from '../ui/exportBackup.ts'
 
 const LABELS = { saved: 'Saved', saving: 'Saving…', error: 'Could not save' } as const
 
@@ -15,10 +14,7 @@ export function SaveIndicator() {
         <button
           type="button"
           className="min-h-11 rounded border border-red-800 px-3 text-red-800"
-          onClick={() => {
-            const { focusPersonId, persons, parentLinks, partnerships } = useTreeStore.getState()
-            downloadBackup({ focusPersonId, persons, parentLinks, partnerships })
-          }}
+          onClick={() => void exportAndAnnounce()}
         >
           Export a backup now
         </button>

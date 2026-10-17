@@ -33,5 +33,5 @@ The whole set of **Persons**, **Parent links** and **Partnerships** held by one 
 _Avoid_: Family, graph
 
 **Snapshot**:
-An automatic safety copy of the **Tree** kept by the app so an earlier version can be restored. Distinct from an export, which the user saves as a file.
+An automatic safety copy of the **Tree** kept by the app so an earlier version can be restored. Distinct from an export, which the user saves as a file. At most five are kept: one when the app opens, at most one an hour while the Tree is being edited, and one just before an import or a restore replaces the Tree. The screen that lists them is called "Restore a previous version".
 _Avoid_: Backup (that means the user's exported file), version

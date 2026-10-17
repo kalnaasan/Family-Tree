@@ -1,4 +1,5 @@
 import { type DBSchema, type IDBPDatabase, openDB } from 'idb'
+import type { SnapshotRecord } from '../backup/snapshots.ts'
 import type { TreeDocument } from '../domain/schema.ts'
 
 export const DB_NAME = 'family-tree'
@@ -9,8 +10,8 @@ interface FamilyTreeDB extends DBSchema {
   tree: { key: string; value: TreeDocument }
   /** Photo Blobs keyed by `photoId` (filled by the Photos ticket). */
   photos: { key: string; value: Blob }
-  /** Automatic safety copies (filled by the Snapshots ticket). */
-  snapshots: { key: string; value: unknown }
+  /** Automatic safety copies, at most five (spec section 10), keyed by a random id. */
+  snapshots: { key: string; value: SnapshotRecord }
 }
 
 export type FamilyTreeConnection = IDBPDatabase<FamilyTreeDB>

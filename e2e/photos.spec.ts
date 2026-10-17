@@ -245,7 +245,7 @@ test.describe('files that are turned away', () => {
   })
 })
 
-test('replace, remove and delete: the old photo stays for Undo, and is gone after a reload', async ({ page }) => {
+test('replace and remove: the old photo stays for Undo; after a reload the sweep takes what nothing shows', async ({ page }) => {
   await openWithTree(page, anna())
   await editDetails(page)
   await addPhoto(page, await picture(page, 300, 300, 'image/jpeg'), 'one.jpg')
@@ -264,7 +264,10 @@ test('replace, remove and delete: the old photo stays for Undo, and is gone afte
   await expect(frame(page).locator('image')).toHaveCount(0)
   expect((await storedPhotos(page)).length).toBe(1) // still there for Undo
   await reloadWhenSaved(page)
-  await expect.poll(async () => (await storedPhotos(page)).length).toBe(0)
+  // Undo is gone, but the version saved at the reload above still shows this photo, so "Restore a previous version"
+  // can bring it back. It goes once no saved version shows it (see backup/photoRetention.test.ts).
+  await expect.poll(async () => (await storedPhotos(page)).length).toBe(1)
+  await expect(frame(page).locator('image')).toHaveCount(0)
 })
 
 test('deleting a Person deletes their photo once Undo can no longer need it', async ({ page }) => {

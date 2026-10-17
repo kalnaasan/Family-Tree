@@ -42,9 +42,17 @@ export interface PhotoGc {
 
 /**
  * Deletes stored photos nothing refers to, so a replaced, removed or deleted Person's photo does not pile up
- * (spec section 6). `onDeleted` lets the in-memory copies go too.
+ * (spec section 6). `onDeleted` lets the in-memory copies go too. `extraReferences` names photos kept for another
+ * reason, such as the saved versions that "Restore a previous version" brings back: those must not be swept either, or
+ * restoring a version from before an import would bring back everyone without their photo. If it fails, nothing is
+ * swept that time.
  */
-export function createPhotoGc(store: Observed, photos: PhotoStore, onDeleted?: (photoId: string) => void): PhotoGc {
+export function createPhotoGc(
+  store: Observed,
+  photos: PhotoStore,
+  onDeleted?: (photoId: string) => void,
+  extraReferences?: () => Promise<ReadonlySet<string>>,
+): PhotoGc {
   /** Photos known to be in storage; loaded on the first sweep, then kept up to date. */
   let known: Set<string> | undefined
   const protectedIds = new Map<string, number>()
@@ -57,6 +65,7 @@ export function createPhotoGc(store: Observed, photos: PhotoStore, onDeleted?: (
       known ??= new Set(await photos.keys())
       if (known.size === 0) return
       const keep = referencedPhotoIds(store.getState())
+      for (const photoId of (await extraReferences?.()) ?? []) keep.add(photoId)
       for (const photoId of [...known]) {
         if (keep.has(photoId) || protectedIds.has(photoId)) continue
         await photos.delete(photoId)

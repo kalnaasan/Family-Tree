@@ -1,6 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { usePersistenceStatus } from '../persistence/saveStatus.ts'
 import { photoStore } from '../photos/photos.ts'
+import { BackupSection } from './BackupSection.tsx'
+import { RestoreSection } from './RestoreSection.tsx'
+import { useUiStore } from './uiStore.ts'
 
 /** "1.4 MB", "820 KB". */
 function formatBytes(bytes: number): string {
@@ -22,12 +25,19 @@ async function readUsage(): Promise<Usage> {
   return { photos, browser }
 }
 
-/** Settings (spec section 6: storage use). Later tickets add backup and restore here. */
+/** Settings: storage use (spec section 6), backup and import, and restoring a previous version (section 10). */
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const titleId = useId()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const persistent = usePersistenceStatus((s) => s.persistent)
   const [usage, setUsage] = useState<Usage | null>(null)
+
+  /** The whole tree was replaced (import or restore): close, drop the open Person, and say so. */
+  const replaced = (message: string) => {
+    onClose()
+    useUiStore.getState().select(null)
+    useUiStore.getState().showToast(message)
+  }
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -50,7 +60,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         event.preventDefault()
         onClose()
       }}
-      className="m-auto w-[min(92vw,26rem)] rounded-xl border border-stone-400 bg-white p-5 shadow-xl backdrop:bg-black/50"
+      className="m-auto max-h-[90dvh] w-[min(92vw,32rem)] overflow-y-auto rounded-xl border border-stone-400 bg-white p-5 shadow-xl backdrop:bg-black/50"
     >
       <h2 id={titleId} className="text-xl font-semibold">
         Settings
@@ -89,6 +99,9 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           </dl>
         )}
       </section>
+
+      <BackupSection onReplaced={replaced} />
+      <RestoreSection onRestored={replaced} />
 
       <div className="mt-5 flex justify-end">
         <button type="button" onClick={onClose} className="min-h-11 rounded border border-stone-500 px-4">
