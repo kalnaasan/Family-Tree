@@ -24,7 +24,7 @@ Single-user, browser-local web app. A user records **Persons**, adds relatives r
 
 ## 3. Relationship labels ([Relationship label derivation](https://github.com/kalnaasan/Family-Tree/issues/4))
 
-One breadth-first pass from the Focus person yields a descriptor per Person (kind, steps up/down, half?, in-law?, ex?, side); an English lookup turns it into a word. Recomputed on Tree or Focus change. Coverage: parent/child, great- grand lines without depth limit, siblings and **Half-siblings** (exactly one shared birth or adoptive parent), uncle/aunt, nephew/niece, cousins by degree and removal, partner (wife/husband when gender is known), "ex-" for ended Partnerships (current wins if both exist), limited in-laws through current Partnerships only, otherwise "Relative" with the path shown in the detail panel. Gendered words only when gender is known. One primary label by priority: blood over in-law, direct over collateral, shortest path, closer generation on ties. The Focus person shows no label. English only; a table swap adds languages later. This module is pure and DOM-free.
+One breadth-first pass from the Focus person yields a descriptor per Person (kind, steps up/down, half?, in-law?, ex?, side); an English lookup turns it into a word. Recomputed on Tree or Focus change. Coverage: parent/child, great- grand lines without depth limit, siblings and **Half-siblings** (exactly one shared birth or adoptive parent), uncle/aunt, nephew/niece, cousins by degree and removal, partner (wife/husband when gender is known), "ex-" for ended Partnerships (current wins if both exist), limited in-laws through current Partnerships only, otherwise "Relative" with the path shown in the detail panel. Gendered words only when gender is known. One primary label by priority: blood over in-law, direct over collateral, shortest path, closer generation on ties. The Focus person shows no label. English and Arabic, one table per language (section 13.6; the descriptor also records the genders of the relatives a link passes through). This module is pure and DOM-free.
 
 ## 4. Layout and visual design ([Tree layout and rendering approach](https://github.com/kalnaasan/Family-Tree/issues/2), [Visual design language for the tree](https://github.com/kalnaasan/Family-Tree/issues/7))
 
@@ -54,7 +54,7 @@ JPEG/PNG/WebP up to 25 MB (HEIC rejected with "convert to JPEG first"); circular
 ## 7. Accessibility ([Accessibility and keyboard navigation of the tree](https://github.com/kalnaasan/Family-Tree/issues/9))
 
 - WCAG 2.2 AA; colour never the only signal; contrast ≥ 4.5:1 for text, ≥ 3:1 for rings; visible focus rings; text scales with browser font size; reduced motion → no animated pan/zoom.
-- The tree is one tab stop. Arrows follow family links (↑ parent, ↓ child, ←/→ sibling, `P` partner; repeats cycle in a stable order), `Enter` opens the Person, `F` sets Focus, `Home` returns to Focus. Zoom/pan: `+`, `-`, `0` (fit), Shift+arrows. The view keeps the focused Person visible.
+- The tree is one tab stop. Arrows follow family links (↑ parent, ↓ child, ←/→ sibling (swapped under right-to-left, section 13.2), `P` partner; repeats cycle in a stable order), `Enter` opens the Person, `F` sets Focus, `Home` returns to Focus. Zoom/pan: `+`, `-`, `0` (fit), Shift+arrows. The view keeps the focused Person visible.
 - Each Person is a focusable element named like "Maria, mother, born 1962"; a live region announces moves ("Karl, father of Ben, 2 children"); decorative parts are hidden.
 - "List view" toggle: nested collapsible list of the same Tree with the same add/edit actions.
 - Verification (acceptance on every UI ticket): axe in Playwright; manual keyboard-only add-relative run; screen-reader spot-check (NVDA or VoiceOver) of tree and list view before each release.
@@ -87,7 +87,7 @@ JPEG/PNG/WebP up to 25 MB (HEIC rejected with "convert to JPEG first"); circular
 
 ## 11. Search (new in this assembly)
 
-A search box matching first and last name, case- and accent-insensitive. Picking a result selects the Person and pans there keeping the zoom; reachable by keyboard and by touch; the List view gets the same filter. Results are computed from the store (no index needed to 5,000 people).
+A search box matching first and last name, case- and accent-insensitive (and, for Arabic, letter-variant-insensitive, section 13.4). Picking a result selects the Person and pans there keeping the zoom; reachable by keyboard and by touch; the List view gets the same filter. Results are computed from the store (no index needed to 5,000 people).
 
 ## 12. Resolutions of conflicts between Mobile/touch and Large-tree performance
 
@@ -97,6 +97,71 @@ Decided with the user (all recommendations):
 2. **Touch targets.** The 48 px person target is guaranteed whenever zoom is at or above the "initial only" bucket. In the "dot" bucket a tap selects the nearest Person only within a small distance, otherwise it zooms in toward the tap; acting on a Person needs zooming in. This replaces "never below ~24 px radius even zoomed out".
 3. **Minimap.** None in v1. Large-tree navigation relies on the Focus-person button, relative chips and Search (section 11). Revisit after the 1,000-person real-phone test.
 
-## 13. Cross-cutting acceptance criteria
+## 13. Languages and right-to-left ([Add Arabic support](https://github.com/kalnaasan/Family-Tree/issues/45))
 
-Every build ticket carries the relevant criteria from sections 7 (axe, keyboard), 8 (touch emulation), 9 (budget), and 10 (the exact bullet it implements, e.g. "undo of an add-relative restores the exact prior document; the second tab cannot write").
+English and Arabic ship. Arabic is Modern Standard Arabic; the owner, a native speaker, reviews every Arabic string and the kinship table before release. The design is a general layer, so another language is a table swap. Out of scope: the Hijri calendar, typing Arabic-Indic digits into date fields, regional dialects for kinship words, languages other than these two, and an Arabic README or `docs/`. The decisions and reasoning are in the closed tickets of the map; this section is the result. Where it differs from an earlier section, this section wins.
+
+### 13.1 The translation layer ([Translation layer: strings, plurals and the language setting](https://github.com/kalnaasan/Family-Tree/issues/48))
+
+- A small hand-rolled `t('key', {params})` over one typed message object per language; no i18n library. TypeScript fails the build if Arabic lacks a key English has. Both languages are in the main bundle (works offline, no flash of the wrong language).
+- A plural message holds one text per form (zero, one, two, few, many, other), chosen with `Intl.PluralRules`, with `{count}` filled in. English supplies `one` and `other`; Arabic supplies all six, enforced by the type check. At runtime a missing text falls back to English, never the raw key.
+- Pure code (`addRelative`, `navigation`, the undo history) returns structured results (a reason plus parameters), never English sentences; the interface turns them into words when it draws them. `showToast` and the load, error and save banners take a message (key plus parameters) and the component translates when it renders, so a visible toast and old undo entries follow a language switch. Developer errors (`throw new Error(...)`) and log text stay English.
+- The **Language** (see `CONTEXT.md`) is stored in `localStorage` as `family-tree.language` (`auto`, `en` or `ar`), outside the Tree and backups. `auto` follows the browser's language list and falls back to English. Settings has a Language choice. Switching is live, with no reload: `lang` and `dir` on `<html>` change and the interface, including the Tree canvas, redraws.
+- `AVAILABLE_LANGUAGES` is one constant. Until the release gate (13.8) passes it holds only English, so `auto` cannot switch an Arabic browser to unreviewed text.
+
+### 13.2 Right-to-left layout ([Right-to-left layout: what flips and what stays](https://github.com/kalnaasan/Family-Tree/issues/49))
+
+- Everything outside the canvas mirrors: header, search row and List view button, the side panel (it sits on the inline-end side, so on the left), the zoom and locate controls, the list view's indent guide. Written as logical CSS everywhere (`ms-`/`me-`, `start-`/`end-`, `text-start`, `border-s`); `rtl:` variants only where no logical equivalent exists. Symmetric elements (the bottom sheet's drag handle, the centred Toast) do not change.
+- The Tree canvas is not mirrored: left and right in the Tree carry no meaning (siblings follow the order added, not age), so layout, caches, zoom and the existing tests are unchanged.
+- Only the Undo and Redo icons mirror, and their order follows reading sequence. Settings, list, zoom +/-, fit and locate do not.
+- Keyboard (amends section 7): under RTL the Left and Right arrows swap, so the arrow pointing the way Arabic reads (Left) means next in the sibling ring. `navigation.ts` takes `next`/`previous`, stays pure and language-free, and `TreeCanvas` maps the physical key using the current `dir`. Up (parent), Down (child) and `P` (partner) are unchanged. Shift+arrow panning and the Crop dialog's arrows stay physical, because the canvas and the photo are not mirrored.
+
+### 13.3 Names drawn in the Tree ([Arabic names drawn in the tree: font, bidi and label width](https://github.com/kalnaasan/Family-Tree/issues/50))
+
+- Font: system fonts with an explicit stack (system UI font, `Tahoma`, `Noto Naskh Arabic`, `sans-serif`); nothing bundled. A bundled font is revisited only if the real-phone check of Arabic rendering fails.
+- Each name picks its own direction from its first strong letter, not from the page: the drawn label gets `direction` computed from the name; the Person panel, list and form fields use `dir="auto"`.
+- A name is shortened at whole letters (graphemes, via `Intl.Segmenter`), with the same 18-letter cap and no snapping to word boundaries, in both scripts; still pure and DOM-free. The full name stays in the panel and the accessible name.
+- The medallion initial is the first grapheme of the first name, skipping a leading "ال" when more letters follow. Latin names are unchanged.
+- No new performance budget; see 13.7.
+
+### 13.4 Search and name fields ([Arabic names in search, sorting and the name fields](https://github.com/kalnaasan/Family-Tree/issues/51))
+
+- Search folds these, on both the query and the stored name (Arabic diacritics are already stripped as combining marks): alef variants `أ إ آ ٱ` → `ا`; `ى` → `ي`; `ة` → `ه`; `ؤ` → `و` and `ئ` → `ي` (`ء` stays); tatweel `ـ` removed; Persian `ک` → `ك` and `ی` → `ي`.
+- No transliteration: a Latin query does not find an Arabic name or the reverse.
+- For ranking, a leading "ال" on a name word is ignored, so `الحسن` counts as starting with `حسن` (not when the word is just "ال" or the rest is a single letter). The stored name is unchanged.
+- Nothing in the app sorts by name, so none is added; if that changes it uses `Intl.Collator` with the current Language.
+- The model is unchanged: required first name, optional last name, shown "first last". The Arabic field labels (الاسم الأول / اسم العائلة are proposals) are part of the owner's review.
+- Fixtures: `generateTree(size, seed, { names: 'arabic' })` names people deterministically from about 40 Arabic given names and 20 family names without changing the Tree's shape; a small fixed set of tricky names (plain, long, mixed-script, diacritics, "ال") serves the search and label tests.
+
+### 13.5 Dates and digits ([Dates and digits in Arabic](https://github.com/kalnaasan/Family-Tree/issues/52))
+
+- Always Western digits (0-9) and the Gregorian calendar, set explicitly (`-u-ca-gregory-nu-latn`), whatever the browser's region. Digit style is not a setting. Date entry stays as it is.
+- The dates line ("1930–2001") keeps its shape; a death-only date is "ت. 2001" in Arabic (flagged for review) and "d. 2001" in English. The dates line takes its direction from the Language, not from the name, so under RTL a range reads with 1930 on the right. The screen reader's "born 1962, died 2001" is a translated message.
+- `formatWhen` and the 5,000-person notice follow the Language setting, not the browser's language, through one helper that everything calls; the hard-coded `'en'` goes away.
+- The Born and Died fields get `dir="ltr"`, aligned to the start edge; the placeholder stays `YYYY-MM-DD`; the help text is translated with the format inside it. Backup file names are unchanged (`family-tree-YYYY-MM-DD.json`).
+
+### 13.6 Relationship labels ([Arabic relationship labels: table and grammar](https://github.com/kalnaasan/Family-Tree/issues/47), research: [Arabic kinship terms in Modern Standard Arabic](https://github.com/kalnaasan/Family-Tree/issues/46))
+
+Amends section 3. The final Arabic table is [arabic-relationship-labels.md](arabic-relationship-labels.md), one row per descriptor with a confidence mark.
+
+- The descriptor is widened with the genders of the relatives a link passes through (uncle or aunt, sibling, the shared parent of a half-sibling, the intermediate child, the partner an in-law is related through, the uncle or aunt of an `uncle-partner`). English ignores the new fields. Where a needed gender is unknown, Arabic falls back to a generic form.
+- `deriveRelationships` returns descriptors only and no label strings. A pure, DOM-free `labelFor(descriptor, gender, language)` is called when a label is drawn, with one table module per language (labels are grammar, not interface text, so they live apart from the dictionary but follow the same Language). Only Persons on screen get labels, and a language switch redraws them without re-deriving the Tree.
+- Unknown gender: slash forms where both are short single words (أخ/أخت, جد/جدة, عم/عمة); `ولد` for children and children-of (ولد العم, ولد الأخ); `شريك الحياة` for partner; `أحد الوالدين` for parent; `قريب/قريبة` only where nothing fits.
+- "great-" lines use one degree form past the first natural word (`جد من الدرجة الثالثة`, generations counted as in Arabic inheritance law); real words stay wherever they exist (جد, حفيد, عم, ابن الأخ). Second and further cousins use the degree form (`ابن عم من الدرجة الثانية`); "removed" cousins, which Arabic has no concept for, show `قريب/قريبة`.
+- Ex-partners are "former" (`زوج سابق`, `زوجة سابقة`, `شريك سابق`), not `طليق`. Half-siblings are `أخ/أخت لأب` or `لأم`, and `غير شقيق` when the shared parent's gender is unknown. An uncle's or aunt's partner uses the literal forms (`زوجة العم`, `زوجة الخال`, `زوج العمة`, `زوج الخالة`). In-laws: parents-in-law `حم`/`حماة`; child-in-law and sibling-in-law are descriptive (`زوج الابنة`, `زوجة الابن`, `زوج الابن`, `شقيق الزوج`, `زوج الأخت`…), which also serves a same-sex partner of a child; the ambiguous single words حمو, صهر, نسيب, عديل and سلفة are not used. Step relatives (dormant) and the fallbacks `قريب`/`قريبة` and `غير مرتبط`/`غير مرتبطة` follow the table.
+- Review gate: no row marked (K) or UNSURE ships until the owner has signed it off; the sign-off is recorded in the release checklist.
+
+### 13.7 Test and acceptance strategy ([Test and acceptance strategy for Arabic](https://github.com/kalnaasan/Family-Tree/issues/53))
+
+- A Playwright project `chromium-ar` and a WebKit twin re-run a chosen list of the existing specs with the language forced to Arabic (`family-tree.language` written before load): smoke, tree, keyboard, add-relative, search, backup, undo, touch, photos. English only: persistence, single-writer, large-tree, perf. Specs find controls through a helper that looks the name up in the same dictionary the app uses, so one spec file serves both languages. A small `language.spec` asserts a few literal Arabic strings, `lang="ar"` and `dir="rtl"`, and that switching is live. axe runs in RTL through the existing specs.
+- Performance: an Arabic-names variant (13.4's fixture) in the `perf` project at 1,000 and 5,000 people against the same budget as English; no separate budget.
+- Unit tests assert: identical message keys in both languages; all six plural forms present and 0, 1, 2, 5, 11 and 100 each picking the right one; every folding pair matches and Latin never matches Arabic, plus the "ال" ranking, letter-based truncation and initials; Western digits and Gregorian for every language even under an `ar-EG` browser; `labelFor` run exhaustively over every kind, gender and linking-relative combination with every Arabic result non-empty and free of Latin letters; the widened descriptor in the derivation tests.
+- By hand, in `docs/arabic-release-checklist.md`: the owner's review of every string and of the kinship table; the real-phone check that Arabic fonts render (Android and iPhone, with the 1,000-person Arabic Tree); a screenshot pass of the RTL screens at phone and desktop widths.
+
+### 13.8 Release gate
+
+Arabic is offered only when: CI is green including the Arabic projects; the owner has signed off the strings and cleared every (K) and UNSURE row of the kinship table; the real-phone check is done and its results recorded; and the RTL screenshot pass is done. Build tickets merge to `main` behind `AVAILABLE_LANGUAGES`; adding Arabic to it is the release.
+
+## 14. Cross-cutting acceptance criteria
+
+Every build ticket carries the relevant criteria from sections 7 (axe, keyboard), 8 (touch emulation), 9 (budget), and 10 (the exact bullet it implements, e.g. "undo of an add-relative restores the exact prior document; the second tab cannot write"). Tickets that change text, direction, labels, names or dates also carry the criteria of section 13.
