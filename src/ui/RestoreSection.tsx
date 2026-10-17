@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react'
 import { backupService } from '../backup/backup.ts'
 import { type SnapshotInfo, type SnapshotReason, snapshotKeeper } from '../backup/snapshots.ts'
 import { useTreeStore } from '../domain/store.ts'
+import { useLanguageStore } from '../i18n/language.ts'
 import { formatWhen } from './dates.ts'
 
 const REASON: Record<SnapshotReason, string> = {
@@ -18,6 +19,7 @@ export function RestoreSection({ onRestored }: { onRestored: (message: string) =
   const titleId = useId()
   const currentCount = useTreeStore((s) => s.persons.length)
   const readOnly = useTreeStore((s) => s.readOnly)
+  const language = useLanguageStore((s) => s.language)
   const [versions, setVersions] = useState<SnapshotInfo[] | 'unavailable' | null>(null)
   const [choosing, setChoosing] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -40,7 +42,7 @@ export function RestoreSection({ onRestored }: { onRestored: (message: string) =
     const result = await backupService.restoreSnapshot(version.id)
     setBusy(false)
     if (result.ok) {
-      onRestored(`Restored the version from ${formatWhen(version.takenAt)}. Your previous tree is kept as a version too.`)
+      onRestored(`Restored the version from ${formatWhen(version.takenAt, language)}. Your previous tree is kept as a version too.`)
     } else {
       setProblem(result.message)
     }
@@ -63,7 +65,7 @@ export function RestoreSection({ onRestored }: { onRestored: (message: string) =
       ) : (
         <ul className="mt-1 flex flex-col gap-2">
           {versions.map((version) => {
-            const when = formatWhen(version.takenAt)
+            const when = formatWhen(version.takenAt, language)
             return (
               <li key={version.id} className="rounded border border-stone-300 p-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
