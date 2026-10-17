@@ -164,11 +164,11 @@ export const PersonNode = memo(function PersonNode(props: PersonNodeProps) {
       )}
       <CursorRing radius={NODE_RADIUS + 28} />
       </g>
-      <text y={NODE_RADIUS + 20} textAnchor="middle" fontSize={15} fontWeight={600} fill={PALETTE.name} aria-hidden="true">
+      <text y={NODE_RADIUS + 20} textAnchor="middle" fontSize={15} fontWeight={600} fill={PALETTE.name} stroke={PALETTE.background} strokeWidth={5} strokeLinejoin="round" paintOrder="stroke" aria-hidden="true">
         {name}
       </text>
       {life && (
-        <text y={NODE_RADIUS + 37} textAnchor="middle" fontSize={12.5} fill={PALETTE.dates} aria-hidden="true">
+        <text y={NODE_RADIUS + 37} textAnchor="middle" fontSize={12.5} fill={PALETTE.dates} stroke={PALETTE.background} strokeWidth={5} strokeLinejoin="round" paintOrder="stroke" aria-hidden="true">
           {life}
         </text>
       )}

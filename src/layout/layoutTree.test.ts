@@ -289,4 +289,19 @@ describe('warm start', () => {
     expect(warm.count).toBe(99)
     expect(findOverlaps(warm, NODE_DIAMETER)).toEqual([])
   })
+
+  it('keeps a small family together instead of spreading it over the whole crown', () => {
+    const { tree } = build({
+      people: ['grandad', 'dad', 'mum', 'sophia', 'serena'],
+      parents: [['dad', 'grandad'], ['sophia', 'dad'], ['sophia', 'mum'], ['serena', 'dad'], ['serena', 'mum']],
+      partners: [['dad', 'mum']],
+    })
+    const layout = layoutTree(tree)
+    const angle = (name: string) => layout.theta[layout.ids.indexOf(uuid(['grandad', 'dad', 'mum', 'sophia', 'serena'].indexOf(name) + 1))]!
+    // a couple are neighbours: well under a quarter turn apart, and the family hangs symmetrically above the trunk
+    expect(Math.abs(angle('dad') - angle('mum'))).toBeLessThan(Math.PI / 3)
+    expect(Math.abs(angle('sophia') - angle('serena'))).toBeLessThan(Math.PI / 3)
+    expect(Math.max(...layout.theta) + Math.min(...layout.theta)).toBeCloseTo(0, 5)
+    expect(findOverlaps(layout, NODE_DIAMETER)).toEqual([])
+  })
 })
