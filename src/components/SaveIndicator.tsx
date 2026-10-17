@@ -8,13 +8,13 @@ export function SaveIndicator() {
   const save = usePersistenceStatus((s) => s.save)
   const readOnly = useTreeStore((s) => s.readOnly)
   if (readOnly) return (
-      <span role="status" className="text-stone-700">
+      <span role="status" className="text-ink-soft text-sm">
         Read-only
       </span>
     )
   return (
     <div className="flex items-center gap-3">
-      <span role="status" data-status={save} className={save === 'error' ? 'font-medium text-red-800' : 'text-stone-700'}>
+      <span role="status" data-status={save} className={save === 'error' ? 'font-medium text-red-800' : 'text-ink-soft text-sm'}>
         {LABELS[save]}
       </span>
       {save === 'error' && (

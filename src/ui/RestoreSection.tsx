@@ -80,7 +80,7 @@ export function RestoreSection({ onRestored }: { onRestored: (message: string) =
                         setChoosing(version.id)
                       }}
                       disabled={busy || readOnly}
-                      className="min-h-11 rounded border border-stone-500 px-3 disabled:opacity-60"
+                      className="btn px-3 disabled:opacity-60"
                     >
                       Restore
                     </button>
@@ -105,7 +105,7 @@ export function RestoreSection({ onRestored }: { onRestored: (message: string) =
                         type="button"
                         onClick={() => setChoosing(null)}
                         disabled={busy}
-                        className="min-h-11 rounded border border-stone-500 px-3 disabled:opacity-60"
+                        className="btn px-3 disabled:opacity-60"
                       >
                         Cancel
                       </button>

@@ -10,6 +10,7 @@ import { PersonPanel } from './ui/PersonPanel.tsx'
 import { ReadOnlyBanner } from './ui/ReadOnlyBanner.tsx'
 import { SearchBox } from './ui/SearchBox.tsx'
 import { SettingsDialog } from './ui/SettingsDialog.tsx'
+import { ListIcon, SettingsIcon } from './ui/icons.tsx'
 import { Toast } from './ui/Toast.tsx'
 import { UndoControls } from './ui/UndoControls.tsx'
 import { useUndoShortcuts } from './ui/undo.ts'
@@ -40,30 +41,35 @@ export function App() {
 
   return (
     <main className="flex h-dvh flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-2">
-        <h1 className="text-2xl font-semibold">Family Tree</h1>
-        <div className="flex flex-wrap items-center gap-3">
-          {persons.length > 0 && <SearchBox />}
-          {persons.length > 0 && (
-            <button
-              type="button"
-              aria-pressed={listView}
-              onClick={() => setListView(!listView)}
-              className="min-h-11 rounded border border-stone-500 px-3 aria-pressed:bg-stone-200 aria-pressed:font-semibold"
-            >
-              List view
-            </button>
-          )}
+      <header className="border-b border-line bg-paper-deep/60 px-4 py-2">
+        <div className="flex items-center gap-2">
+          <h1 className="mr-auto text-xl font-semibold tracking-tight text-bark sm:text-2xl">Family Tree</h1>
+          <SaveIndicator />
           <UndoControls />
           <button
             type="button"
             onClick={() => setSettingsOpen(true)}
-            className="min-h-11 rounded border border-stone-500 px-3"
+            aria-label="Settings"
+            title="Settings"
+            className="btn btn-icon"
           >
-            Settings
+            <SettingsIcon />
           </button>
-          <SaveIndicator />
         </div>
+        {persons.length > 0 && (
+          <div className="mt-2 flex items-center gap-2">
+            <SearchBox />
+            <button
+              type="button"
+              aria-pressed={listView}
+              onClick={() => setListView(!listView)}
+              className="btn shrink-0 px-3 aria-pressed:border-leaf-deep aria-pressed:bg-leaf-deep aria-pressed:text-white"
+            >
+              <ListIcon />
+              List view
+            </button>
+          </div>
+        )}
       </header>
 
       {load === 'invalid' && (

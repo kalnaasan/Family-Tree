@@ -159,7 +159,7 @@ export function CropDialog({ bitmap, onCancel, onConfirm }: Props) {
           type="button"
           onClick={confirm}
           disabled={busy}
-          className="min-h-11 flex-1 rounded bg-green-800 px-4 font-medium text-white disabled:opacity-60"
+          className="btn-primary flex-1  px-4 font-medium text-white disabled:opacity-60"
         >
           {busy ? 'Saving…' : 'Use this photo'}
         </button>
@@ -167,7 +167,7 @@ export function CropDialog({ bitmap, onCancel, onConfirm }: Props) {
           type="button"
           onClick={onCancel}
           disabled={busy}
-          className="min-h-11 rounded border border-stone-500 px-4 disabled:opacity-60"
+          className="btn px-4 disabled:opacity-60"
         >
           Cancel
         </button>

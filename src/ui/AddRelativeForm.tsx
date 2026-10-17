@@ -82,7 +82,7 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
         <p role="alert" className="rounded border border-red-800 p-3 text-red-800">
           {question.message}
         </p>
-        <button type="button" onClick={onCancel} className="min-h-11 rounded border border-stone-500 px-4">
+        <button type="button" onClick={onCancel} className="btn px-4">
           Back
         </button>
       </div>
@@ -200,10 +200,10 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
       )}
 
       <div className="flex gap-2">
-        <button type="submit" className="min-h-11 flex-1 rounded bg-green-800 px-4 font-medium text-white">
+        <button type="submit" className="btn-primary flex-1  px-4 font-medium text-white">
           Add {relation}
         </button>
-        <button type="button" onClick={onCancel} className="min-h-11 rounded border border-stone-500 px-4">
+        <button type="button" onClick={onCancel} className="btn px-4">
           Cancel
         </button>
       </div>

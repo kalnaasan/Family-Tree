@@ -84,7 +84,7 @@ export function BackupSection({ onReplaced }: { onReplaced: (message: string) =>
           type="button"
           onClick={() => void exportNow()}
           disabled={busy !== null}
-          className="min-h-11 rounded bg-green-800 px-4 font-medium text-white disabled:opacity-60"
+          className="btn-primary  px-4 font-medium text-white disabled:opacity-60"
         >
           Export
         </button>
@@ -92,7 +92,7 @@ export function BackupSection({ onReplaced }: { onReplaced: (message: string) =>
           type="button"
           onClick={() => input.current?.click()}
           disabled={busy !== null || prepared !== null || readOnly}
-          className="min-h-11 rounded border border-stone-500 px-4 disabled:opacity-60"
+          className="btn px-4 disabled:opacity-60"
         >
           Import a file
         </button>
@@ -138,7 +138,7 @@ export function BackupSection({ onReplaced }: { onReplaced: (message: string) =>
               type="button"
               onClick={() => void exportNow()}
               disabled={busy !== null}
-              className="min-h-11 rounded border border-stone-500 px-3 disabled:opacity-60"
+              className="btn px-3 disabled:opacity-60"
             >
               Export current tree first
             </button>
@@ -157,7 +157,7 @@ export function BackupSection({ onReplaced }: { onReplaced: (message: string) =>
                 setProblem(null)
               }}
               disabled={busy !== null}
-              className="min-h-11 rounded border border-stone-500 px-3 disabled:opacity-60"
+              className="btn px-3 disabled:opacity-60"
             >
               Cancel
             </button>

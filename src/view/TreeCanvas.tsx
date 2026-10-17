@@ -625,7 +625,7 @@ function ControlButton(props: { label: string; onClick: () => void; disabled?: b
       title={props.label}
       disabled={props.disabled}
       onClick={props.onClick}
-      className="grid size-11 place-items-center rounded-full border border-stone-500 bg-white/90 text-stone-900 shadow-sm hover:bg-white disabled:opacity-50"
+      className="grid size-11 place-items-center rounded-full border border-line-strong bg-white/90 text-stone-900 shadow-sm hover:bg-white disabled:opacity-50"
     >
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
         {props.children}

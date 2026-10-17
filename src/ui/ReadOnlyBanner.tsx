@@ -31,7 +31,7 @@ export function ReadOnlyBanner() {
           type="button"
           onClick={() => void takeOver()}
           disabled={taking}
-          className="min-h-11 rounded bg-green-800 px-3 font-medium text-white disabled:opacity-60"
+          className="btn-primary  px-3 font-medium text-white disabled:opacity-60"
         >
           {taking ? 'Taking over…' : 'Take over editing'}
         </button>
