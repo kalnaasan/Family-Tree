@@ -8,6 +8,7 @@ import { useLanguageStore } from '../i18n/language.ts'
 import { useT } from '../i18n/useT.ts'
 import { displayName, lifeSpan } from '../view/text.ts'
 import { useUiStore } from './uiStore.ts'
+import { PersonLine } from './PersonLine.tsx'
 import { useLabeler } from './useLabeler.ts'
 
 interface Model {
@@ -146,7 +147,7 @@ function Item({ person, depth, model, words }: { person: Person; depth: number; 
           onClick={() => select(person.id)}
           className={`${buttonClass} flex-1 ${selectedId === person.id ? 'bg-stone-200 font-semibold' : ''}`}
         >
-          {[name, relationship, lifeSpan(person)].filter(Boolean).join(' · ')}
+          <PersonLine name={name} rest={[relationship, lifeSpan(person, t)]} />
           {partners && <span className="block text-sm text-stone-700">{partners}</span>}
         </button>
       </div>
@@ -207,7 +208,7 @@ export function ListView() {
                     onClick={() => select(person.id)}
                     className={`${buttonClass} w-full ${selectedId === person.id ? 'bg-stone-200 font-semibold' : ''}`}
                   >
-                    {[displayName(person), relationship, lifeSpan(person)].filter(Boolean).join(' · ')}
+                    <PersonLine name={displayName(person)} rest={[relationship, lifeSpan(person, t)]} />
                     {partners && <span className="block text-sm text-stone-700">{partners}</span>}
                   </button>
                 </li>

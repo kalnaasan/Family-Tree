@@ -14,8 +14,12 @@ export interface PersonNodeProps {
   y: number
   bucket: LodBucket
   name: string
+  /** The direction the name reads, from its own first letter (`directionOf`): the Person's, not the page's. */
+  nameDirection?: 'ltr' | 'rtl'
   initial: string
   life: string
+  /** The direction the dates line reads: the page's (the Language's). */
+  lifeDirection?: 'ltr' | 'rtl'
   /** What a screen reader says: "Maria, mother, born 1962". */
   ariaLabel: string
   gender: Gender
@@ -80,6 +84,7 @@ function CursorRing({ radius }: { radius: number }) {
 export const PersonNode = memo(function PersonNode(props: PersonNodeProps) {
   const { id, x, y, bucket, name, initial, life, ariaLabel, gender, deceased, isFocus, isSelected, isCurrent, isDimmed, photoUrl } =
     props
+  const { nameDirection = 'ltr', lifeDirection = 'ltr' } = props
   const ring = ringColor(gender, deceased)
   // The button holds only shapes and carries the accessible name. The drawn name and dates sit beside it, hidden from
   // assistive technology, so the visible text is never a label the accessible name fails to contain (WCAG 2.5.3).
@@ -164,11 +169,12 @@ export const PersonNode = memo(function PersonNode(props: PersonNodeProps) {
       )}
       <CursorRing radius={NODE_RADIUS + 28} />
       </g>
-      <text y={NODE_RADIUS + 20} textAnchor="middle" fontSize={15} fontWeight={600} fill={PALETTE.name} stroke={PALETTE.background} strokeWidth={5} strokeLinejoin="round" paintOrder="stroke" aria-hidden="true">
+      {/* each line is embedded in its own direction: the name's is the Person's own, the dates follow the page */}
+      <text y={NODE_RADIUS + 20} textAnchor="middle" direction={nameDirection} unicodeBidi="embed" fontSize={15} fontWeight={600} fill={PALETTE.name} stroke={PALETTE.background} strokeWidth={5} strokeLinejoin="round" paintOrder="stroke" aria-hidden="true">
         {name}
       </text>
       {life && (
-        <text y={NODE_RADIUS + 37} textAnchor="middle" fontSize={12.5} fill={PALETTE.dates} stroke={PALETTE.background} strokeWidth={5} strokeLinejoin="round" paintOrder="stroke" aria-hidden="true">
+        <text y={NODE_RADIUS + 37} textAnchor="middle" direction={lifeDirection} unicodeBidi="embed" fontSize={12.5} fill={PALETTE.dates} stroke={PALETTE.background} strokeWidth={5} strokeLinejoin="round" paintOrder="stroke" aria-hidden="true">
           {life}
         </text>
       )}

@@ -10,6 +10,7 @@ import { type MessageRef, msg } from '../i18n/messageRef.ts'
 import { useT } from '../i18n/useT.ts'
 import { lifeSpan } from '../view/text.ts'
 import { AddRelativeForm } from './AddRelativeForm.tsx'
+import { PersonLine } from './PersonLine.tsx'
 import { PersonFields } from './PersonFields.tsx'
 import { Avatar, PhotoField } from './PhotoField.tsx'
 import { type PersonFormValues, toPersonFields, validate, valuesOf } from './personForm.ts'
@@ -145,9 +146,10 @@ export function PersonPanel({ personId, onClose }: Props) {
           onClick={() => select(relative.id)}
           className="min-h-11 rounded-full border border-stone-400 px-4 text-start hover:bg-stone-100"
         >
-          {relative.firstName}
-          {relative.lastName ? ` ${relative.lastName}` : ''}
-          {details.length > 0 && ` · ${formatList(details, language)}`}
+          <PersonLine
+            name={[relative.firstName, relative.lastName].filter(Boolean).join(' ')}
+            rest={details.length > 0 ? [formatList(details, language)] : []}
+          />
         </button>
       </li>
     )
@@ -205,7 +207,7 @@ export function PersonPanel({ personId, onClose }: Props) {
       <div className="flex items-start justify-between gap-2">
         {mode.kind !== 'add' && person.photoId && <Avatar person={person} size={56} />}
         <div className="min-w-0 flex-1">
-          <h2 ref={headingRef} tabIndex={-1} className="text-xl font-semibold outline-offset-4">
+          <h2 ref={headingRef} tabIndex={-1} dir="auto" className="text-xl font-semibold outline-offset-4">
             {mode.kind === 'add'
               ? t('panel.addTitle', { relation: relationWord(mode.relation), name: person.firstName })
               : person.firstName}
@@ -213,7 +215,7 @@ export function PersonPanel({ personId, onClose }: Props) {
           </h2>
           {mode.kind !== 'add' && (
             <p className="text-sm text-stone-700">
-              {[isFocus ? t('person.focus') : label, lifeSpan(person)].filter(Boolean).join(' · ')}
+              {[isFocus ? t('person.focus') : label, lifeSpan(person, t)].filter(Boolean).join(' · ')}
               {person.deceased && ` · ${t('person.deceased')}`}
             </p>
           )}

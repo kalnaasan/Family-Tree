@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { deriveRelationships } from '../domain/labels.ts'
 import type { Tree } from '../domain/schema.ts'
 import { addParentLink, addPartnership, addPerson, emptyTree } from '../domain/tree.ts'
+import { useLanguageStore } from '../i18n/language.ts'
 import { generateTree } from '../layout/fixtures.ts'
 import { layoutTree } from '../layout/layoutTree.ts'
 import { NODE_RADIUS, ROOTS_DEPTH, TRUNK_HEIGHT } from './geometry.ts'
@@ -346,6 +347,39 @@ function threeSiblings(): Tree {
   tree = addParentLink(tree, id(7), id(1))
   return addParentLink(tree, id(7), id(2))
 }
+
+describe('names drawn in their own direction (spec section 13.3)', () => {
+  afterEach(() => useLanguageStore.setState({ language: 'en' }))
+
+  /** Zooms right in on the Focus person, so the names and dates are drawn. */
+  function zoomIn(surface: HTMLElement) {
+    act(() => void surface.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -50000 })))
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Focus person' }))
+    settle(300)
+  }
+
+  it('draws each name the way it reads, and the dates the way the Language reads', () => {
+    useLanguageStore.setState({ language: 'ar' })
+    let tree = addPerson(emptyTree(), { id: id(1), firstName: 'محمد', lastName: 'الأحمد', birthDate: '1930', deathDate: '2001' })
+    tree = addPerson(tree, { id: id(2), firstName: 'Maria', lastName: 'Keller' })
+    const { frame, surface } = mountTree({ ...tree, focusPersonId: id(1) })
+    zoomIn(surface)
+    const text = (words: string) => [...frame.querySelectorAll('text')].find((line) => line.textContent?.includes(words))
+    expect(text('محمد')).toHaveAttribute('direction', 'rtl')
+    expect(text('Maria')).toHaveAttribute('direction', 'ltr')
+    expect(text('1930–2001')).toHaveAttribute('direction', 'rtl') // the page reads right to left
+  })
+
+  it('reads the dates left to right in English, and a name by its own letters whatever the language', () => {
+    let tree = addPerson(emptyTree(), { id: id(1), firstName: 'محمد', birthDate: '1930' })
+    tree = addPerson(tree, { id: id(2), firstName: 'Maria', birthDate: '1962' })
+    const { frame, surface } = mountTree({ ...tree, focusPersonId: id(1) })
+    zoomIn(surface)
+    const text = (words: string) => [...frame.querySelectorAll('text')].find((line) => line.textContent?.includes(words))
+    expect(text('محمد')).toHaveAttribute('direction', 'rtl')
+    expect(text('1930')).toHaveAttribute('direction', 'ltr')
+  })
+})
 
 describe('the sibling keys follow the direction the page reads (spec section 13.2)', () => {
   // the page's own `dir`, which is what the Language sets on <html>

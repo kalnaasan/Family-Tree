@@ -14,6 +14,8 @@
 }
 
 body {
+  /* the fonts of the device, so nothing is downloaded and it works offline; Tahoma and Noto Naskh draw Arabic where the system font does not (spec section 13.3) */
+  font-family: system-ui, Tahoma, 'Noto Naskh Arabic', sans-serif;
   background: var(--color-paper);
   color: var(--color-ink);
 }
@@ -24,6 +26,18 @@ body {
 }
 
 @layer components {
+  /*
+   * A field whose text reads left to right (a date) but lines up with the start of the page. The field's own
+   * direction is left to right, so its "start" is the left edge and its "end" the right one: when the page reads right
+   * to left the text is aligned to the field's end, which is the page's start. (`match-parent` would say it directly,
+   * but Chromium does not support it.)
+   */
+  .input-start {
+    text-align: start;
+  }
+  :where(:root[dir='rtl']) .input-start {
+    text-align: end;
+  }
   .btn {
     display: inline-flex;
     min-height: 2.75rem;

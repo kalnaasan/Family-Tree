@@ -3,7 +3,7 @@ import { relativesOf } from '../domain/groups.ts'
 import type { Relationship } from '../domain/labels.ts'
 import { type NavKey, type NavMemory, describeMove, freshMemory, move } from '../domain/navigation.ts'
 import type { ParentLink, Partnership, Person } from '../domain/schema.ts'
-import { useLanguageStore } from '../i18n/language.ts'
+import { DIRECTION, useLanguageStore } from '../i18n/language.ts'
 import { renderMessage } from '../i18n/messageRef.ts'
 import { useT } from '../i18n/useT.ts'
 import type { TreeLayout } from '../layout/layoutTree.ts'
@@ -14,7 +14,7 @@ import { type LodBucket, lodBucket } from './lod.ts'
 import { PALETTE } from './palette.ts'
 import { PersonNode } from './PersonNode.tsx'
 import { type Scene, buildScene, selectVisible } from './scene.ts'
-import { displayName, initialOf, lifeSpan, personAriaLabel } from './text.ts'
+import { directionOf, displayName, initialOf, lifeSpan, personAriaLabel } from './text.ts'
 import { ViewController } from './viewController.ts'
 import {
   READABLE_ZOOM,
@@ -143,6 +143,7 @@ const SceneContents = memo(function SceneContents({
       {visible.persons.map((i) => {
         const person = persons[i]
         if (!person) return null
+        const name = displayName(person) // once: cutting a name at whole letters is not free
         return (
           <PersonNode
             key={person.id}
@@ -150,9 +151,11 @@ const SceneContents = memo(function SceneContents({
             x={layout.x[i]!}
             y={layout.y[i]!}
             bucket={bucket}
-            name={displayName(person)}
+            name={name}
+            nameDirection={directionOf(name)}
             initial={initialOf(person)}
-            life={lifeSpan(person)}
+            life={lifeSpan(person, t)}
+            lifeDirection={DIRECTION[language]}
             ariaLabel={personAriaLabel(person, labelOf(person), i === focusIndex, { t, language })}
             gender={person.gender}
             deceased={person.deceased}

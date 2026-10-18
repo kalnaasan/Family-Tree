@@ -279,6 +279,7 @@ export const en = {
   // people
   'person.focus': 'Focus person',
   'person.deceased': 'deceased',
+  'life.died': 'd. {year}',
   'person.born': 'born {year}',
   'person.died': 'died {year}',
   'person.errorFirstName': 'Enter a first name',
@@ -586,6 +587,7 @@ type Arabic = ArabicOf<typeof en>
 export const ar: Omit<Arabic, Pending> & Partial<Pick<Arabic, Pending>> = {
   'settings.language': 'اللغة',
   'language.auto': 'مثل المتصفح',
+  'life.died': 'ت. {year}',
 }
 
 export const DICTIONARIES = { en, ar }

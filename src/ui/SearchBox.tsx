@@ -4,6 +4,7 @@ import { searchPersons } from '../domain/search.ts'
 import { useTreeStore } from '../domain/store.ts'
 import { useT } from '../i18n/useT.ts'
 import { displayName, lifeSpan } from '../view/text.ts'
+import { PersonLine } from './PersonLine.tsx'
 import { useUiStore } from './uiStore.ts'
 import { useLabeler } from './useLabeler.ts'
 
@@ -82,6 +83,7 @@ export function SearchBox() {
     <div className="relative min-w-0 flex-1 sm:max-w-sm">
       <input
         type="text"
+        dir="auto"
         role={listView ? 'searchbox' : 'combobox'}
         aria-label={t('search.label')}
         placeholder={t('search.label')}
@@ -120,7 +122,6 @@ export function SearchBox() {
           <ul id={listId} role="listbox" aria-label={t('search.resultsLabel')}>
             {shown.map((person, n) => {
               const label = person.id === focusPersonId ? t('person.focus') : labelOf(person)
-              const text = [displayName(person), label, lifeSpan(person)].filter(Boolean).join(' · ')
               return (
                 <li
                   key={person.id}
@@ -130,7 +131,7 @@ export function SearchBox() {
                   onClick={() => pick(person.id)}
                   className={`flex min-h-11 cursor-pointer items-center px-3 ${n === active ? 'bg-stone-200 font-semibold' : ''}`}
                 >
-                  {text}
+                  <PersonLine name={displayName(person)} rest={[label, lifeSpan(person, t)]} />
                 </li>
               )
             })}

@@ -5,23 +5,66 @@ import type { Translate } from '../i18n/messageRef.ts'
 
 const MAX_NAME_LENGTH = 18
 
-/** "First Last", shortened with an ellipsis so a long name cannot overlap its neighbours. */
+let segmenter: Intl.Segmenter | undefined
+
+/**
+ * The letters of a text as a reader counts them: a letter with its accent or vowel marks is one ("مُ" is two code
+ * points and one letter), an emoji is one. Cutting between them would leave a mark with nothing to sit on.
+ */
+function letters(text: string): string[] {
+  segmenter ??= new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+  return Array.from(segmenter.segment(text), (part) => part.segment)
+}
+
+/** "First Last", shortened at whole letters with an ellipsis so a long name cannot overlap its neighbours. */
 export function displayName(person: Pick<Person, 'firstName' | 'lastName'>): string {
   const full = [person.firstName, person.lastName].filter(Boolean).join(' ').trim()
-  const letters = Array.from(full)
-  return letters.length <= MAX_NAME_LENGTH ? full : `${letters.slice(0, MAX_NAME_LENGTH - 1).join('').trimEnd()}…`
+  const parts = letters(full)
+  return parts.length <= MAX_NAME_LENGTH ? full : `${parts.slice(0, MAX_NAME_LENGTH - 1).join('').trimEnd()}…`
 }
 
+/**
+ * The first letter of the first name for the medallion, in capitals where the script has them. A leading Arabic
+ * article "ال" is skipped when more letters follow, so "الحسن" shows "ح" and not the "ا" every such name would share.
+ */
 export function initialOf(person: Pick<Person, 'firstName'>): string {
-  return (Array.from(person.firstName.trim())[0] ?? '?').toUpperCase()
+  const word = letters(person.firstName.trim().split(/\s+/)[0] ?? '').filter((letter) => letter !== TATWEEL)
+  return (word[hasArticle(word) ? 2 : 0] ?? word[0] ?? '?').toUpperCase()
 }
 
-/** Years only, from partial ISO dates: "1962", "1930–2001", "d. 2001". Empty when nothing is known. */
-export function lifeSpan(person: Pick<Person, 'birthDate' | 'deathDate'>): string {
+const TATWEEL = 'ـ'
+/** The first code point of a letter: its base, without the vowel marks that follow it. */
+const baseOf = (letter: string | undefined) => (letter === undefined ? '' : String.fromCodePoint(letter.codePointAt(0)!))
+
+/**
+ * Whether the first word (as letters, without tatweel) starts with the article "ال": a plain alef (or alef wasla) and
+ * a lam, and at least two letters after them. Read from the written letters, not the search-normalised ones: there
+ * "أ" and "إ" lose their hamza, so a name like "ألين" or "إلياس" would look like it had the article, and it has not.
+ */
+function hasArticle(word: readonly string[]): boolean {
+  return (baseOf(word[0]) === 'ا' || baseOf(word[0]) === 'ٱ') && baseOf(word[1]) === 'ل' && word.length >= 4
+}
+
+/** Scripts written from right to left. A presentation form of Arabic letters is in the Arabic script too. */
+const RIGHT_TO_LEFT =
+  /[\p{Script=Arabic}\p{Script=Hebrew}\p{Script=Thaana}\p{Script=Syriac}\p{Script=Nko}\p{Script=Adlam}\p{Script=Samaritan}\p{Script=Mandaic}\p{Script=Hanifi_Rohingya}\p{Script=Mende_Kikakui}]/u
+const LETTER = /\p{L}/u
+
+/** The direction a name reads, from the first letter that has one: not the page's, because the name is the Person's own. */
+export function directionOf(text: string): 'ltr' | 'rtl' {
+  for (const character of text) {
+    if (RIGHT_TO_LEFT.test(character)) return 'rtl'
+    if (LETTER.test(character)) return 'ltr'
+  }
+  return 'ltr'
+}
+
+/** Years only, from partial ISO dates: "1962", "1930–2001", "d. 2001" ("ت. 2001"). Empty when nothing is known. */
+export function lifeSpan(person: Pick<Person, 'birthDate' | 'deathDate'>, t: Translate): string {
   const birth = person.birthDate?.slice(0, 4)
   const death = person.deathDate?.slice(0, 4)
   if (birth && death) return `${birth}–${death}`
-  if (death) return `d. ${death}`
+  if (death) return t('life.died', { year: death })
   return birth ?? ''
 }
 
