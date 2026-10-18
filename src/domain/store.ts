@@ -11,6 +11,7 @@ import {
   redoStep,
   undoStep,
 } from './history.ts'
+import { type LinkExistingRequest, linkExisting } from './linkExisting.ts'
 import type { ParentLinkKind, Tree } from './schema.ts'
 import {
   type DeletedPersonInfo,
@@ -25,6 +26,7 @@ import {
   removeParentLink,
   removePartnership,
   setFocusPerson,
+  setParentLinkKind,
   updatePartnership,
   updatePerson,
 } from './tree.ts'
@@ -43,6 +45,8 @@ export interface TreeActions {
   addPerson: (input: NewPerson) => void
   /** One add-relative flow as one store update: the new Person, their links and Partnership. Returns the new id. */
   addRelative: (request: AddRelativeRequest) => string
+  /** Links a Person already in the Tree as a relative (spec section 5.1): one store update, one Undo step. */
+  linkExisting: (request: LinkExistingRequest) => void
   /** `label` names the undo step; "Edit person" by default. */
   updatePerson: (id: string, patch: PersonPatch, label?: MessageRef) => void
   /**
@@ -55,6 +59,7 @@ export interface TreeActions {
   addPartnership: (input: NewPartnership) => void
   updatePartnership: (id: string, patch: Parameters<typeof updatePartnership>[2]) => void
   removePartnership: (id: string) => void
+  setParentLinkKind: (childId: string, parentId: string, kind: ParentLinkKind) => void
   setFocusPerson: (id: string) => void
   /** Reverts the latest action. Returns it, or null if there is nothing to undo. */
   undo: () => HistoryStep | null
@@ -88,9 +93,16 @@ export function createTreeStore(initial: Tree = emptyTree()) {
       set({ ...after, ...pushed.history })
       for (const step of pushed.discarded) step.release?.()
     }
-    const apply = (label: MessageRef, change: (tree: Tree) => Tree) => {
+    const firstName = (tree: Tree, id: string) => tree.persons.find((p) => p.id === id)?.firstName ?? ''
+    const partnershipLabel = (key: 'step.editLink' | 'step.removeLink', tree: Tree, id: string) => {
+      const [first, second] = tree.partnerships.find((p) => p.id === id)?.personIds ?? ['', '']
+      return msg(key, { first: firstName(tree, first), second: firstName(tree, second) })
+    }
+    /** `label` may depend on the Tree before the change (the names of the people a link joins). */
+    const apply = (label: MessageRef | ((before: Tree) => MessageRef), change: (tree: Tree) => Tree) => {
       const before = pick(get())
-      commit(label, before, change(before))
+      const after = change(before)
+      commit(typeof label === 'function' ? label(before) : label, before, after)
     }
 
     return {
@@ -110,6 +122,11 @@ export function createTreeStore(initial: Tree = emptyTree()) {
         commit(msg('step.addRelation', { relation: relationRef(request.relation) }), before, result.tree)
         return result.personId
       },
+      linkExisting: (request) => {
+        const before = pick(get())
+        const after = linkExisting(before, request)
+        commit(msg('step.link', { name: firstName(before, request.personId) }), before, after)
+      },
       updatePerson: (id, patch, label) => apply(label ?? msg('step.editPerson'), (t) => updatePerson(t, id, patch)),
       deletePerson: (id, options) => {
         const before = pick(get())
@@ -120,10 +137,26 @@ export function createTreeStore(initial: Tree = emptyTree()) {
       addParentLink: (childId, parentId, kind) =>
         apply(msg('step.addParentLink'), (t) => addParentLink(t, childId, parentId, kind)),
       removeParentLink: (childId, parentId) =>
-        apply(msg('step.removeParentLink'), (t) => removeParentLink(t, childId, parentId)),
+        apply(
+          (t) => msg('step.removeLink', { first: firstName(t, childId), second: firstName(t, parentId) }),
+          (t) => removeParentLink(t, childId, parentId),
+        ),
+      setParentLinkKind: (childId, parentId, kind) =>
+        apply(
+          (t) => msg('step.editLink', { first: firstName(t, childId), second: firstName(t, parentId) }),
+          (t) => setParentLinkKind(t, childId, parentId, kind),
+        ),
       addPartnership: (input) => apply(msg('step.addPartnership'), (t) => addPartnership(t, input)),
-      updatePartnership: (id, patch) => apply(msg('step.editPartnership'), (t) => updatePartnership(t, id, patch)),
-      removePartnership: (id) => apply(msg('step.removePartnership'), (t) => removePartnership(t, id)),
+      updatePartnership: (id, patch) =>
+        apply(
+          (t) => partnershipLabel('step.editLink', t, id),
+          (t) => updatePartnership(t, id, patch),
+        ),
+      removePartnership: (id) =>
+        apply(
+          (t) => partnershipLabel('step.removeLink', t, id),
+          (t) => removePartnership(t, id),
+        ),
       setFocusPerson: (id) => apply(msg('step.changeFocus'), (t) => setFocusPerson(t, id)),
       undo: () => {
         if (get().readOnly) return null
