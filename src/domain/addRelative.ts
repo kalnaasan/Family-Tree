@@ -1,5 +1,6 @@
 import { type MessageParam, type MessageRef, msg } from '../i18n/messageRef.ts'
 import type { MessageKey } from '../i18n/messages.ts'
+import { IntegrityError } from './integrity.ts'
 import type { Gender, PartnershipStatus, Person, Tree } from './schema.ts'
 import { type NewPerson, addParentLink, addPartnership, addPerson } from './tree.ts'
 
@@ -166,7 +167,7 @@ function siblingParentIds(tree: Tree, anchorId: string, answers: RelativeAnswers
 
 function otherParentId(tree: Tree, anchorId: string, answers: RelativeAnswers, personId?: string): string | null {
   if (answers.otherParentId !== undefined) {
-    if (answers.otherParentId === anchorId) throw new Error('A child cannot have the same Person as both parents')
+    if (answers.otherParentId === anchorId || answers.otherParentId === personId) throw new Error('A child cannot have the same Person as both parents')
     if (answers.otherParentId !== null) personOf(tree, answers.otherParentId)
     return answers.otherParentId
   }
@@ -175,6 +176,9 @@ function otherParentId(tree: Tree, anchorId: string, answers: RelativeAnswers, p
   // a linked child who is the anchor's own partner is not made their own other parent
   return fallback === personId ? null : fallback
 }
+
+const hasParentLink = (tree: Tree, childId: string, parentId: string) =>
+  tree.parentLinks.some((l) => l.childId === childId && l.parentId === parentId)
 
 const arePartners = (tree: Tree, a: string, b: string) =>
   tree.partnerships.some((p) => p.personIds.includes(a) && p.personIds.includes(b))
@@ -207,7 +211,12 @@ export function relate(
         next = addParentLink(next, anchorId, parentId)
         parentIds = [parentId]
       }
-      for (const parentId of parentIds) next = addParentLink(next, personId, parentId)
+      // the anchor's own parent cannot be their sibling
+      if (parentIds.includes(personId)) throw new IntegrityError('parent-cycle', 'A parent cannot be their child’s sibling')
+      // someone who already shares a parent only gains the missing links
+      const missing = parentIds.filter((parentId) => !hasParentLink(tree, personId, parentId))
+      if (missing.length === 0) throw new IntegrityError('duplicate-link', 'They already share these parents')
+      for (const parentId of missing) next = addParentLink(next, personId, parentId)
       break
     }
     case 'partner':
@@ -216,7 +225,7 @@ export function relate(
     case 'child': {
       next = addParentLink(next, personId, anchorId)
       const other = otherParentId(tree, anchorId, answers, personId)
-      if (other) next = addParentLink(next, personId, other)
+      if (other && !hasParentLink(tree, personId, other)) next = addParentLink(next, personId, other)
       break
     }
   }

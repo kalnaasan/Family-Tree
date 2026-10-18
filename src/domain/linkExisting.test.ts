@@ -59,6 +59,28 @@ describe('linking an existing child', () => {
   })
 })
 
+describe('linking someone who already shares links', () => {
+  it('an existing child of the partner is linked to the anchor without repeating the partner link', () => {
+    let base = withPeople('Anna', 'Ben', 'Carl')
+    base = addPartnership(addParentLink(base, id(3), id(2)), { personIds: [id(1), id(2)], status: 'current' })
+    expect(parentsOf(link(base, 'child', 1, 3), id(3)).sort()).toEqual(['Anna', 'Ben'])
+  })
+
+  it('a half-sibling gains only the missing parent; a full sibling is already linked; a parent is an ancestor', () => {
+    let base = withPeople('Ben', 'Karl', 'Maria', 'Xia')
+    base = addParentLink(addParentLink(base, id(1), id(2)), id(1), id(3))
+    base = addParentLink(base, id(4), id(3))
+    expect(parentsOf(link(base, 'sister', 1, 4), id(4)).sort()).toEqual(['Karl', 'Maria'])
+    const full = link(base, 'sister', 1, 4)
+    const reason = (tree: Tree, picked: number) => {
+      const s = candidatesFor(tree, id(1), 'brother').find((c) => c.person.id === id(picked))!.status
+      return s.valid ? 'valid' : s.reason
+    }
+    expect(reason(full, 4)).toBe('already-linked')
+    expect(reason(base, 2)).toBe('own-ancestor')
+  })
+})
+
 describe('linking an existing partner', () => {
   it('adds a Partnership with the answered status', () => {
     const base = withPeople('Anna', 'Ben')
