@@ -427,7 +427,8 @@ export function TreeCanvas({
     const free = { width: size.width, height: Math.max(1, size.height - covered) }
     // judged from where a running pan ends, not from where it is now: a key pressed in the middle of one may need its own
     const safe = growRect(visibleRect(controller.destination, free), -0.15)
-    if (x < safe.x0 || x > safe.x1 || y < safe.y0 || y > safe.y1) controller.show({ x, y }, controller.destination.k, covered)
+    // the zoom stays the one now: taking the zoom a running animation heads for undid a double-tap zoom-out
+    if (x < safe.x0 || x > safe.x1 || y < safe.y0 || y > safe.y1) controller.show({ x, y }, controller.view.k, covered)
   }
 
   // The view moves so the open Person is never hidden behind the sheet, also when the sheet grows or shrinks.
