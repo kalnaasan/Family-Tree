@@ -31,6 +31,15 @@ describe('ViewController', () => {
     expect([(250 / 2 - view.x) / view.k, (300 / 2 - view.y) / view.k]).toEqual([100, 200])
   })
 
+  it('keeps a Person centred above a bottom sheet when the screen is resized', () => {
+    const { controller } = setup(true)
+    controller.setCoveredBottom(100)
+    controller.show({ x: 100, y: 200 }, 1, 100) // centred in the 200 px that the sheet leaves
+    controller.configure({ width: 250, height: 300 }, bounds)
+    const view = controller.view
+    expect([(250 / 2 - view.x) / view.k, (200 / 2 - view.y) / view.k]).toEqual([100, 200])
+  })
+
   it('is not ready until it has a size', () => {
     const controller = new ViewController({ onChange: () => {}, prefersReducedMotion: () => false })
     expect(controller.ready).toBe(false)

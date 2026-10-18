@@ -31,7 +31,8 @@ export function createPhotoStore(open: () => Promise<FamilyTreeConnection> = ope
       try {
         await connection.put('photos', blob, photoId)
       } catch (error) {
-        if (isQuotaError(error)) throw error
+        // only the browser's refusal of a Blob: a full disk or a closed connection is reported as it is
+        if (!isBlobRefusal(error)) throw error
         await connection.put('photos', { type: blob.type, bytes: await blob.arrayBuffer() }, photoId)
       }
     },
@@ -44,11 +45,16 @@ export function createPhotoStore(open: () => Promise<FamilyTreeConnection> = ope
     },
     keys: async () => (await (await db()).getAllKeys('photos')).map(String),
     async usage() {
-      const stored = (await (await db()).getAll('photos')).map(toBlob)
-      return { count: stored.length, bytes: stored.reduce((sum, blob) => sum + blob.size, 0) }
+      const stored = await (await db()).getAll('photos')
+      const sizeOf = (photo: Blob | StoredBytes) => (photo instanceof Blob ? photo.size : photo.bytes.byteLength)
+      return { count: stored.length, bytes: stored.reduce((sum, photo) => sum + sizeOf(photo), 0) }
     },
   }
 }
+
+/** WebKit's refusal to keep a Blob: an `UnknownError` ("Error preparing Blob/File data to be stored in object store"). */
+const isBlobRefusal = (error: unknown): boolean =>
+  typeof error === 'object' && error !== null && (error as { name?: string }).name === 'UnknownError'
 
 /** Whether a failed write was the browser running out of storage. */
 export const isQuotaError = (error: unknown): boolean =>

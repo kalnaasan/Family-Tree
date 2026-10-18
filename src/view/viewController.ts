@@ -55,14 +55,19 @@ export class ViewController {
 
   /** Tells the controller how big the screen and the Tree are; re-applies the limits to the current view. */
   configure(size: Size, bounds: Rect): void {
-    // a screen that changes size (a side panel opens) keeps what was in its middle in the middle
-    const middle = this.ready && !sameSize(this.size, size) ? worldCenter(this.view, this.size) : undefined
+    // a screen that changes size (a side panel opens) keeps what was in the middle of its uncovered part in the middle
+    const middle = this.ready && !sameSize(this.size, size) ? worldCenter(this.view, this.uncovered(this.size)) : undefined
     this.size = size
     this.bounds = bounds
     this.limits = zoomLimits(bounds, size)
     if (!this.ready) return
-    const view = middle ? centerOn(middle, this.view.k, size) : this.view
+    const view = middle ? centerOn(middle, this.view.k, this.uncovered(size)) : this.view
     this.set(clampView(view, bounds, size, this.limits, this.covered))
+  }
+
+  /** The part of a screen of this size that no bottom sheet covers. */
+  private uncovered(size: Size): Size {
+    return { width: size.width, height: Math.max(1, size.height - this.covered) }
   }
 
   /** Tells the controller how much of the bottom of the screen a sheet covers (0: none). */

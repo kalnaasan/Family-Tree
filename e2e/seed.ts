@@ -20,30 +20,31 @@ export async function openWithTree(page: Page, tree: Tree) {
   // animations then stop half way and the drawing never catches up. The page being tested is in front.
   await page.bringToFront()
   await expect(page.getByRole('status')).toHaveText(words('save.saved'))
-  await page.evaluate(
-    (stored) =>
-      new Promise<void>((resolve, reject) => {
-        const open = indexedDB.open('family-tree')
-        // the app shows "Saved" before its own open has finished, so the database may not exist yet: if it does not,
-        // create it as the app would (same stores, version 1), or the app would find an empty one and this would hang
-        open.onupgradeneeded = () => {
-          for (const name of ['tree', 'photos', 'snapshots']) {
-            if (!open.result.objectStoreNames.contains(name)) open.result.createObjectStore(name)
+  // the app shows "Saved" before its own open has finished, so the database may not exist yet: opening it then would create
+  // an empty one for the app to find. Such an open is undone and tried again once the app has made the real one.
+  await expect(async () => {
+    await page.evaluate(
+      (stored) =>
+        new Promise<void>((resolve, reject) => {
+          const open = indexedDB.open('family-tree')
+          open.onupgradeneeded = () => {
+            open.transaction!.abort()
+            reject(new Error('the app has not created its database yet'))
           }
-        }
-        open.onerror = () => reject(open.error)
-        open.onsuccess = () => {
-          const tx = open.result.transaction('tree', 'readwrite')
-          tx.objectStore('tree').put(stored, 'current')
-          tx.oncomplete = () => {
-            open.result.close()
-            resolve()
+          open.onerror = () => {} // the abort above reports it
+          open.onsuccess = () => {
+            const tx = open.result.transaction('tree', 'readwrite')
+            tx.objectStore('tree').put(stored, 'current')
+            tx.oncomplete = () => {
+              open.result.close()
+              resolve()
+            }
+            tx.onerror = () => reject(tx.error)
           }
-          tx.onerror = () => reject(tx.error)
-        }
-      }),
-    document,
-  )
+        }),
+      document,
+    )
+  }).toPass()
   await page.reload()
   const frame = page.getByRole('group', { name: words('tree.label') })
   await expect(frame).toHaveAttribute('data-lod', /.+/)

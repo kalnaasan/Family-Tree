@@ -82,6 +82,22 @@ describe('a browser that cannot keep a Blob in IndexedDB (WebKit in some modes)'
     expect(await store.usage()).toEqual({ count: 1, bytes: 5 })
   })
 
+  it('does not retry a failure that is not that refusal', async () => {
+    let writes = 0
+    const closed = async () =>
+      new Proxy(await openFamilyTreeDb(), {
+        get: (target, property) =>
+          property === 'put'
+            ? () => {
+                writes++
+                return Promise.reject(new DOMException('closing', 'InvalidStateError'))
+              }
+            : bound(target, property),
+      })
+    await expect(createPhotoStore(closed).put(A, new Blob(['1']))).rejects.toThrow('closing')
+    expect(writes).toBe(1)
+  })
+
   it('still reports a full disk as a full disk', async () => {
     const full = async () =>
       new Proxy(await openFamilyTreeDb(), {
