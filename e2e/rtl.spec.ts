@@ -127,6 +127,8 @@ test.describe('desktop', () => {
   })
 
   test('axe finds nothing when reading right to left: tree, open Person, list and Settings', async ({ page }) => {
+    // axe must not sample a button halfway through its colour transition (it would read a blend, and a low contrast)
+    await page.emulateMedia({ reducedMotion: 'reduce' })
     await openWithTree(page, tree())
     await readRightToLeft(page)
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
