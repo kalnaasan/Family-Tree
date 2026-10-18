@@ -1,7 +1,8 @@
 import AxeBuilder from '@axe-core/playwright'
-import { type Page, expect, test } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import type { Tree } from '../src/domain/schema.ts'
 import { addPerson, emptyTree } from '../src/domain/tree.ts'
+import { expect, startingWith, test, words } from './fixtures.ts'
 import { frame, openPerson, panel } from './helpers.ts'
 import { openWithTree } from './seed.ts'
 
@@ -33,6 +34,13 @@ async function picture(page: Page, width: number, height: number, type: Kind): P
   return Buffer.from(base64, 'base64')
 }
 
+/** "1 photo, 34 KB" in the project's Language, with any number of kilobytes. */
+const photoSize = () => {
+  const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const text = words('settings.photosCount', { count: 1, size: words('size.kb', { n: '§' }) })
+  return new RegExp(`^${text.split('§').map(escape).join('\\d+')}$`)
+}
+
 const SECRET = 'SECRET-CAMERA-GPS'
 
 /** Adds an EXIF block to a JPEG: an orientation, and a camera name standing in for location and device data. */
@@ -53,7 +61,10 @@ function withExif(jpeg: Buffer, orientation: number): Buffer {
     text,
   ])
   const payload = Buffer.concat([Buffer.from('Exif\0\0', 'latin1'), tiff])
-  const segment = Buffer.concat([Buffer.from([0xff, 0xe1, (payload.length + 2) >> 8, (payload.length + 2) & 255]), payload])
+  const segment = Buffer.concat([
+    Buffer.from([0xff, 0xe1, (payload.length + 2) >> 8, (payload.length + 2) & 255]),
+    payload,
+  ])
   return Buffer.concat([jpeg.subarray(0, 2), segment, jpeg.subarray(2)])
 }
 
@@ -90,35 +101,40 @@ const storedPhotos = (page: Page): Promise<Stored[]> =>
 const inspectPhoto = (page: Page, id: string) =>
   page.evaluate(
     (photoId) =>
-      new Promise<{ width: number; height: number; leaked: boolean; topLeft: number[]; bottomLeft: number[]; topRight: number[] }>(
-        (resolve, reject) => {
-          const open = indexedDB.open('family-tree')
-          open.onerror = () => reject(open.error)
-          open.onsuccess = () => {
-            const get = open.result.transaction('photos').objectStore('photos').get(photoId)
-            get.onsuccess = async () => {
-              open.result.close()
-              const blob = get.result as Blob
-              const text = new TextDecoder('latin1').decode(new Uint8Array(await blob.arrayBuffer()))
-              const bitmap = await createImageBitmap(blob)
-              const canvas = document.createElement('canvas')
-              canvas.width = bitmap.width
-              canvas.height = bitmap.height
-              const context = canvas.getContext('2d')!
-              context.drawImage(bitmap, 0, 0)
-              const at = (x: number, y: number) => [...context.getImageData(x, y, 1, 1).data]
-              resolve({
-                width: bitmap.width,
-                height: bitmap.height,
-                leaked: /EXIF|Exif|SECRET-CAMERA/.test(text),
-                topLeft: at(10, 10),
-                bottomLeft: at(10, bitmap.height - 10),
-                topRight: at(bitmap.width - 10, 10),
-              })
-            }
+      new Promise<{
+        width: number
+        height: number
+        leaked: boolean
+        topLeft: number[]
+        bottomLeft: number[]
+        topRight: number[]
+      }>((resolve, reject) => {
+        const open = indexedDB.open('family-tree')
+        open.onerror = () => reject(open.error)
+        open.onsuccess = () => {
+          const get = open.result.transaction('photos').objectStore('photos').get(photoId)
+          get.onsuccess = async () => {
+            open.result.close()
+            const blob = get.result as Blob
+            const text = new TextDecoder('latin1').decode(new Uint8Array(await blob.arrayBuffer()))
+            const bitmap = await createImageBitmap(blob)
+            const canvas = document.createElement('canvas')
+            canvas.width = bitmap.width
+            canvas.height = bitmap.height
+            const context = canvas.getContext('2d')!
+            context.drawImage(bitmap, 0, 0)
+            const at = (x: number, y: number) => [...context.getImageData(x, y, 1, 1).data]
+            resolve({
+              width: bitmap.width,
+              height: bitmap.height,
+              leaked: /EXIF|Exif|SECRET-CAMERA/.test(text),
+              topLeft: at(10, 10),
+              bottomLeft: at(10, bitmap.height - 10),
+              topRight: at(bitmap.width - 10, 10),
+            })
           }
-        },
-      ),
+        }
+      }),
     id,
   )
 
@@ -127,18 +143,22 @@ const isBlue = ([r, g, b]: number[]) => b! > 200 && r! < 60 && g! < 60
 
 const editDetails = async (page: Page) => {
   await openPerson(page, 'Anna')
-  await panel(page).getByRole('button', { name: 'Edit details' }).click()
+  await panel(page)
+    .getByRole('button', { name: words('panel.edit') })
+    .click()
 }
 const choose = (page: Page, name: string, mimeType: string, buffer: Buffer) =>
-  page.getByLabel('Photo file').setInputFiles({ name, mimeType, buffer })
-const cropDialog = (page: Page) => page.getByRole('dialog', { name: 'Crop photo' })
+  page.getByLabel(words('photo.fileLabel')).setInputFiles({ name, mimeType, buffer })
+const cropDialog = (page: Page) => page.getByRole('dialog', { name: words('crop.title') })
 const confirmCrop = async (page: Page) => {
-  await cropDialog(page).getByRole('button', { name: 'Use this photo' }).click()
+  await cropDialog(page)
+    .getByRole('button', { name: words('crop.use') })
+    .click()
   await expect(cropDialog(page)).toHaveCount(0)
 }
 /** Reloads once autosave has written everything, as a user who comes back later would find it. */
 const reloadWhenSaved = async (page: Page) => {
-  await expect(page.getByRole('status')).toHaveText('Saved')
+  await expect(page.getByRole('status')).toHaveText(words('save.saved'))
   await page.reload()
 }
 const addPhoto = async (page: Page, buffer: Buffer, name = 'a.jpg') => {
@@ -147,7 +167,9 @@ const addPhoto = async (page: Page, buffer: Buffer, name = 'a.jpg') => {
   await confirmCrop(page)
 }
 
-test('a photo is cropped, stored as a 512 px WebP with no EXIF, and the sideways photo comes out upright', async ({ page }) => {
+test('a photo is cropped, stored as a 512 px WebP with no EXIF, and the sideways photo comes out upright', async ({
+  page,
+}) => {
   await openWithTree(page, anna())
   await editDetails(page)
   // 400 x 200, red on the left; orientation 6 means "turn 90 degrees clockwise", so upright it is 200 x 400, red on top
@@ -164,7 +186,9 @@ test('a photo is cropped, stored as a 512 px WebP with no EXIF, and the sideways
   expect(isBlue(look.bottomLeft)).toBe(true) // would be red if the orientation had been ignored
 
   // and the Person wears it in the tree and in the panel
-  await panel(page).getByRole('button', { name: 'Cancel' }).click()
+  await panel(page)
+    .getByRole('button', { name: words('common.cancel') })
+    .click()
   await expect(frame(page).locator('image')).toHaveAttribute('href', /^blob:/)
 })
 
@@ -174,9 +198,9 @@ test('a PNG works too, and the crop can be moved and zoomed from the keyboard al
   await choose(page, 'wide.png', 'image/png', await picture(page, 400, 200, 'image/png'))
   const dialog = cropDialog(page)
   await expect(dialog).toBeVisible()
-  const position = dialog.getByRole('group', { name: 'Photo position' })
+  const position = dialog.getByRole('group', { name: words('crop.position') })
   await expect(position).toBeFocused() // the dialog opens on the thing to move
-  const zoom = dialog.getByRole('slider', { name: 'Zoom' })
+  const zoom = dialog.getByRole('slider', { name: words('crop.zoom') })
   expect(Number(await zoom.inputValue())).toBe(1)
   for (let i = 0; i < 8; i++) await page.keyboard.press('+')
   expect(Number(await zoom.inputValue())).toBeGreaterThan(2)
@@ -196,14 +220,16 @@ test('Escape and Cancel leave the Person as they were', async ({ page }) => {
   await page.keyboard.press('Escape')
   await expect(cropDialog(page)).toHaveCount(0)
   await choose(page, 'a.jpg', 'image/jpeg', await picture(page, 300, 300, 'image/jpeg'))
-  await cropDialog(page).getByRole('button', { name: 'Cancel' }).click()
+  await cropDialog(page)
+    .getByRole('button', { name: words('common.cancel') })
+    .click()
   await expect(cropDialog(page)).toHaveCount(0)
   expect(await storedPhotos(page)).toEqual([])
-  await expect(panel(page).getByRole('button', { name: 'Choose photo' })).toBeVisible()
+  await expect(panel(page).getByRole('button', { name: words('photo.choose') })).toBeVisible()
 })
 
 test.describe('files that are turned away', () => {
-  const rejected = async (page: Page, name: string, mimeType: string, buffer: Buffer, message: RegExp) => {
+  const rejected = async (page: Page, name: string, mimeType: string, buffer: Buffer, message: string) => {
     await openWithTree(page, anna())
     await editDetails(page)
     await choose(page, name, mimeType, buffer)
@@ -214,11 +240,17 @@ test.describe('files that are turned away', () => {
 
   test('a HEIC photo says to convert it to JPEG', async ({ page }) => {
     const heic = Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from('ftypheic', 'latin1'), Buffer.alloc(32)])
-    await rejected(page, 'IMG_0001.HEIC', 'image/heic', heic, /HEIC photo.*Convert it to JPEG first/)
+    await rejected(page, 'IMG_0001.HEIC', 'image/heic', heic, words('photo.heic'))
   })
 
   test('something that is not a photo is named for what it is', async ({ page }) => {
-    await rejected(page, 'holiday.jpg', 'image/jpeg', Buffer.from('%PDF-1.7 definitely not a photo'), /not a JPEG, PNG or WebP photo/)
+    await rejected(
+      page,
+      'holiday.jpg',
+      'image/jpeg',
+      Buffer.from('%PDF-1.7 definitely not a photo'),
+      words('photo.unsupported'),
+    )
   })
 
   test('a file over 25 MB says how big it is', async ({ page }) => {
@@ -234,33 +266,45 @@ test.describe('files that are turned away', () => {
       input.files = transfer.files
       input.dispatchEvent(new Event('change', { bubbles: true }))
     })
-    await expect(panel(page).getByRole('alert')).toHaveText(/26\.0 MB\. Photos can be up to 25 MB/)
+    await expect(panel(page).getByRole('alert')).toContainText(
+      words('photo.tooBig', { size: words('size.mb', { n: '26.0' }) }),
+    )
     await expect(cropDialog(page)).toHaveCount(0)
     expect(await storedPhotos(page)).toEqual([])
   })
 
   test('a damaged photo is reported, not crashed on', async ({ page }) => {
     const damaged = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.from('this is not really a jpeg')])
-    await rejected(page, 'broken.jpg', 'image/jpeg', damaged, /could not be read/)
+    await rejected(page, 'broken.jpg', 'image/jpeg', damaged, words('photo.unreadable'))
   })
 })
 
-test('replace and remove: the old photo stays for Undo; after a reload the sweep takes what nothing shows', async ({ page }) => {
+test('replace and remove: the old photo stays for Undo; after a reload the sweep takes what nothing shows', async ({
+  page,
+}) => {
   await openWithTree(page, anna())
   await editDetails(page)
   await addPhoto(page, await picture(page, 300, 300, 'image/jpeg'), 'one.jpg')
   await addPhoto(page, await picture(page, 300, 300, 'image/jpeg'), 'two.jpg')
   await expect.poll(async () => (await storedPhotos(page)).length).toBe(2) // the first is kept: Undo could bring it back
 
-  await page.getByRole('group', { name: 'History' }).getByRole('button', { name: 'Undo' }).click()
+  await page
+    .getByRole('group', { name: words('history.group') })
+    .getByRole('button', { name: words('history.undo') })
+    .click()
   await expect(frame(page).locator('image')).toHaveAttribute('href', /^blob:/) // the first photo is back
-  await page.getByRole('group', { name: 'History' }).getByRole('button', { name: 'Redo' }).click()
+  await page
+    .getByRole('group', { name: words('history.group') })
+    .getByRole('button', { name: words('history.redo') })
+    .click()
 
   await reloadWhenSaved(page) // history is memory only: nothing can be undone any more
   await expect.poll(async () => (await storedPhotos(page)).length).toBe(1) // the orphan sweep took the other one
 
   await editDetails(page)
-  await panel(page).getByRole('button', { name: 'Remove photo' }).click()
+  await panel(page)
+    .getByRole('button', { name: words('photo.remove') })
+    .click()
   await expect(frame(page).locator('image')).toHaveCount(0)
   expect((await storedPhotos(page)).length).toBe(1) // still there for Undo
   await reloadWhenSaved(page)
@@ -274,14 +318,20 @@ test('deleting a Person deletes their photo once Undo can no longer need it', as
   await openWithTree(page, anna())
   await editDetails(page)
   await addPhoto(page, await picture(page, 300, 300, 'image/jpeg'))
-  await panel(page).getByRole('button', { name: 'Cancel' }).click()
-  await panel(page).getByRole('button', { name: 'Delete Anna' }).click()
+  await panel(page)
+    .getByRole('button', { name: words('common.cancel') })
+    .click()
+  await panel(page)
+    .getByRole('button', { name: words('panel.delete', { name: 'Anna' }) })
+    .click()
   expect((await storedPhotos(page)).length).toBe(1)
   await reloadWhenSaved(page)
   await expect.poll(async () => (await storedPhotos(page)).length).toBe(0)
 })
 
-test('a full disk never blocks saving the Person: the photo is refused with a reason, the rest is saved', async ({ page }) => {
+test('a full disk never blocks saving the Person: the photo is refused with a reason, the rest is saved', async ({
+  page,
+}) => {
   await openWithTree(page, anna())
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
@@ -293,26 +343,28 @@ test('a full disk never blocks saving the Person: the photo is refused with a re
   await editDetails(page)
   await choose(page, 'a.jpg', 'image/jpeg', await picture(page, 300, 300, 'image/jpeg'))
   await confirmCrop(page)
-  await expect(panel(page).getByRole('alert')).toHaveText(/not enough storage space left for this photo.*Everything else is saved/)
+  await expect(panel(page).getByRole('alert')).toHaveText(words('photo.noSpace'))
   expect(await storedPhotos(page)).toEqual([])
 
-  await page.getByLabel('Last name').fill('Keller')
-  await panel(page).getByRole('button', { name: 'Save' }).click()
+  await page.getByLabel(words('fields.lastName')).fill('Keller')
+  await panel(page)
+    .getByRole('button', { name: words('common.save') })
+    .click()
   await expect(panel(page).getByRole('heading', { level: 2, name: 'Anna Keller' })).toBeVisible()
-  await expect(page.getByRole('status')).toHaveText('Saved')
+  await expect(page.getByRole('status')).toHaveText(words('save.saved'))
 })
 
 test('Settings shows how much storage the photos use', async ({ page }) => {
   await openWithTree(page, anna())
-  await page.getByRole('button', { name: 'Settings' }).click()
-  const settings = page.getByRole('dialog', { name: 'Settings' })
-  await expect(settings.getByText('None')).toBeVisible()
-  await settings.getByRole('button', { name: 'Close' }).click()
+  await page.getByRole('button', { name: words('app.settings') }).click()
+  const settings = page.getByRole('dialog', { name: words('app.settings') })
+  await expect(settings.getByText(words('settings.photosNone'))).toBeVisible()
+  await settings.getByRole('button', { name: words('common.close') }).click()
 
   await editDetails(page)
   await addPhoto(page, await picture(page, 300, 300, 'image/jpeg'))
-  await page.getByRole('button', { name: 'Settings' }).click()
-  await expect(settings.getByText(/^1 photo, \d+ KB$/)).toBeVisible()
+  await page.getByRole('button', { name: words('app.settings') }).click()
+  await expect(settings.getByText(photoSize())).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(settings).toHaveCount(0)
 })
@@ -325,7 +377,11 @@ test('axe finds nothing in the crop dialog, the edit form with a photo, or Setti
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
   await confirmCrop(page)
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
-  await page.getByRole('button', { name: 'Settings' }).click()
-  await expect(page.getByRole('dialog', { name: 'Settings' }).getByText(/^1 photo/)).toBeVisible()
+  await page.getByRole('button', { name: words('app.settings') }).click()
+  await expect(
+    page
+      .getByRole('dialog', { name: words('app.settings') })
+      .getByText(startingWith(words('settings.photosCount', { count: 1, size: '§' }).split('§')[0]!.trim())),
+  ).toBeVisible()
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
 })

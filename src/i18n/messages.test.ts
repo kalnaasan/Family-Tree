@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { ar, en } from './messages.ts'
+import { createTranslator } from './translate.ts'
+import { DICTIONARIES, ar, en } from './messages.ts'
 
 const PLURAL_FORMS = ['zero', 'one', 'two', 'few', 'many', 'other']
 
@@ -18,6 +19,23 @@ describe('the dictionaries', () => {
       if (typeof message === 'string') continue
       expect(Object.keys(message).sort(), key).toEqual([...PLURAL_FORMS].sort())
     }
+  })
+
+  it('pick the right Arabic form for 0, 1, 2, 5, 11 and 100 in every plural message', () => {
+    // the forms Arabic uses, by number: 0 none, 1 one, 2 two, 3 to 10 few, 11 to 99 many, 100 other
+    const FORM_OF = { 0: 'zero', 1: 'one', 2: 'two', 5: 'few', 11: 'many', 100: 'other' } as const
+    const t = createTranslator('ar', DICTIONARIES)
+    let checked = 0
+    for (const [key, message] of Object.entries(ar)) {
+      if (typeof message === 'string') continue
+      for (const [count, form] of Object.entries(FORM_OF)) {
+        expect(t(key as keyof typeof ar, { count: Number(count) }), `${key} for ${count}`).toBe(
+          message[form].replace('{count}', count),
+        )
+        checked++
+      }
+    }
+    expect(checked).toBeGreaterThanOrEqual(6 * 10)
   })
 
   it('have a plural message in Arabic exactly where English has one', () => {

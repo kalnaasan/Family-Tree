@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright'
-import { expect, test } from '@playwright/test'
+import { expect, test, words } from './fixtures.ts'
 import { openWithFixture, zoomOf } from './seed.ts'
 
 const MIN_READABLE = 0.8
@@ -54,7 +54,7 @@ test('the minimum zoom is fit-all and the maximum is 250%', async ({ page }) => 
 test('Show whole tree is always available, even when the Tree opened on the Focus person', async ({ page }) => {
   const { frame } = await openWithFixture(page, 500)
   expect(await zoomOf(frame)).toBeCloseTo(MIN_READABLE, 3)
-  await page.getByRole('button', { name: 'Show whole tree' }).click()
+  await page.getByRole('button', { name: words('tree.fit') }).click()
   await expect.poll(() => zoomOf(frame)).toBeLessThan(MIN_READABLE / 2)
   await page.waitForTimeout(300) // let the animation finish
   const whole = await zoomOf(frame)
@@ -63,7 +63,7 @@ test('Show whole tree is always available, even when the Tree opened on the Focu
   await page.keyboard.press('-')
   await page.waitForTimeout(300)
   expect(await zoomOf(frame)).toBeCloseTo(whole, 4)
-  await page.getByRole('button', { name: 'Back to Focus person' }).click()
+  await page.getByRole('button', { name: words('tree.backToFocus') }).click()
   await expect.poll(() => zoomOf(frame)).toBeGreaterThanOrEqual(MIN_READABLE - 0.001)
 })
 
@@ -124,7 +124,7 @@ test.describe('with reduced motion', () => {
     await page.keyboard.press('+')
     // no polling: the new zoom is there as soon as the key press has been handled
     expect(await zoomOf(frame)).toBeCloseTo(fit * 1.25, 3)
-    await page.getByRole('button', { name: 'Show whole tree' }).click()
+    await page.getByRole('button', { name: words('tree.fit') }).click()
     expect(await zoomOf(frame)).toBeCloseTo(fit, 3)
   })
 })

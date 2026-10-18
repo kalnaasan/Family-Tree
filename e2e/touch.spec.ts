@@ -1,8 +1,9 @@
 import AxeBuilder from '@axe-core/playwright'
-import { type CDPSession, type Page, expect, test } from '@playwright/test'
+import type { CDPSession, Page } from '@playwright/test'
 import type { Tree } from '../src/domain/schema.ts'
 import { addParentLink, addPartnership, addPerson, emptyTree } from '../src/domain/tree.ts'
-import { frame, panel, personButton } from './helpers.ts'
+import { expect, test, words } from './fixtures.ts'
+import { addButton, frame, panel, personButton } from './helpers.ts'
 import { openWithFixture, openWithTree, zoomOf } from './seed.ts'
 
 const id = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`
@@ -46,7 +47,9 @@ class Fingers {
   async drag(from: { x: number; y: number }, to: { x: number; y: number }) {
     await this.send('touchStart', [from])
     for (let step = 1; step <= 6; step++) {
-      await this.send('touchMove', [{ x: from.x + ((to.x - from.x) * step) / 6, y: from.y + ((to.y - from.y) * step) / 6 }])
+      await this.send('touchMove', [
+        { x: from.x + ((to.x - from.x) * step) / 6, y: from.y + ((to.y - from.y) * step) / 6 },
+      ])
     }
     await this.send('touchEnd', [])
   }
@@ -67,13 +70,15 @@ test.beforeEach(({ browserName }, info) => {
   if (info.title.includes('[fingers]')) test.skip(browserName !== 'chromium', 'needs the Chromium touch protocol')
 })
 
-test('a tap opens a short peek with the name, Add relative and Details, and the Person stays above it', async ({ page }) => {
+test('a tap opens a short peek with the name, Add relative and Details, and the Person stays above it', async ({
+  page,
+}) => {
   await openWithTree(page, family())
   await tapOn(page, personButton(page, 'Ben'))
   await expect(panel(page).getByRole('heading', { level: 2, name: 'Ben' })).toBeVisible()
-  await expect(panel(page).getByRole('button', { name: 'Add relative' })).toBeVisible()
-  await expect(panel(page).getByRole('button', { name: 'Details' })).toBeVisible()
-  await expect(panel(page).getByRole('button', { name: 'Add father' })).toHaveCount(0) // the details are not open
+  await expect(panel(page).getByRole('button', { name: words('panel.addRelative') })).toBeVisible()
+  await expect(panel(page).getByRole('button', { name: words('panel.details') })).toBeVisible()
+  await expect(addButton(panel(page), 'relation.father')).toHaveCount(0) // the details are not open
 
   const sheet = (await panel(page).boundingBox())!
   expect(sheet.height).toBeLessThan(190) // about 150 px
@@ -92,8 +97,10 @@ test('tapping empty space dismisses the sheet', async ({ page }) => {
 test('Details expands the sheet to about 62% and the view keeps the Person clear of it', async ({ page }) => {
   await openWithTree(page, family())
   await tapOn(page, personButton(page, 'Ben'))
-  await panel(page).getByRole('button', { name: 'Details' }).tap()
-  await expect(panel(page).getByRole('heading', { level: 3, name: 'Parents' })).toBeVisible()
+  await panel(page)
+    .getByRole('button', { name: words('panel.details') })
+    .tap()
+  await expect(panel(page).getByRole('heading', { level: 3, name: words('panel.group.parents') })).toBeVisible()
   const sheet = (await panel(page).boundingBox())!
   expect(sheet.height).toBeGreaterThan(844 * 0.55)
   expect(sheet.height).toBeLessThan(844 * 0.7)
@@ -103,17 +110,24 @@ test('Details expands the sheet to about 62% and the view keeps the Person clear
 test('the handle toggles the sheet, and Add relative opens the details at the first Add button', async ({ page }) => {
   await openWithTree(page, family())
   await tapOn(page, personButton(page, 'Ben'))
-  await panel(page).getByRole('button', { name: 'Expand sheet' }).tap()
-  await expect(panel(page).getByRole('button', { name: 'Collapse sheet' })).toBeVisible()
-  await panel(page).getByRole('button', { name: 'Collapse sheet' }).tap()
-  await expect(panel(page).getByRole('button', { name: 'Add relative' })).toBeVisible()
-  await panel(page).getByRole('button', { name: 'Add relative' }).tap()
-  await expect(panel(page).getByRole('button', { name: 'Add father' })).toBeFocused()
+  await panel(page)
+    .getByRole('button', { name: words('panel.expandSheet') })
+    .tap()
+  await expect(panel(page).getByRole('button', { name: words('panel.collapseSheet') })).toBeVisible()
+  await panel(page)
+    .getByRole('button', { name: words('panel.collapseSheet') })
+    .tap()
+  await expect(panel(page).getByRole('button', { name: words('panel.addRelative') })).toBeVisible()
+  await panel(page)
+    .getByRole('button', { name: words('panel.addRelative') })
+    .tap()
+  await expect(addButton(panel(page), 'relation.father')).toBeFocused()
 })
 
 test('relatives stay bright and everyone else dims', async ({ page }) => {
   await openWithTree(page, family())
-  const opacity = (name: string) => personButton(page, name).locator('xpath=ancestor::*[@data-person-wrapper]').getAttribute('opacity')
+  const opacity = (name: string) =>
+    personButton(page, name).locator('xpath=ancestor::*[@data-person-wrapper]').getAttribute('opacity')
   expect(await opacity('Olaf')).toBeNull()
   await tapOn(page, personButton(page, 'Ben'))
   await expect(panel(page)).toBeVisible()
@@ -124,7 +138,9 @@ test('relatives stay bright and everyone else dims', async ({ page }) => {
 test('a chip in the details jumps to a relative and keeps the zoom', async ({ page }) => {
   await openWithTree(page, family())
   await tapOn(page, personButton(page, 'Ben'))
-  await panel(page).getByRole('button', { name: 'Details' }).tap()
+  await panel(page)
+    .getByRole('button', { name: words('panel.details') })
+    .tap()
   const zoom = await zoomOf(frame(page))
   await panel(page).getByRole('button', { name: /^Karl/ }).tap()
   await expect(panel(page).getByRole('heading', { level: 2, name: 'Karl' })).toBeVisible()
@@ -133,7 +149,7 @@ test('a chip in the details jumps to a relative and keeps the zoom', async ({ pa
 
 test('the zoom, fit and Focus buttons are at least 44 px', async ({ page }) => {
   await openWithTree(page, family())
-  for (const name of ['Zoom in', 'Zoom out', 'Show whole tree', 'Back to Focus person']) {
+  for (const name of [words('tree.zoomIn'), words('tree.zoomOut'), words('tree.fit'), words('tree.backToFocus')]) {
     const box = (await frame(page).getByRole('button', { name }).boundingBox())!
     expect(box.width, name).toBeGreaterThanOrEqual(44)
     expect(box.height, name).toBeGreaterThanOrEqual(44)
@@ -144,13 +160,15 @@ test('only the canvas turns off native touch gestures', async ({ page }) => {
   await openWithTree(page, family())
   const touchAction = (selector: string) =>
     page.evaluate((s) => getComputedStyle(document.querySelector(s)!).touchAction, selector)
-  expect(await touchAction('[role=group][aria-label="Family tree"] > div')).toBe('none')
+  expect(await touchAction('[data-tree-frame] > div')).toBe('none')
   for (const selector of ['body', 'main', 'header']) expect(await touchAction(selector)).toBe('auto')
   await tapOn(page, personButton(page, 'Ben'))
   expect(await touchAction('aside')).toBe('auto')
 })
 
-test('a double-tap zooms in about the tap to a readable size, and another zooms back out to the whole tree', async ({ page }) => {
+test('a double-tap zooms in about the tap to a readable size, and another zooms back out to the whole tree', async ({
+  page,
+}) => {
   await openWithTree(page, family())
   const whole = await zoomOf(frame(page))
   expect(whole).toBeLessThan(0.8) // on a phone the whole tree is shown small
@@ -187,8 +205,8 @@ test('[fingers] a small wobble under the tap slop still opens the Person', async
 test('[fingers] spreading two fingers zooms in, pinching them together zooms out', async ({ page }) => {
   await openWithTree(page, family())
   const fingers = await Fingers.on(page)
-  await page.getByRole('button', { name: 'Zoom out' }).tap()
-  await page.getByRole('button', { name: 'Zoom out' }).tap()
+  await page.getByRole('button', { name: words('tree.zoomOut') }).tap()
+  await page.getByRole('button', { name: words('tree.zoomOut') }).tap()
   const start = await zoomOf(frame(page))
   const box = (await frame(page).boundingBox())!
   const middle = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
@@ -204,22 +222,24 @@ test('[fingers] swiping the handle up expands the sheet, swiping down peeks, and
   await openWithTree(page, family())
   const fingers = await Fingers.on(page)
   await tapOn(page, personButton(page, 'Ben'))
-  const handle = await centre(panel(page).getByRole('button', { name: 'Expand sheet' }))
+  const handle = await centre(panel(page).getByRole('button', { name: words('panel.expandSheet') }))
   await fingers.drag(handle, { x: handle.x, y: handle.y - 120 })
-  await expect(panel(page).getByRole('heading', { level: 3, name: 'Parents' })).toBeVisible()
+  await expect(panel(page).getByRole('heading', { level: 3, name: words('panel.group.parents') })).toBeVisible()
 
-  const expanded = await centre(panel(page).getByRole('button', { name: 'Collapse sheet' }))
+  const expanded = await centre(panel(page).getByRole('button', { name: words('panel.collapseSheet') }))
   await fingers.drag(expanded, { x: expanded.x, y: expanded.y + 120 })
-  await expect(panel(page).getByRole('button', { name: 'Details' })).toBeVisible()
+  await expect(panel(page).getByRole('button', { name: words('panel.details') })).toBeVisible()
 
-  const peek = await centre(panel(page).getByRole('button', { name: 'Expand sheet' }))
+  const peek = await centre(panel(page).getByRole('button', { name: words('panel.expandSheet') }))
   await fingers.drag(peek, { x: peek.x, y: peek.y + 120 })
   await expect(panel(page)).toHaveCount(0)
 })
 
-test('at the "dot" level a tap near a Person opens them and a tap in empty space zooms in toward it', async ({ page }) => {
+test('at the "dot" level a tap near a Person opens them and a tap in empty space zooms in toward it', async ({
+  page,
+}) => {
   await openWithFixture(page, 400)
-  await page.getByRole('button', { name: 'Show whole tree' }).tap()
+  await page.getByRole('button', { name: words('tree.fit') }).tap()
   await expect(frame(page)).toHaveAttribute('data-lod', 'dot')
   const box = (await frame(page).boundingBox())!
 
@@ -228,10 +248,16 @@ test('at the "dot" level a tap near a Person opens them and a tap in empty space
   await expect.poll(() => zoomOf(frame(page))).toBeGreaterThan(zoom * 2)
   await expect(panel(page)).toHaveCount(0)
 
-  await page.getByRole('button', { name: 'Show whole tree' }).tap()
+  await page.getByRole('button', { name: words('tree.fit') }).tap()
   await expect(frame(page)).toHaveAttribute('data-lod', 'dot')
-  const someone = frame(page).getByRole('button').filter({ hasNot: page.locator('button') }).nth(0)
-  const at = await centre(someone)
+  // the dot nearest the middle of the screen: one at the edge can sit under a floating control (they swap sides in Arabic)
+  const dots = await frame(page).locator('[data-person-id]').all()
+  const middle = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  let at = await centre(dots[0]!)
+  for (const dot of dots) {
+    const here = await centre(dot)
+    if (Math.hypot(here.x - middle.x, here.y - middle.y) < Math.hypot(at.x - middle.x, at.y - middle.y)) at = here
+  }
   await page.touchscreen.tap(at.x + 6, at.y + 6) // a finger that is not quite on the dot
   await expect(panel(page)).toBeVisible()
 })
@@ -241,7 +267,9 @@ test('axe finds nothing with the sheet at its peek or expanded', async ({ page }
   await tapOn(page, personButton(page, 'Ben'))
   await expect(panel(page)).toBeVisible()
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
-  await panel(page).getByRole('button', { name: 'Details' }).tap()
-  await expect(panel(page).getByRole('heading', { level: 3, name: 'Parents' })).toBeVisible()
+  await panel(page)
+    .getByRole('button', { name: words('panel.details') })
+    .tap()
+  await expect(panel(page).getByRole('heading', { level: 3, name: words('panel.group.parents') })).toBeVisible()
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
 })

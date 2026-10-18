@@ -1,5 +1,6 @@
 import { type Page, expect, test } from '@playwright/test'
 import { PERF_BUDGET } from '../src/config/perf-budget.ts'
+import { displayName } from '../src/view/text.ts'
 import { LAYOUT_MEASURE } from '../src/layout/layoutClient.ts'
 import { openPerson, panel } from './helpers.ts'
 import { openWithFixture } from './seed.ts'
@@ -38,18 +39,32 @@ test('the CPU throttle really slows the page down', async ({ page }) => {
   const normal = (await spin()).ms
   await throttle(page)
   const slowed = (await spin()).ms
-  console.info(`CPU throttle check: ${normal.toFixed(0)} ms normal, ${slowed.toFixed(0)} ms at ${PERF_BUDGET.throttleCpuRate}x`)
+  console.info(
+    `CPU throttle check: ${normal.toFixed(0)} ms normal, ${slowed.toFixed(0)} ms at ${PERF_BUDGET.throttleCpuRate}x`,
+  )
   expect(slowed).toBeGreaterThan(normal * 2.5)
 })
 
-for (const size of PERF_BUDGET.sizes) {
-  test.describe(`${size} people at ${PERF_BUDGET.throttleCpuRate}x CPU throttle, ${PERF_BUDGET.viewportWidth} px wide`, () => {
+/**
+ * The same budget for the same Tree shape with Arabic names (spec section 13.7): longer strings and a script that is
+ * measured and drawn differently, at the sizes of 1,000 people and up. No separate budget. The page itself stays English
+ * and left to right here; right-to-left layout is checked in `rtl-arabic.spec.ts`.
+ */
+const VARIANTS = [
+  ...PERF_BUDGET.sizes.map((size) => ({ size, names: 'default' as const, label: '' })),
+  ...PERF_BUDGET.sizes
+    .filter((size) => size >= 1000)
+    .map((size) => ({ size, names: 'arabic' as const, label: ', Arabic names' })),
+]
+
+for (const { size, names, label } of VARIANTS) {
+  test.describe(`${size} people at ${PERF_BUDGET.throttleCpuRate}x CPU throttle, ${PERF_BUDGET.viewportWidth} px wide${label}`, () => {
     test.beforeEach(async ({ page }) => {
       await page.setViewportSize({ width: PERF_BUDGET.viewportWidth, height: 844 })
     })
 
     test('first paint, layout and edit to redraw are within the budget', async ({ page }) => {
-      const { tree } = await openWithFixture(page, size)
+      const { tree } = await openWithFixture(page, size, { names })
       await throttle(page)
 
       // Reload under throttle. A script that runs before the page notes when the first Person appears.
@@ -80,7 +95,7 @@ for (const size of PERF_BUDGET.sizes) {
 
       // edit -> redraw: from the click on Save until the new name is on the screen
       const focus = tree.persons.find((p) => p.id === tree.focusPersonId)!
-      await openPerson(page, focus.firstName)
+      await openPerson(page, displayName(focus)) // with Arabic names the button starts with the last name too
       // on a phone the panel opens as a short peek; the details come with a tap
       await panel(page).getByRole('button', { name: 'Details' }).click()
       const edits: number[] = []
@@ -95,7 +110,9 @@ for (const size of PERF_BUDGET.sizes) {
           w.__edit = new Promise<number>((resolve) => {
             const watch = new MutationObserver(() => {
               if (!clicked) return
-              const shown = [...document.querySelectorAll('[data-person-wrapper]')].some((el) => el.textContent?.includes(shownName))
+              const shown = [...document.querySelectorAll('[data-person-wrapper]')].some((el) =>
+                el.textContent?.includes(shownName),
+              )
               if (!shown) return
               watch.disconnect()
               // the frame after the DOM change is what the user sees
@@ -118,7 +135,7 @@ for (const size of PERF_BUDGET.sizes) {
         edit: PERF_BUDGET.editToRedrawMs[size],
       }
       console.info(
-        `${size} people: first paint ${firstPaint.toFixed(0)} ms (budget ${budget.firstPaint}), layout ${layoutMs.toFixed(0)} ms (budget ${budget.layout}), edit to redraw ${editToRedraw.toFixed(0)} ms (budget ${budget.edit})`,
+        `${size} people${label}: first paint ${firstPaint.toFixed(0)} ms (budget ${budget.firstPaint}), layout ${layoutMs.toFixed(0)} ms (budget ${budget.layout}), edit to redraw ${editToRedraw.toFixed(0)} ms (budget ${budget.edit})`,
       )
       expect(firstPaint).toBeLessThanOrEqual(budget.firstPaint)
       expect(layoutMs).toBeLessThanOrEqual(budget.layout)
@@ -126,7 +143,7 @@ for (const size of PERF_BUDGET.sizes) {
     })
 
     test('pan and zoom frame time is within the budget', async ({ page }) => {
-      const { frame } = await openWithFixture(page, size)
+      const { frame } = await openWithFixture(page, size, { names })
       await throttle(page)
 
       await page.evaluate(() => {
@@ -134,7 +151,10 @@ for (const size of PERF_BUDGET.sizes) {
         w.__frames = []
         w.__long = []
         w.__sampling = true
-        new PerformanceObserver((list) => w.__long.push(...list.getEntries().map((e) => e.duration))).observe({ type: 'longtask', buffered: false })
+        new PerformanceObserver((list) => w.__long.push(...list.getEntries().map((e) => e.duration))).observe({
+          type: 'longtask',
+          buffered: false,
+        })
         const tick = (time: number) => {
           w.__frames.push(time)
           if (w.__sampling) requestAnimationFrame(tick)
@@ -169,7 +189,7 @@ for (const size of PERF_BUDGET.sizes) {
       const p95 = gaps[Math.floor(gaps.length * 0.95)]!
       const budget = PERF_BUDGET.panZoomFrameP95Ms[size]
       console.info(
-        `pan/zoom at ${size} people: ${gaps.length} frames, p95 ${p95.toFixed(1)} ms (budget ${budget} ms), ${long.length} long tasks, longest ${Math.max(0, ...long).toFixed(0)} ms`,
+        `pan/zoom at ${size} people${label}: ${gaps.length} frames, p95 ${p95.toFixed(1)} ms (budget ${budget} ms), ${long.length} long tasks, longest ${Math.max(0, ...long).toFixed(0)} ms`,
       )
       expect(gaps.length).toBeGreaterThan(100)
       expect(p95).toBeLessThanOrEqual(budget + PACING_JITTER_MS)
@@ -183,7 +203,8 @@ test('does the CPU throttle reach a Web Worker? (recorded, not asserted)', async
     page.evaluate(
       () =>
         new Promise<number>((resolve) => {
-          const code = 'onmessage=()=>{const s=performance.now();let x=0;for(let i=0;i<2e7;i++)x+=Math.sqrt(i);postMessage(performance.now()-s+x*0)}'
+          const code =
+            'onmessage=()=>{const s=performance.now();let x=0;for(let i=0;i<2e7;i++)x+=Math.sqrt(i);postMessage(performance.now()-s+x*0)}'
           const worker = new Worker(URL.createObjectURL(new Blob([code])))
           worker.onmessage = (event) => resolve(event.data as number)
           worker.postMessage(0)
@@ -193,7 +214,9 @@ test('does the CPU throttle reach a Web Worker? (recorded, not asserted)', async
   const normal = await spinInWorker()
   await throttle(page)
   const slowed = await spinInWorker()
-  console.info(`Worker throttle check: ${normal.toFixed(0)} ms normal, ${slowed.toFixed(0)} ms at ${PERF_BUDGET.throttleCpuRate}x`)
+  console.info(
+    `Worker throttle check: ${normal.toFixed(0)} ms normal, ${slowed.toFixed(0)} ms at ${PERF_BUDGET.throttleCpuRate}x`,
+  )
 })
 
 test('a Tree above 1,000 people is laid out in a Web Worker', async ({ page }) => {

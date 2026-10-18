@@ -9,7 +9,7 @@ The budget numbers live in one file, `src/config/perf-budget.ts`. Fixtures come 
 | Check | Command | What it measures |
 | --- | --- | --- |
 | Layout bench | `npm run bench` | `layoutTree` on 200 / 1,000 / 5,000 people in Node, times 4 for the throttle, against `layoutComputeMs`. Also: a warm start is faster than a cold one. |
-| Browser budget | `npm run e2e` (project `perf`, `e2e/perf.spec.ts`) | At 4x CPU throttle and a 390 px viewport, for 200 / 1,000 / 5,000 people: pan and zoom p95 frame time, first paint, layout, and edit to redraw. |
+| Browser budget | `npm run e2e` (project `perf`, `e2e/perf.spec.ts`) | At 4x CPU throttle and a 390 px viewport, for 200 / 1,000 / 5,000 people: pan and zoom p95 frame time, first paint, layout, and edit to redraw. Again with Arabic names (`generateTree(size, seed, { names: 'arabic' })`) at 1,000 and 5,000 people, against the same budget. |
 | Worker path | unit: `src/layout/layoutWorker.test.ts`; browser: the last two tests of `perf.spec.ts` | The Worker produces the same layout, transfers its buffers, warm-starts, and falls back to the page when it fails. Above 1,000 people a Worker really starts; at 1,000 or fewer none does. |
 
 The `perf` project runs after the others and alone, because other tests running at the same time steal CPU from a measurement taken under throttle. It runs on Chromium only: the throttle is a Chrome DevTools Protocol call.
@@ -59,5 +59,20 @@ This is the only check on real hardware. It also decides whether a minimap is re
 7. Write the result (phone, browser, numbers, the feel, the minimap answer) at the end of this file, with the date.
 
 ### Results
+
+_Not done yet._
+
+## Arabic on a real phone (do this once before Arabic is released)
+
+The same phone check, for the one thing the throttle cannot show: whether Arabic text renders with real fonts. See `docs/arabic-release-checklist.md`, section 3.
+
+1. Build and serve as above, and open the app on the phone with Arabic offered. Arabic is not in `AVAILABLE_LANGUAGES` until release, so use a build where it is (add `'ar'` to the list in a throwaway branch), then set the Language to "العربية" in Settings.
+2. Make the file with Arabic names: `serializeDocument(generateTree(1000, 1, { names: 'arabic' }))`, move it to the phone and import it in Settings.
+3. Zoom to the full-detail level and look at the names and dates: every letter is Arabic script in a real font (no empty boxes), vowel marks sit on their letters, long names are shortened with "…" and not cut through a letter, the dates read as `1930–2001` with Western digits.
+4. Open the list, a Person, Settings and the add form; type an Arabic name into search and the name fields.
+5. Pan and zoom for 20 seconds; the feel must match the English check.
+6. Write the result (phone, browser, what rendered, anything wrong) below, with the date.
+
+### Arabic results
 
 _Not done yet._

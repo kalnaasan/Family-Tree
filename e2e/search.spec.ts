@@ -1,7 +1,8 @@
 import AxeBuilder from '@axe-core/playwright'
-import { type Page, expect, test } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import type { Tree } from '../src/domain/schema.ts'
 import { addPerson, emptyTree } from '../src/domain/tree.ts'
+import { expect, test, words } from './fixtures.ts'
 import { frame, panel, personButton } from './helpers.ts'
 import { openWithFixture, openWithTree, zoomOf } from './seed.ts'
 
@@ -15,8 +16,8 @@ function people(): Tree {
   )
 }
 
-const box = (page: Page) => page.getByRole('combobox', { name: 'Search people' })
-const results = (page: Page) => page.getByRole('listbox', { name: 'Search results' }).getByRole('option')
+const box = (page: Page) => page.getByRole('combobox', { name: words('search.label') })
+const results = (page: Page) => page.getByRole('listbox', { name: words('search.resultsLabel') }).getByRole('option')
 
 test('finds people without regard to case or accents', async ({ page }) => {
   await openWithTree(page, people())
@@ -29,7 +30,7 @@ test('finds people without regard to case or accents', async ({ page }) => {
   await box(page).fill('keller')
   await expect(results(page)).toHaveCount(2)
   await box(page).fill('nobody')
-  await expect(page.getByText('No one found').first()).toBeVisible()
+  await expect(page.getByText(words('search.none')).first()).toBeVisible()
 })
 
 test('keyboard only: type, arrow to a result, Enter opens that Person', async ({ page }) => {
@@ -76,9 +77,9 @@ test('picking a far-away Person pans to them and keeps the zoom', async ({ page 
 
 test('the List view filters instead of popping up results', async ({ page }) => {
   await openWithTree(page, people())
-  await page.getByRole('button', { name: 'List view' }).click()
-  const search = page.getByRole('searchbox', { name: 'Search people' })
-  const list = page.getByRole('region', { name: 'Family list' })
+  await page.getByRole('button', { name: words('app.listView') }).click()
+  const search = page.getByRole('searchbox', { name: words('search.label') })
+  const list = page.getByRole('region', { name: words('list.title') })
   await expect(list.getByRole('button')).toHaveCount(5)
   await search.fill('kel')
   await expect(list.getByRole('button')).toHaveText([/^Karl Keller/, /^Maria Keller/])
@@ -86,7 +87,7 @@ test('the List view filters instead of popping up results', async ({ page }) => 
   await list.getByRole('button', { name: /^Maria Keller/ }).click()
   await expect(panel(page).getByRole('heading', { level: 2, name: 'Maria Keller' })).toBeVisible()
   await search.fill('qqq')
-  await expect(list.getByText(/No one matches/)).toBeVisible()
+  await expect(list.getByText(words('list.noMatch', { query: 'qqq' }))).toBeVisible()
   await search.fill('')
   await expect(list.getByRole('button')).toHaveCount(5)
 })
@@ -99,8 +100,8 @@ test('axe finds nothing with the results open, in the tree and in the list', asy
   await expect(results(page)).toHaveCount(2)
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
   await box(page).fill('')
-  await page.getByRole('button', { name: 'List view' }).click()
-  await page.getByRole('searchbox', { name: 'Search people' }).fill('kel')
+  await page.getByRole('button', { name: words('app.listView') }).click()
+  await page.getByRole('searchbox', { name: words('search.label') }).fill('kel')
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
 })
 
