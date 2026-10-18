@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useId, useMemo, useState } from 'react'
+import { type FormEvent, useMemo, useState } from 'react'
 import {
   type AddRelativeRequest,
   RELATIONS,
@@ -12,8 +12,8 @@ import type { Person, Tree } from '../domain/schema.ts'
 import { useTreeStore } from '../domain/store.ts'
 import { isolate } from '../i18n/format.ts'
 import { renderMessage } from '../i18n/messageRef.ts'
-import type { MessageKey } from '../i18n/messages.ts'
 import { useT } from '../i18n/useT.ts'
+import { RelativeQuestions } from './RelativeQuestions.tsx'
 import { PersonFields } from './PersonFields.tsx'
 import { type PersonFormValues, emptyValues, toPersonFields, validate } from './personForm.ts'
 
@@ -23,15 +23,6 @@ interface Props {
   /** Called with the new Person's id once they have been added. */
   onDone: (personId: string) => void
   onCancel: () => void
-}
-
-function Choice(props: { name: string; checked: boolean; onSelect: () => void; children: ReactNode }) {
-  return (
-    <label className="flex min-h-11 items-center gap-2">
-      <input type="radio" name={props.name} checked={props.checked} onChange={props.onSelect} className="size-5" />
-      {props.children}
-    </label>
-  )
 }
 
 /**
@@ -49,7 +40,6 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
     [focusPersonId, persons, parentLinks, partnerships],
   )
 
-  const name = useId()
   const [values, setValues] = useState<PersonFormValues>(() => emptyValues(RELATIONS[relation].gender))
   const [answers, setAnswers] = useState<RelativeAnswers>({})
   const [submitted, setSubmitted] = useState(false)
@@ -103,96 +93,7 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
       <PersonFields values={values} onChange={setValues} errors={errors} autoFocusFirstName />
 
-      {question.kind === 'parent-partnership' && (
-        <fieldset>
-          <legend className="text-sm font-medium">
-            {t('addForm.parentPartnership', { name: question.existingParent.firstName })}
-          </legend>
-          {(
-            [
-              ['current', 'addForm.partnerCurrent'],
-              ['ended', 'addForm.partnerEnded'],
-              ['none', 'addForm.partnerNone'],
-            ] as const satisfies readonly (readonly [string, MessageKey])[]
-          ).map(([value, label]) => (
-            <Choice
-              key={value}
-              name={`${name}-partnership`}
-              checked={(answers.parentPartnership ?? 'current') === value}
-              onSelect={() => setAnswers({ ...answers, parentPartnership: value })}
-            >
-              {t(label)}
-            </Choice>
-          ))}
-        </fieldset>
-      )}
-
-      {question.kind === 'sibling-parents' && (
-        <fieldset>
-          <legend className="text-sm font-medium">{t('addForm.siblingParents')}</legend>
-          <Choice
-            name={`${name}-parents`}
-            checked={(answers.siblingParents ?? 'both') === 'both'}
-            onSelect={() => setAnswers({ ...answers, siblingParents: 'both' })}
-          >
-            {t('addForm.sharesBoth', { first: question.parents[0].firstName, second: question.parents[1].firstName })}
-          </Choice>
-          {question.parents.map((parent) => (
-            <Choice
-              key={parent.id}
-              name={`${name}-parents`}
-              checked={answers.siblingParents === parent.id}
-              onSelect={() => setAnswers({ ...answers, siblingParents: parent.id })}
-            >
-              {t('addForm.sharesOnly', { name: parent.firstName })}
-            </Choice>
-          ))}
-        </fieldset>
-      )}
-
-      {question.kind === 'child-other-parent' && (
-        <fieldset>
-          <legend className="text-sm font-medium">{t('addForm.otherParent')}</legend>
-          {question.partners.map(({ person, status }) => (
-            <Choice
-              key={person.id}
-              name={`${name}-other`}
-              checked={(answers.otherParentId === undefined ? question.defaultParentId : answers.otherParentId) === person.id}
-              onSelect={() => setAnswers({ ...answers, otherParentId: person.id })}
-            >
-              {t(status === 'current' ? 'addForm.otherCurrent' : 'addForm.otherFormer', { name: person.firstName })}
-            </Choice>
-          ))}
-          <Choice
-            name={`${name}-other`}
-            checked={(answers.otherParentId === undefined ? question.defaultParentId : answers.otherParentId) === null}
-            onSelect={() => setAnswers({ ...answers, otherParentId: null })}
-          >
-            {t('addForm.otherNobody')}
-          </Choice>
-        </fieldset>
-      )}
-
-      {question.kind === 'partner-status' && (
-        <fieldset>
-          <legend className="text-sm font-medium">{t('addForm.partnerStatus')}</legend>
-          {(
-            [
-              ['current', 'addForm.statusCurrent'],
-              ['ended', 'addForm.statusEnded'],
-            ] as const satisfies readonly (readonly [string, MessageKey])[]
-          ).map(([value, label]) => (
-            <Choice
-              key={value}
-              name={`${name}-status`}
-              checked={(answers.partnerStatus ?? 'current') === value}
-              onSelect={() => setAnswers({ ...answers, partnerStatus: value })}
-            >
-              {t(label)}
-            </Choice>
-          ))}
-        </fieldset>
-      )}
+      <RelativeQuestions question={question} answers={answers} onChange={setAnswers} />
 
       <div aria-live="polite" className="rounded bg-stone-100 p-3 text-sm">
         <p className="font-medium">{t('preview.title')}</p>

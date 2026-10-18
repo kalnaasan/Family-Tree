@@ -10,6 +10,7 @@ import { type MessageRef, msg } from '../i18n/messageRef.ts'
 import { useT } from '../i18n/useT.ts'
 import { lifeSpan } from '../view/text.ts'
 import { AddRelativeForm } from './AddRelativeForm.tsx'
+import { LinkExistingForm } from './LinkExistingForm.tsx'
 import { PersonLine } from './PersonLine.tsx'
 import { PersonFields } from './PersonFields.tsx'
 import { Avatar, PhotoField } from './PhotoField.tsx'
@@ -21,7 +22,7 @@ import { useWideScreen } from './useWideScreen.ts'
 /** A swipe on the sheet's handle must travel this far, in pixels, to count (a shorter press is a tap). */
 const SWIPE_PX = 40
 
-type Mode = { kind: 'view' } | { kind: 'add'; relation: Relation } | { kind: 'edit' }
+type Mode = { kind: 'view' } | { kind: 'add'; relation: Relation } | { kind: 'link'; relation: Relation } | { kind: 'edit' }
 
 type GroupKey = 'parents' | 'partners' | 'siblings' | 'children'
 
@@ -205,15 +206,17 @@ export function PersonPanel({ personId, onClose }: Props) {
         </button>
       )}
       <div className="flex items-start justify-between gap-2">
-        {mode.kind !== 'add' && person.photoId && <Avatar person={person} size={56} />}
+        {mode.kind !== 'add' && mode.kind !== 'link' && person.photoId && <Avatar person={person} size={56} />}
         <div className="min-w-0 flex-1">
           <h2 ref={headingRef} tabIndex={-1} dir="auto" className="text-xl font-semibold outline-offset-4">
             {mode.kind === 'add'
               ? t('panel.addTitle', { relation: relationWord(mode.relation), name: person.firstName })
-              : person.firstName}
-            {mode.kind !== 'add' && person.lastName ? ` ${person.lastName}` : ''}
+              : mode.kind === 'link'
+                ? t('panel.linkTitle', { relation: relationWord(mode.relation), name: person.firstName })
+                : person.firstName}
+            {mode.kind !== 'add' && mode.kind !== 'link' && person.lastName ? ` ${person.lastName}` : ''}
           </h2>
-          {mode.kind !== 'add' && (
+          {mode.kind !== 'add' && mode.kind !== 'link' && (
             <p className="text-sm text-stone-700">
               {[isFocus ? t('person.focus') : label, lifeSpan(person, t)].filter(Boolean).join(' · ')}
               {person.deceased && ` · ${t('person.deceased')}`}
@@ -233,6 +236,12 @@ export function PersonPanel({ personId, onClose }: Props) {
             onCancel={backToOverview}
             onDone={(newId) => select(newId)}
           />
+        </div>
+      )}
+
+      {mode.kind === 'link' && !readOnly && (
+        <div className="mt-4">
+          <LinkExistingForm anchor={person} relation={mode.relation} onCancel={backToOverview} onDone={backToOverview} />
         </div>
       )}
 
@@ -282,16 +291,26 @@ export function PersonPanel({ personId, onClose }: Props) {
                 <div className="mt-1 flex flex-wrap gap-2">
                   {!readOnly &&
                     group.add.map((relation) => (
-                      <button
-                        key={relation}
-                        type="button"
-                        data-add=""
-                        aria-label={t('panel.addAria', { relation: relationWord(relation) })}
-                        onClick={() => setMode({ kind: 'add', relation })}
-                        className="min-h-11 rounded border border-leaf-deep px-3 text-leaf-deep"
-                      >
-                        {t('panel.addButton', { relation: capitalise(relationWord(relation)) })}
-                      </button>
+                      <span key={relation} className="flex gap-1">
+                        <button
+                          type="button"
+                          data-add=""
+                          aria-label={t('panel.addAria', { relation: relationWord(relation) })}
+                          onClick={() => setMode({ kind: 'add', relation })}
+                          className="min-h-11 rounded border border-leaf-deep px-3 text-leaf-deep"
+                        >
+                          {t('panel.addButton', { relation: capitalise(relationWord(relation)) })}
+                        </button>
+                        <button
+                          type="button"
+                          data-link=""
+                          aria-label={t('panel.linkAria', { relation: relationWord(relation) })}
+                          onClick={() => setMode({ kind: 'link', relation })}
+                          className="min-h-11 rounded border border-line-strong px-3"
+                        >
+                          {t('panel.linkButton', { relation: relationWord(relation) })}
+                        </button>
+                      </span>
                     ))}
                 </div>
               </section>
