@@ -250,11 +250,14 @@ test('at the "dot" level a tap near a Person opens them and a tap in empty space
 
   await page.getByRole('button', { name: words('tree.fit') }).tap()
   await expect(frame(page)).toHaveAttribute('data-lod', 'dot')
-  const someone = frame(page)
-    .getByRole('button')
-    .filter({ hasNot: page.locator('button') })
-    .nth(0)
-  const at = await centre(someone)
+  // the dot nearest the middle of the screen: one at the edge can sit under a floating control (they swap sides in Arabic)
+  const dots = await frame(page).locator('[data-person-id]').all()
+  const middle = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  let at = await centre(dots[0]!)
+  for (const dot of dots) {
+    const here = await centre(dot)
+    if (Math.hypot(here.x - middle.x, here.y - middle.y) < Math.hypot(at.x - middle.x, at.y - middle.y)) at = here
+  }
   await page.touchscreen.tap(at.x + 6, at.y + 6) // a finger that is not quite on the dot
   await expect(panel(page)).toBeVisible()
 })
