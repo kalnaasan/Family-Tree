@@ -45,7 +45,7 @@ describe('overview', () => {
     open(benWithParents())
     expect(screen.getByRole('heading', { name: 'Ben' })).toHaveFocus()
     const parents = screen.getByRole('region', { name: 'Parents' })
-    expect(within(parents).getByRole('button', { name: /Karl · father|Karl/ })).toBeInTheDocument()
+    expect(within(parents).getByRole('button', { name: /^Karl/ })).toBeInTheDocument()
     const siblings = screen.getByRole('region', { name: 'Siblings' })
     expect(within(siblings).getByRole('button', { name: /Anna/ })).toBeInTheDocument()
     expect(within(siblings).getByRole('button', { name: /Max.*half/ })).toBeInTheDocument()
@@ -64,7 +64,7 @@ describe('overview', () => {
 
   it('clicking a relative selects them', async () => {
     const { user } = open(benWithParents())
-    await user.click(screen.getByRole('button', { name: /Karl/ }))
+    await user.click(screen.getByRole('button', { name: /^Karl/ }))
     expect(useUiStore.getState().selectedId).toBe(id(2))
   })
 

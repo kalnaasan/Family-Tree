@@ -285,7 +285,7 @@ test.describe('the tree and the panel', () => {
 
   test('a relative in the panel jumps to them', async ({ page }) => {
     await openWith(page, benWithTwoParents())
-    await group(page, words('panel.group.parents')).getByRole('button', { name: /Karl/ }).click()
+    await group(page, words('panel.group.parents')).getByRole('button', { name: /^Karl/ }).click()
     await expect(panel(page).getByRole('heading', { name: 'Karl' })).toBeFocused()
     await expect(group(page, words('panel.group.children'))).toContainText('Ben')
   })

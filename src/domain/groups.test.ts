@@ -41,13 +41,24 @@ describe('relativesOf', () => {
 
   it('a Person without links has no relatives', () => {
     const alone = relativesOf(addPerson(emptyTree(), { id: id(1), firstName: 'Solo' }), id(1))
-    expect(alone).toEqual({ parents: [], partners: [], siblings: [], children: [] })
+    expect(alone).toEqual({ parents: [], partners: [], siblings: [], children: [], stepParents: [], stepChildren: [] })
   })
 
   it('does not count step parents as parents or siblings', () => {
     let t = ['A', 'B', 'C'].reduce((acc, firstName, i) => addPerson(acc, { id: id(i + 1), firstName }), emptyTree())
     t = addParentLink(t, id(1), id(3), 'step')
     t = addParentLink(t, id(2), id(3), 'step')
-    expect(relativesOf(t, id(1))).toEqual({ parents: [], partners: [], siblings: [], children: [] })
+    const a = relativesOf(t, id(1))
+    expect([a.parents, a.partners, a.siblings, a.children]).toEqual([[], [], [], []])
+    expect(names(a.stepParents)).toEqual(['C'])
+  })
+
+  it('lists step parents and step children apart, so they are not siblings or blood relatives', () => {
+    let withStep = addPerson(addPerson(emptyTree(), { id: id(1), firstName: 'Ben' }), { id: id(2), firstName: 'Karl' })
+    withStep = addParentLink(withStep, id(1), id(2), 'step')
+    const ben = relativesOf(withStep, id(1))
+    expect(names(ben.parents)).toEqual([])
+    expect(names(ben.stepParents)).toEqual(['Karl'])
+    expect(names(relativesOf(withStep, id(2)).stepChildren)).toEqual(['Ben'])
   })
 })
