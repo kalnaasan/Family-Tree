@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { capitalise, formatDateTime, formatList, formatNumber, isolate } from './format.ts'
 
 const ARABIC_INDIC_DIGITS = /[٠-٩۰-۹]/
@@ -14,6 +14,20 @@ describe('dates and numbers', () => {
     expect(text).toContain('30')
     expect(text).not.toMatch(ARABIC_INDIC_DIGITS)
     expect(text).not.toContain('1447') // the Hijri year of that day
+  })
+
+  it('keeps Western digits and the Gregorian calendar even when the browser itself is set to ar-EG', () => {
+    // an Egyptian locale would write Arabic-Indic digits: the browser's own locale must not reach the formatters
+    vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['ar-EG'])
+    vi.spyOn(navigator, 'language', 'get').mockReturnValue('ar-EG')
+    try {
+      expect(formatDateTime('2026-03-05T14:30:00Z', 'ar', 'UTC')!).not.toMatch(ARABIC_INDIC_DIGITS)
+      expect(formatDateTime('2026-03-05T14:30:00Z', 'en', 'UTC')!).toBe('Mar 5, 2026, 2:30 PM')
+      expect(formatNumber(1234567, 'ar')).not.toMatch(ARABIC_INDIC_DIGITS)
+      expect(formatNumber(1234567, 'en')).toBe('1,234,567')
+    } finally {
+      vi.restoreAllMocks()
+    }
   })
 
   it('has no date to write for something that is not a date', () => {

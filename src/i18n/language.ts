@@ -140,9 +140,18 @@ function watchOtherTabs(listener: (value: string | null) => void) {
   })
 }
 
+/**
+ * The languages this page offers. That is `AVAILABLE_LANGUAGES`, except that the Arabic Playwright projects widen it
+ * before the page loads (spec section 13.7), by setting this global in an init script; no user, setting or URL can.
+ */
+function offeredLanguages(): readonly Language[] {
+  const widened = (globalThis as { __familyTreeLanguages?: readonly Language[] }).__familyTreeLanguages
+  return Array.isArray(widened) ? widened : AVAILABLE_LANGUAGES
+}
+
 /** The app's Language, kept for as long as the page is open. Creating it puts `lang` and `dir` on the page. */
 export const useLanguageStore: LanguageStore = createLanguageStore({
-  available: AVAILABLE_LANGUAGES,
+  available: offeredLanguages(),
   storage: browserStorage(),
   browserLanguages: typeof navigator === 'undefined' ? [] : navigator.languages?.length ? navigator.languages : [navigator.language],
   root: typeof document === 'undefined' ? { lang: '', dir: '' } : document.documentElement,

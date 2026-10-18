@@ -1,5 +1,6 @@
 import { type Page, expect, test } from '@playwright/test'
 import { PERF_BUDGET } from '../src/config/perf-budget.ts'
+import { displayName } from '../src/view/text.ts'
 import { LAYOUT_MEASURE } from '../src/layout/layoutClient.ts'
 import { openPerson, panel } from './helpers.ts'
 import { openWithFixture } from './seed.ts'
@@ -42,14 +43,23 @@ test('the CPU throttle really slows the page down', async ({ page }) => {
   expect(slowed).toBeGreaterThan(normal * 2.5)
 })
 
-for (const size of PERF_BUDGET.sizes) {
-  test.describe(`${size} people at ${PERF_BUDGET.throttleCpuRate}x CPU throttle, ${PERF_BUDGET.viewportWidth} px wide`, () => {
+/**
+ * The same budget for the same Tree shape with Arabic names (spec section 13.7): longer strings and a script that is
+ * measured and drawn differently. No separate budget. The sizes are the two the spec names.
+ */
+const VARIANTS = [
+  ...PERF_BUDGET.sizes.map((size) => ({ size, names: 'default' as const, label: '' })),
+  ...([1000, 5000] as const).map((size) => ({ size, names: 'arabic' as const, label: ', Arabic names' })),
+]
+
+for (const { size, names, label } of VARIANTS) {
+  test.describe(`${size} people at ${PERF_BUDGET.throttleCpuRate}x CPU throttle, ${PERF_BUDGET.viewportWidth} px wide${label}`, () => {
     test.beforeEach(async ({ page }) => {
       await page.setViewportSize({ width: PERF_BUDGET.viewportWidth, height: 844 })
     })
 
     test('first paint, layout and edit to redraw are within the budget', async ({ page }) => {
-      const { tree } = await openWithFixture(page, size)
+      const { tree } = await openWithFixture(page, size, { names })
       await throttle(page)
 
       // Reload under throttle. A script that runs before the page notes when the first Person appears.
@@ -80,7 +90,7 @@ for (const size of PERF_BUDGET.sizes) {
 
       // edit -> redraw: from the click on Save until the new name is on the screen
       const focus = tree.persons.find((p) => p.id === tree.focusPersonId)!
-      await openPerson(page, focus.firstName)
+      await openPerson(page, displayName(focus)) // with Arabic names the button starts with the last name too
       // on a phone the panel opens as a short peek; the details come with a tap
       await panel(page).getByRole('button', { name: 'Details' }).click()
       const edits: number[] = []
@@ -118,7 +128,7 @@ for (const size of PERF_BUDGET.sizes) {
         edit: PERF_BUDGET.editToRedrawMs[size],
       }
       console.info(
-        `${size} people: first paint ${firstPaint.toFixed(0)} ms (budget ${budget.firstPaint}), layout ${layoutMs.toFixed(0)} ms (budget ${budget.layout}), edit to redraw ${editToRedraw.toFixed(0)} ms (budget ${budget.edit})`,
+        `${size} people${label}: first paint ${firstPaint.toFixed(0)} ms (budget ${budget.firstPaint}), layout ${layoutMs.toFixed(0)} ms (budget ${budget.layout}), edit to redraw ${editToRedraw.toFixed(0)} ms (budget ${budget.edit})`,
       )
       expect(firstPaint).toBeLessThanOrEqual(budget.firstPaint)
       expect(layoutMs).toBeLessThanOrEqual(budget.layout)
@@ -126,7 +136,7 @@ for (const size of PERF_BUDGET.sizes) {
     })
 
     test('pan and zoom frame time is within the budget', async ({ page }) => {
-      const { frame } = await openWithFixture(page, size)
+      const { frame } = await openWithFixture(page, size, { names })
       await throttle(page)
 
       await page.evaluate(() => {
@@ -169,7 +179,7 @@ for (const size of PERF_BUDGET.sizes) {
       const p95 = gaps[Math.floor(gaps.length * 0.95)]!
       const budget = PERF_BUDGET.panZoomFrameP95Ms[size]
       console.info(
-        `pan/zoom at ${size} people: ${gaps.length} frames, p95 ${p95.toFixed(1)} ms (budget ${budget} ms), ${long.length} long tasks, longest ${Math.max(0, ...long).toFixed(0)} ms`,
+        `pan/zoom at ${size} people${label}: ${gaps.length} frames, p95 ${p95.toFixed(1)} ms (budget ${budget} ms), ${long.length} long tasks, longest ${Math.max(0, ...long).toFixed(0)} ms`,
       )
       expect(gaps.length).toBeGreaterThan(100)
       expect(p95).toBeLessThanOrEqual(budget + PACING_JITTER_MS)

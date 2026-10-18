@@ -575,6 +575,7 @@ export function TreeCanvas({
     <div
       ref={frameRef}
       role="group"
+      data-tree-frame=""
       aria-label={t('tree.label')}
       aria-describedby={hintId}
       // One tab stop: the keyboard's Person once there is one, else the tree itself.
