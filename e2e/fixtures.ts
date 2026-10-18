@@ -1,6 +1,7 @@
 import { test as base } from '@playwright/test'
 import type { Language } from '../src/i18n/languageType.ts'
-import { LANGUAGE_KEY } from '../src/i18n/language.ts'
+import { formatList } from '../src/i18n/format.ts'
+import { DIRECTION, LANGUAGE_KEY } from '../src/i18n/language.ts'
 import { type MessageParam, msg, renderMessage } from '../src/i18n/messageRef.ts'
 import { DICTIONARIES, type MessageKey } from '../src/i18n/messages.ts'
 import { createTranslator } from '../src/i18n/translate.ts'
@@ -39,8 +40,8 @@ export const startingWith = (text: string) => new RegExp(`^${text.replace(/[.*+?
 
 /**
  * `test` for specs that run in both languages. In an Arabic project the page is opened with `family-tree.language`
- * set to Arabic and Arabic offered (the released list is English only; the page reads `__familyTreeLanguages`
- * before anything else), so one spec serves both languages and finds controls through `t`.
+ * set to Arabic. The Arabic projects point at the build made with Arabic offered (`.env.arabic`, port 4174; the
+ * released list is English only). One spec so serves both languages and finds controls through `words`.
  */
 export const test = base.extend<Options>({
   language: ['en', { option: true }],
@@ -48,7 +49,6 @@ export const test = base.extend<Options>({
     if (language !== 'en') {
       await page.addInitScript(
         ([key, value]) => {
-          ;(globalThis as { __familyTreeLanguages?: string[] }).__familyTreeLanguages = ['en', 'ar']
           try {
             localStorage.setItem(key!, value!)
           } catch {
@@ -62,9 +62,9 @@ export const test = base.extend<Options>({
   },
 })
 
-/** Items of a sentence the way the app joins them: "a, b" in English, "a، b" in Arabic (`formatList` in plain mode). */
-export const joined = (...items: string[]) => items.join(languageOfProject() === 'ar' ? '، ' : ', ')
+/** Items of a sentence the way the app joins them (`formatList` in plain mode): "a, b" in English, "a، b" in Arabic. */
+export const joined = (...items: string[]) => formatList(items, languageOfProject(), 'plain')
 
 /** The arrow keys by where they point on the page: a page that reads right to left swaps them (spec section 13.2). */
-export const arrowTowardEnd = () => (languageOfProject() === 'ar' ? 'ArrowLeft' : 'ArrowRight')
-export const arrowTowardStart = () => (languageOfProject() === 'ar' ? 'ArrowRight' : 'ArrowLeft')
+export const arrowTowardEnd = () => (DIRECTION[languageOfProject()] === 'rtl' ? 'ArrowLeft' : 'ArrowRight')
+export const arrowTowardStart = () => (DIRECTION[languageOfProject()] === 'rtl' ? 'ArrowRight' : 'ArrowLeft')

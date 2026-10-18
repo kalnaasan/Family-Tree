@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { create } from 'zustand'
 import type { Language } from './languageType.ts'
 
@@ -141,13 +142,12 @@ function watchOtherTabs(listener: (value: string | null) => void) {
 }
 
 /**
- * The languages this page offers. That is `AVAILABLE_LANGUAGES`, except that the Arabic Playwright projects widen it
- * before the page loads (spec section 13.7), by setting this global in an init script; no user, setting or URL can.
+ * The languages this build offers: `AVAILABLE_LANGUAGES`, except in the build made with `--mode arabic` (see
+ * `.env.arabic`), which the Arabic Playwright projects test (spec section 13.7). The flag is replaced when the
+ * bundle is built, so the released bundle has no way of offering Arabic.
  */
-function offeredLanguages(): readonly Language[] {
-  const widened = (globalThis as { __familyTreeLanguages?: readonly Language[] }).__familyTreeLanguages
-  return Array.isArray(widened) ? widened : AVAILABLE_LANGUAGES
-}
+const offeredLanguages = (): readonly Language[] =>
+  import.meta.env?.VITE_OFFER_ARABIC === 'true' ? ['en', 'ar'] : AVAILABLE_LANGUAGES
 
 /** The app's Language, kept for as long as the page is open. Creating it puts `lang` and `dir` on the page. */
 export const useLanguageStore: LanguageStore = createLanguageStore({

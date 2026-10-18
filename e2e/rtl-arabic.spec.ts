@@ -3,7 +3,8 @@ import type { Page } from '@playwright/test'
 import type { Tree } from '../src/domain/schema.ts'
 import { addParentLink, addPerson, emptyTree } from '../src/domain/tree.ts'
 import { generateTree } from '../src/layout/fixtures.ts'
-import { expect, startingWith, test, words } from './fixtures.ts'
+import { displayName } from '../src/view/text.ts'
+import { expect, test, words } from './fixtures.ts'
 import { frame, openPerson, panel, personButton } from './helpers.ts'
 import { openWithTree } from './seed.ts'
 
@@ -17,7 +18,9 @@ const centreOf = async (locator: ReturnType<Page['locator']>) => {
   return box.x + box.width / 2
 }
 
-const tree = () => generateTree(12, 1)
+/** Twelve people with Arabic first and last names, so the Arabic text and mixed lines are the ones drawn. */
+const tree = () => generateTree(12, 1, { names: 'arabic' })
+const first = () => displayName(tree().persons[0]!)
 
 const id = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`
 
@@ -54,7 +57,7 @@ test.describe('desktop', () => {
 
   test('the Person panel is on the end side, the left', async ({ page }) => {
     await openWithTree(page, tree())
-    await openPerson(page, 'P1')
+    await openPerson(page, first())
     expect(await centreOf(panel(page))).toBeLessThan(640)
   })
 
@@ -75,7 +78,8 @@ test.describe('desktop', () => {
     await openWithTree(page, generateTree(60, 1))
     await page.getByRole('button', { name: words('app.listView') }).click()
     const glyph = page
-      .getByRole('button', { name: startingWith(words('list.expand', { name: '§' }).split('§')[0]!.trim()) })
+      .getByRole('region', { name: words('list.title') })
+      .getByRole('button', { expanded: false })
       .first()
       .locator('span')
     expect(await glyph.evaluate((span) => getComputedStyle(span).scale)).toMatch(/^-1\b/)
@@ -83,7 +87,7 @@ test.describe('desktop', () => {
 
   test('a toast stays in the middle of the screen', async ({ page }) => {
     await openWithTree(page, tree())
-    await openPerson(page, 'P1')
+    await openPerson(page, first())
     await page.getByRole('button', { name: words('panel.makeFocus') }).click()
     await page
       .getByRole('group', { name: words('history.group') })
@@ -111,7 +115,7 @@ test.describe('desktop', () => {
   }) => {
     await openWithTree(page, tree())
     await expect(page.getByRole('combobox', { name: words('search.label') })).toHaveAttribute('dir', 'auto')
-    await openPerson(page, 'P1')
+    await openPerson(page, first())
     await expect(panel(page).getByRole('heading', { level: 2 })).toHaveAttribute('dir', 'auto')
     await panel(page)
       .getByRole('button', { name: words('panel.edit') })
@@ -130,7 +134,7 @@ test.describe('desktop', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await openWithTree(page, tree())
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
-    await openPerson(page, 'P1')
+    await openPerson(page, first())
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
     await page.getByRole('button', { name: words('app.listView') }).click()
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
@@ -152,7 +156,7 @@ test.describe('phone', () => {
     expect(await overflow()).toBeLessThanOrEqual(0)
     await page
       .getByRole('region', { name: words('list.title') })
-      .getByRole('button', { name: /^P\d+ ·/ })
+      .getByRole('button', { name: / · / })
       .first()
       .tap()
     await expect(panel(page)).toBeVisible()

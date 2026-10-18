@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import type { MessageKey } from '../src/i18n/messages.ts'
-import { expect, words } from './fixtures.ts'
+import { expect, joined, words } from './fixtures.ts'
 
 export const frame = (page: Page) => page.getByRole('group', { name: words('tree.label') })
 
@@ -13,7 +13,7 @@ const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&
 
 /** A Person's button in the tree. Their accessible name starts with their name: "Maria, mother, born 1962". */
 export const personButton = (page: Page, name: string) =>
-  frame(page).getByRole('button', { name: new RegExp(`^${escapeRegExp(name)}(,|،|$)`) })
+  frame(page).getByRole('button', { name: new RegExp(`^${escapeRegExp(name)}(${joined('', '').trim()}|$)`) })
 
 /** Opens a Person the keyboard way: focus them and press Enter. The panel's heading then has focus. */
 export async function openPerson(page: Page, name: string) {

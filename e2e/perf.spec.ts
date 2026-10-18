@@ -39,17 +39,22 @@ test('the CPU throttle really slows the page down', async ({ page }) => {
   const normal = (await spin()).ms
   await throttle(page)
   const slowed = (await spin()).ms
-  console.info(`CPU throttle check: ${normal.toFixed(0)} ms normal, ${slowed.toFixed(0)} ms at ${PERF_BUDGET.throttleCpuRate}x`)
+  console.info(
+    `CPU throttle check: ${normal.toFixed(0)} ms normal, ${slowed.toFixed(0)} ms at ${PERF_BUDGET.throttleCpuRate}x`,
+  )
   expect(slowed).toBeGreaterThan(normal * 2.5)
 })
 
 /**
  * The same budget for the same Tree shape with Arabic names (spec section 13.7): longer strings and a script that is
- * measured and drawn differently. No separate budget. The sizes are the two the spec names.
+ * measured and drawn differently, at the sizes of 1,000 people and up. No separate budget. The page itself stays English
+ * and left to right here; right-to-left layout is checked in `rtl-arabic.spec.ts`.
  */
 const VARIANTS = [
   ...PERF_BUDGET.sizes.map((size) => ({ size, names: 'default' as const, label: '' })),
-  ...([1000, 5000] as const).map((size) => ({ size, names: 'arabic' as const, label: ', Arabic names' })),
+  ...PERF_BUDGET.sizes
+    .filter((size) => size >= 1000)
+    .map((size) => ({ size, names: 'arabic' as const, label: ', Arabic names' })),
 ]
 
 for (const { size, names, label } of VARIANTS) {
@@ -105,7 +110,9 @@ for (const { size, names, label } of VARIANTS) {
           w.__edit = new Promise<number>((resolve) => {
             const watch = new MutationObserver(() => {
               if (!clicked) return
-              const shown = [...document.querySelectorAll('[data-person-wrapper]')].some((el) => el.textContent?.includes(shownName))
+              const shown = [...document.querySelectorAll('[data-person-wrapper]')].some((el) =>
+                el.textContent?.includes(shownName),
+              )
               if (!shown) return
               watch.disconnect()
               // the frame after the DOM change is what the user sees
@@ -144,7 +151,10 @@ for (const { size, names, label } of VARIANTS) {
         w.__frames = []
         w.__long = []
         w.__sampling = true
-        new PerformanceObserver((list) => w.__long.push(...list.getEntries().map((e) => e.duration))).observe({ type: 'longtask', buffered: false })
+        new PerformanceObserver((list) => w.__long.push(...list.getEntries().map((e) => e.duration))).observe({
+          type: 'longtask',
+          buffered: false,
+        })
         const tick = (time: number) => {
           w.__frames.push(time)
           if (w.__sampling) requestAnimationFrame(tick)
@@ -193,7 +203,8 @@ test('does the CPU throttle reach a Web Worker? (recorded, not asserted)', async
     page.evaluate(
       () =>
         new Promise<number>((resolve) => {
-          const code = 'onmessage=()=>{const s=performance.now();let x=0;for(let i=0;i<2e7;i++)x+=Math.sqrt(i);postMessage(performance.now()-s+x*0)}'
+          const code =
+            'onmessage=()=>{const s=performance.now();let x=0;for(let i=0;i<2e7;i++)x+=Math.sqrt(i);postMessage(performance.now()-s+x*0)}'
           const worker = new Worker(URL.createObjectURL(new Blob([code])))
           worker.onmessage = (event) => resolve(event.data as number)
           worker.postMessage(0)
@@ -203,7 +214,9 @@ test('does the CPU throttle reach a Web Worker? (recorded, not asserted)', async
   const normal = await spinInWorker()
   await throttle(page)
   const slowed = await spinInWorker()
-  console.info(`Worker throttle check: ${normal.toFixed(0)} ms normal, ${slowed.toFixed(0)} ms at ${PERF_BUDGET.throttleCpuRate}x`)
+  console.info(
+    `Worker throttle check: ${normal.toFixed(0)} ms normal, ${slowed.toFixed(0)} ms at ${PERF_BUDGET.throttleCpuRate}x`,
+  )
 })
 
 test('a Tree above 1,000 people is laid out in a Web Worker', async ({ page }) => {
