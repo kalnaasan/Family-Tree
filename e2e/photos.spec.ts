@@ -87,8 +87,9 @@ const storedPhotos = (page: Page): Promise<Stored[]> =>
           values.onsuccess = () => {
             const result = (keys.result as string[]).map((id, i) => ({
               id,
-              type: (values.result[i] as Blob).type,
-              size: (values.result[i] as Blob).size,
+              // a browser that cannot keep a Blob keeps its bytes and type instead
+              type: (values.result[i] as { type: string }).type,
+              size: (values.result[i] as { size?: number; bytes?: ArrayBuffer }).size ?? (values.result[i] as { bytes: ArrayBuffer }).bytes.byteLength,
             }))
             open.result.close()
             resolve(result)
@@ -115,7 +116,8 @@ const inspectPhoto = (page: Page, id: string) =>
           const get = open.result.transaction('photos').objectStore('photos').get(photoId)
           get.onsuccess = async () => {
             open.result.close()
-            const blob = get.result as Blob
+            const stored = get.result as Blob | { type: string; bytes: ArrayBuffer }
+            const blob = stored instanceof Blob ? stored : new Blob([stored.bytes], { type: stored.type })
             const text = new TextDecoder('latin1').decode(new Uint8Array(await blob.arrayBuffer()))
             const bitmap = await createImageBitmap(blob)
             const canvas = document.createElement('canvas')

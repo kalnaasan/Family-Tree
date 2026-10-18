@@ -2,6 +2,7 @@
 // jsdom's Blob does not survive the fake IndexedDB's structured clone (its size comes back NaN); Node's does.
 import { IDBFactory } from 'fake-indexeddb'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { openFamilyTreeDb } from '../persistence/db.ts'
 import { createPhotoStore, isQuotaError } from './photoStore.ts'
 
 const A = '00000000-0000-4000-8000-0000000000a1'
@@ -46,6 +47,48 @@ describe('photo store', () => {
     await store.put(A, new Blob(['1']))
     await store.put(A, new Blob(['12']))
     expect(await store.usage()).toEqual({ count: 1, bytes: 2 })
+  })
+})
+
+/** A property of the connection, with its methods still tied to the connection. */
+const bound = (target: object, property: string | symbol) => {
+  const value = Reflect.get(target, property)
+  return typeof value === 'function' ? value.bind(target) : value
+}
+
+describe('a browser that cannot keep a Blob in IndexedDB (WebKit in some modes)', () => {
+  /** A connection that refuses a Blob the way WebKit does: "Error preparing Blob/File data to be stored". */
+  const refusingBlobs = async () => {
+    const real = await openFamilyTreeDb()
+    return new Proxy(real, {
+      get(target, property) {
+        if (property !== 'put') return bound(target, property)
+        return (store: 'photos', value: unknown, key: string) => {
+          if (value instanceof Blob) {
+            return Promise.reject(new DOMException('Error preparing Blob/File data to be stored in object store', 'UnknownError'))
+          }
+          return target.put(store, value as never, key)
+        }
+      },
+    })
+  }
+
+  it('keeps the photo as bytes and gives back a Blob of the same type and size', async () => {
+    const store = createPhotoStore(refusingBlobs)
+    await store.put(A, new Blob(['hello'], { type: 'image/webp' }))
+    const back = await createPhotoStore(refusingBlobs).get(A)
+    expect(back).toBeInstanceOf(Blob)
+    expect([back?.type, back?.size]).toEqual(['image/webp', 5])
+    expect(await store.usage()).toEqual({ count: 1, bytes: 5 })
+  })
+
+  it('still reports a full disk as a full disk', async () => {
+    const full = async () =>
+      new Proxy(await openFamilyTreeDb(), {
+        get: (target, property) =>
+          property === 'put' ? () => Promise.reject(new DOMException('full', 'QuotaExceededError')) : bound(target, property),
+      })
+    await expect(createPhotoStore(full).put(A, new Blob(['1']))).rejects.toSatisfy(isQuotaError)
   })
 })
 

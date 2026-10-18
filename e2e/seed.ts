@@ -16,11 +16,21 @@ export async function openWithTree(page: Page, tree: Tree) {
   const document = serializeDocument(tree)
   // the first visit creates the database; then the fixture is written straight into it and the app reloaded
   await page.goto('/')
+  // WebKit does not draw frames for a page it takes to be in the background, which happens when tests run side by side:
+  // animations then stop half way and the drawing never catches up. The page being tested is in front.
+  await page.bringToFront()
   await expect(page.getByRole('status')).toHaveText(words('save.saved'))
   await page.evaluate(
     (stored) =>
       new Promise<void>((resolve, reject) => {
         const open = indexedDB.open('family-tree')
+        // the app shows "Saved" before its own open has finished, so the database may not exist yet: if it does not,
+        // create it as the app would (same stores, version 1), or the app would find an empty one and this would hang
+        open.onupgradeneeded = () => {
+          for (const name of ['tree', 'photos', 'snapshots']) {
+            if (!open.result.objectStoreNames.contains(name)) open.result.createObjectStore(name)
+          }
+        }
         open.onerror = () => reject(open.error)
         open.onsuccess = () => {
           const tx = open.result.transaction('tree', 'readwrite')
