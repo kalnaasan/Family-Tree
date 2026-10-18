@@ -436,17 +436,17 @@ export const ar: ArabicOf<typeof en> = {
 
   // counts, shared
   'common.people': {
-    zero: 'لا أحد',
+    zero: 'صفر أشخاص',
     one: 'شخص واحد',
-    two: 'شخصان',
+    two: 'شخصين',
     few: '{count} أشخاص',
     many: '{count} شخصًا',
     other: '{count} شخص',
   },
   'common.photos': {
-    zero: 'لا صور',
+    zero: 'صفر صور',
     one: 'صورة واحدة',
-    two: 'صورتان',
+    two: 'صورتين',
     few: '{count} صور',
     many: '{count} صورة',
     other: '{count} صورة',
@@ -515,7 +515,7 @@ export const ar: ArabicOf<typeof en> = {
   'backup.confirmFile': 'يحتوي الملف على {people}.',
   'backup.confirmFilePhotos': 'يحتوي الملف على {people} و{photos}.',
   'backup.confirm': '{file} {tree}',
-  'backup.confirmTree': 'تحتوي شجرتك على {people}، وسيُستبدلون جميعًا.',
+  'backup.confirmTree': 'تحتوي شجرتك على {people}، وسيُستبدل كل ما فيها.',
   'backup.exportFirst': 'صدّر الشجرة الحالية أولًا',
   'backup.replace': 'استبدل شجرتي',
   'backup.imported': {
@@ -561,17 +561,17 @@ export const ar: ArabicOf<typeof en> = {
   'fields.born': 'تاريخ الميلاد (اختياري)',
   'fields.died': 'تاريخ الوفاة (اختياري)',
   'fields.datePlaceholder': 'YYYY-MM-DD',
-  'fields.deceased': 'متوفى',
+  'fields.deceased': 'متوفى/متوفاة',
 
   // adding a relative
   'addForm.back': 'رجوع',
-  'addForm.parentPartnership': 'كيف يرتبط الوالد الجديد بـ{name}؟',
+  'addForm.parentPartnership': 'كيف يرتبط الوالد الجديد مع {name}؟',
   'addForm.partnerCurrent': 'شريك حالي',
   'addForm.partnerEnded': 'شريك سابق (انتهت العلاقة)',
   'addForm.partnerNone': 'ليسا شريكين',
   'addForm.siblingParents': 'أي والدين يتشاركان؟',
   'addForm.sharesBoth': 'كلاهما: {first} و{second}',
-  'addForm.sharesOnly': '{name} فقط (أخ غير شقيق)',
+  'addForm.sharesOnly': '{name} فقط (يشتركان في والد واحد)',
   'addForm.otherParent': 'من هو الوالد الآخر؟',
   'addForm.otherCurrent': '{name} (شريك حالي)',
   'addForm.otherFormer': '{name} (شريك سابق)',
@@ -584,8 +584,8 @@ export const ar: ArabicOf<typeof en> = {
   'addRelative.blockedParents': 'لدى {name} والدان بيولوجيان بالفعل، لذلك لا يمكن إضافة ثالث.',
   'preview.title': 'سيتم إنشاء ما يلي:',
   'preview.newPerson': 'الشخص الجديد',
-  'preview.relationOf': '{who}، {relation} لـ{name}',
-  'preview.relationOfTwo': '{who}، {relation} لـ{name} و{other}',
+  'preview.relationOf': '{who}، {relation} {name}',
+  'preview.relationOfTwo': '{who}، {relation} {name} و{other}',
   'preview.noPartnership': 'لا شراكة مع {name}',
   'preview.partnershipCurrent': 'شراكة قائمة',
   'preview.partnershipEnded': 'شراكة منتهية',
@@ -599,18 +599,18 @@ export const ar: ArabicOf<typeof en> = {
 
   // moving by keyboard
   'nav.nobodySelected': 'لم يُحدَّد أحد',
-  'nav.noParents': 'لا يوجد والدان مسجّلان لـ{name}',
-  'nav.noChildren': 'لا يوجد أبناء مسجّلون لـ{name}',
-  'nav.noSiblings': 'لا يوجد إخوة مسجّلون لـ{name}',
-  'nav.noPartners': 'لا يوجد شركاء مسجّلون لـ{name}',
-  'nav.moved': '{target}، {word} لـ{relativeTo}',
+  'nav.noParents': 'لا يوجد والدان مسجّلان للشخص {name}',
+  'nav.noChildren': 'لا يوجد أبناء مسجّلون للشخص {name}',
+  'nav.noSiblings': 'لا يوجد إخوة مسجّلون للشخص {name}',
+  'nav.noPartners': 'لا يوجد شركاء مسجّلون للشخص {name}',
+  'nav.moved': '{target}، {word} {relativeTo}',
   'nav.movedChildren': {
-    zero: '{target}، {word} لـ{relativeTo}، بلا أبناء',
-    one: '{target}، {word} لـ{relativeTo}، ولد واحد',
-    two: '{target}، {word} لـ{relativeTo}، ولدان',
-    few: '{target}، {word} لـ{relativeTo}، {count} أولاد',
-    many: '{target}، {word} لـ{relativeTo}، {count} ولدًا',
-    other: '{target}، {word} لـ{relativeTo}، {count} ولد',
+    zero: '{target}، {word} {relativeTo}، بلا أبناء',
+    one: '{target}، {word} {relativeTo}، ولد واحد',
+    two: '{target}، {word} {relativeTo}، ولدان',
+    few: '{target}، {word} {relativeTo}، {count} أولاد',
+    many: '{target}، {word} {relativeTo}، {count} ولدًا',
+    other: '{target}، {word} {relativeTo}، {count} ولد',
   },
 
   // photos
@@ -673,10 +673,10 @@ export const ar: ArabicOf<typeof en> = {
 
   // people
   'person.focus': 'الشخص المحوري',
-  'person.deceased': 'متوفى',
+  'person.deceased': 'متوفى/متوفاة',
   'life.died': 'ت. {year}',
-  'person.born': 'سنة الميلاد {year}',
-  'person.died': 'سنة الوفاة {year}',
+  'person.born': 'الميلاد: {year}',
+  'person.died': 'الوفاة: {year}',
   'person.errorFirstName': 'أدخل الاسم الأول',
   'person.dateHelp': 'استخدم YYYY أو YYYY-MM أو YYYY-MM-DD',
 
@@ -691,7 +691,7 @@ export const ar: ArabicOf<typeof en> = {
 
   // the Person panel
   'panel.label': 'تفاصيل الشخص',
-  'panel.addTitle': 'إضافة {relation} لـ{name}',
+  'panel.addTitle': 'إضافة {relation} إلى {name}',
   'panel.addRelative': 'إضافة قريب',
   'panel.details': 'التفاصيل',
   'panel.group.parents': 'الوالدان',
