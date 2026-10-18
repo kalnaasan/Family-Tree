@@ -126,6 +126,26 @@ test.describe('desktop', () => {
     await expect(personButton(page, 'Ben')).toBeFocused()
   })
 
+  test('names keep their own direction (dir auto) and dates read left to right but line up with the page start', async ({ page }) => {
+    await openWithTree(page, tree())
+    await expect(page.getByRole('combobox', { name: 'Search people' })).toHaveAttribute('dir', 'auto')
+    await openPerson(page, 'P1')
+    await expect(panel(page).getByRole('heading', { level: 2 })).toHaveAttribute('dir', 'auto')
+    await panel(page).getByRole('button', { name: 'Edit details' }).click()
+    await expect(panel(page).getByLabel('First name')).toHaveAttribute('dir', 'auto')
+    await expect(panel(page).getByLabel('Last name (optional)')).toHaveAttribute('dir', 'auto')
+    for (const label of ['Born (optional)', 'Died (optional)']) {
+      await expect(panel(page).getByLabel(label)).toHaveAttribute('dir', 'ltr')
+    }
+    // lined up with the start of the page: the field reads left to right, so that is its start when the page does too,
+    // and its end (the right edge) when the page reads right to left
+    const born = panel(page).getByLabel('Born (optional)')
+    const alignment = () => born.evaluate((input) => getComputedStyle(input).textAlign)
+    expect(await alignment()).toBe('start')
+    await readRightToLeft(page)
+    expect(await alignment()).toBe('end')
+  })
+
   test('axe finds nothing when reading right to left: tree, open Person, list and Settings', async ({ page }) => {
     // axe must not sample a button halfway through its colour transition (it would read a blend, and a low contrast)
     await page.emulateMedia({ reducedMotion: 'reduce' })

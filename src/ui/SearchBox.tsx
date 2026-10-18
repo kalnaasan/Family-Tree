@@ -82,6 +82,7 @@ export function SearchBox() {
     <div className="relative min-w-0 flex-1 sm:max-w-sm">
       <input
         type="text"
+        dir="auto"
         role={listView ? 'searchbox' : 'combobox'}
         aria-label={t('search.label')}
         placeholder={t('search.label')}
@@ -120,11 +121,12 @@ export function SearchBox() {
           <ul id={listId} role="listbox" aria-label={t('search.resultsLabel')}>
             {shown.map((person, n) => {
               const label = person.id === focusPersonId ? t('person.focus') : labelOf(person)
-              const text = [displayName(person), label, lifeSpan(person)].filter(Boolean).join(' · ')
+              const text = [displayName(person), label, lifeSpan(person, t)].filter(Boolean).join(' · ')
               return (
                 <li
                   key={person.id}
                   id={optionId(n)}
+                  dir="auto"
                   role="option"
                   aria-selected={n === active}
                   onClick={() => pick(person.id)}

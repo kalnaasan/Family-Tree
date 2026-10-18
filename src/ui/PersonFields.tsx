@@ -37,6 +37,7 @@ export function PersonFields({ values, onChange, errors = {}, showDates = false,
         </label>
         <input
           id={`${id}-first`}
+          dir="auto"
           value={values.firstName}
           onChange={(e) => set('firstName', e.target.value)}
           autoFocus={autoFocusFirstName}
@@ -57,6 +58,7 @@ export function PersonFields({ values, onChange, errors = {}, showDates = false,
         </label>
         <input
           id={`${id}-last`}
+          dir="auto"
           value={values.lastName}
           onChange={(e) => set('lastName', e.target.value)}
           autoComplete="off"
@@ -89,13 +91,14 @@ export function PersonFields({ values, onChange, errors = {}, showDates = false,
               </label>
               <input
                 id={`${id}-${field}`}
+                dir="ltr"
                 value={values[field]}
                 onChange={(e) => set(field, e.target.value)}
                 placeholder={t('fields.datePlaceholder')}
                 autoComplete="off"
                 aria-invalid={errors[field] ? true : undefined}
                 aria-describedby={`${id}-${field}-help`}
-                className={inputClass}
+                className={`${inputClass} input-start`}
               />
               <p id={`${id}-${field}-help`} className={`mt-1 text-sm ${errors[field] ? 'text-red-800' : 'text-stone-700'}`}>
                 {t(errors[field] ?? DATE_HELP)}

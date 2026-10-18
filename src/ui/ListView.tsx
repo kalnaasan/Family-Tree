@@ -142,11 +142,12 @@ function Item({ person, depth, model, words }: { person: Person; depth: number; 
         )}
         <button
           type="button"
+          dir="auto"
           aria-current={selectedId === person.id ? 'true' : undefined}
           onClick={() => select(person.id)}
           className={`${buttonClass} flex-1 ${selectedId === person.id ? 'bg-stone-200 font-semibold' : ''}`}
         >
-          {[name, relationship, lifeSpan(person)].filter(Boolean).join(' · ')}
+          {[name, relationship, lifeSpan(person, t)].filter(Boolean).join(' · ')}
           {partners && <span className="block text-sm text-stone-700">{partners}</span>}
         </button>
       </div>
@@ -203,11 +204,12 @@ export function ListView() {
                 <li key={person.id}>
                   <button
                     type="button"
-                    aria-current={selectedId === person.id ? 'true' : undefined}
+                    dir="auto"
+          aria-current={selectedId === person.id ? 'true' : undefined}
                     onClick={() => select(person.id)}
                     className={`${buttonClass} w-full ${selectedId === person.id ? 'bg-stone-200 font-semibold' : ''}`}
                   >
-                    {[displayName(person), relationship, lifeSpan(person)].filter(Boolean).join(' · ')}
+                    {[displayName(person), relationship, lifeSpan(person, t)].filter(Boolean).join(' · ')}
                     {partners && <span className="block text-sm text-stone-700">{partners}</span>}
                   </button>
                 </li>

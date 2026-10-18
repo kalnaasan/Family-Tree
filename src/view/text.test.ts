@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DICTIONARIES } from '../i18n/messages.ts'
 import { createTranslator } from '../i18n/translate.ts'
-import { displayName, hashId, initialOf, lifeSpan, personAriaLabel as ariaLabelWith } from './text.ts'
+import { directionOf, displayName, hashId, initialOf, lifeSpan, personAriaLabel as ariaLabelWith } from './text.ts'
 
 const english = { t: createTranslator('en', DICTIONARIES), language: 'en' as const }
 const personAriaLabel = (...args: Parameters<typeof ariaLabelWith> extends [infer A, infer B, infer C, ...unknown[]] ? [A, B, C] : never) =>
@@ -63,6 +63,19 @@ describe('displayName', () => {
     const name = displayName({ firstName: '😀'.repeat(30) })
     expect(Array.from(name)).toHaveLength(18)
   })
+  it('cuts at whole letters: a letter is never parted from its vowel marks or accent', () => {
+    // "مُ" is meem and damma, two code points that are one letter; 20 of them are 20 letters
+    expect(displayName({ firstName: 'مُ'.repeat(20) })).toBe(`${'مُ'.repeat(17)}…`)
+    expect(displayName({ firstName: 'e\u0301'.repeat(30) })).toBe(`${'e\u0301'.repeat(17)}…`)
+    // short enough in letters, although long in code points: not shortened at all
+    expect(displayName({ firstName: 'مُ'.repeat(18) })).toBe('مُ'.repeat(18))
+  })
+  it('shortens an Arabic name the same way as a Latin one, with no space left before the ellipsis', () => {
+    const name = displayName({ firstName: 'عبد الرحمن', lastName: 'بن عوف الحربي' })
+    expect(Array.from(name)).toHaveLength(18)
+    expect(name.endsWith('…')).toBe(true)
+    expect(name.endsWith(' …')).toBe(false)
+  })
 })
 
 describe('initialOf', () => {
@@ -76,9 +89,49 @@ describe('initialOf', () => {
   it('has a fallback for a blank name', () => {
     expect(initialOf({ firstName: '  ' })).toBe('?')
   })
+  describe('in Arabic', () => {
+    it('is the first letter of the first name, a hamza form as typed', () => {
+      expect(initialOf({ firstName: 'محمد' })).toBe('م')
+      expect(initialOf({ firstName: 'أحمد' })).toBe('أ')
+      expect(initialOf({ firstName: 'عبد الله' })).toBe('ع')
+    })
+    it('skips a leading article "ال" when more letters follow, so "الحسن" is not just "ا"', () => {
+      expect(initialOf({ firstName: 'الحسن' })).toBe('ح')
+      expect(initialOf({ firstName: 'الأحمد' })).toBe('أ')
+      expect(initialOf({ firstName: 'ٱلرحمن' })).toBe('ر')
+    })
+    it('keeps a vowel mark with its letter', () => {
+      expect(initialOf({ firstName: 'الْحَسَن' })).toBe('حَ')
+    })
+    it('does not skip what is not an article: the article alone, or the article and one letter', () => {
+      expect(initialOf({ firstName: 'ال' })).toBe('ا')
+      expect(initialOf({ firstName: 'الف' })).toBe('ا')
+    })
+  })
+})
+
+describe('directionOf', () => {
+  it.each([
+    ['محمد', 'rtl'],
+    ['Maria', 'ltr'],
+    ['أحمد Smith', 'rtl'], // the first letter that has a direction decides
+    ['Smith أحمد', 'ltr'],
+    ['123 محمد', 'rtl'], // digits and punctuation have none
+    ['(מרים)', 'rtl'],
+    ['😀', 'ltr'], // nothing has a direction: the usual one
+    ['', 'ltr'],
+  ])('%s reads %s', (name, direction) => {
+    expect(directionOf(name)).toBe(direction)
+  })
 })
 
 describe('lifeSpan', () => {
+  const arabicWords = createTranslator('ar', { en: DICTIONARIES.en, ar: { 'life.died': 'ت. {year}' } })
+  it('words a death-only date in the language: "d. 2001", and "ت. 2001" in Arabic', () => {
+    expect(lifeSpan({ deathDate: '2001' }, english.t)).toBe('d. 2001')
+    expect(lifeSpan({ deathDate: '2001' }, arabicWords)).toBe('ت. 2001')
+    expect(lifeSpan({ birthDate: '1930', deathDate: '2001' }, arabicWords)).toBe('1930–2001')
+  })
   it.each([
     [{}, ''],
     [{ birthDate: '1962' }, '1962'],
@@ -87,7 +140,7 @@ describe('lifeSpan', () => {
     [{ birthDate: '1930', deathDate: '2001-09' }, '1930–2001'],
     [{ deathDate: '2001' }, 'd. 2001'],
   ])('%j gives "%s"', (person, expected) => {
-    expect(lifeSpan(person)).toBe(expected)
+    expect(lifeSpan(person, english.t)).toBe(expected)
   })
 })
 

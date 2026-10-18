@@ -34,7 +34,7 @@ export function normalizeName(text: string): string {
  * merely begins with those two letters (a name such as "ألين") is treated as if it had the article: that can only
  * change the order of the results, never whether a name is found.
  */
-function withoutArticle(word: string): string {
+export function withoutArticle(word: string): string {
   return word.startsWith('ال') && Array.from(word).length >= 4 ? word.slice(2) : word
 }
 

@@ -28,6 +28,35 @@ function draw(props: Partial<PersonNodeProps> = {}) {
   return container.querySelector('svg')!
 }
 
+describe('PersonNode direction (spec section 13.3)', () => {
+  const lines = (svg: SVGElement) => [...svg.querySelectorAll('text')].filter((text) => text.textContent !== base.initial)
+
+  it('reads the name in its own direction and the dates in the direction the page reads', () => {
+    const svg = draw({ name: 'محمد الأحمد', nameDirection: 'rtl', life: '1930–2001', lifeDirection: 'ltr' })
+    const [name, life] = lines(svg)
+    expect(name).toHaveAttribute('direction', 'rtl')
+    expect(life).toHaveAttribute('direction', 'ltr')
+  })
+
+  it('does not tie the name to the page: a Latin name stays left to right on a page that reads right to left', () => {
+    const svg = draw({ name: 'Maria Keller', nameDirection: 'ltr', life: '2001–1930', lifeDirection: 'rtl' })
+    const [name, life] = lines(svg)
+    expect(name).toHaveAttribute('direction', 'ltr')
+    expect(life).toHaveAttribute('direction', 'rtl')
+  })
+
+  it('embeds each line, so its direction really is the base of its own text and not the page\'s', () => {
+    const [name] = lines(draw({ nameDirection: 'rtl' }))
+    expect(name).toHaveAttribute('unicode-bidi', 'embed')
+  })
+
+  it('is left to right when nothing is said', () => {
+    const [name, life] = lines(draw())
+    expect(name).toHaveAttribute('direction', 'ltr')
+    expect(life).toHaveAttribute('direction', 'ltr')
+  })
+})
+
 describe('PersonNode', () => {
   it('full: shows the name, the dates and two leaves', () => {
     const svg = draw()

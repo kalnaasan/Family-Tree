@@ -143,6 +143,7 @@ export function PersonPanel({ personId, onClose }: Props) {
         <button
           type="button"
           onClick={() => select(relative.id)}
+          dir="auto"
           className="min-h-11 rounded-full border border-stone-400 px-4 text-start hover:bg-stone-100"
         >
           {relative.firstName}
@@ -205,7 +206,7 @@ export function PersonPanel({ personId, onClose }: Props) {
       <div className="flex items-start justify-between gap-2">
         {mode.kind !== 'add' && person.photoId && <Avatar person={person} size={56} />}
         <div className="min-w-0 flex-1">
-          <h2 ref={headingRef} tabIndex={-1} className="text-xl font-semibold outline-offset-4">
+          <h2 ref={headingRef} tabIndex={-1} dir="auto" className="text-xl font-semibold outline-offset-4">
             {mode.kind === 'add'
               ? t('panel.addTitle', { relation: relationWord(mode.relation), name: person.firstName })
               : person.firstName}
@@ -213,7 +214,7 @@ export function PersonPanel({ personId, onClose }: Props) {
           </h2>
           {mode.kind !== 'add' && (
             <p className="text-sm text-stone-700">
-              {[isFocus ? t('person.focus') : label, lifeSpan(person)].filter(Boolean).join(' · ')}
+              {[isFocus ? t('person.focus') : label, lifeSpan(person, t)].filter(Boolean).join(' · ')}
               {person.deceased && ` · ${t('person.deceased')}`}
             </p>
           )}
