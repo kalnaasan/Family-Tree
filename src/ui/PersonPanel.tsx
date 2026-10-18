@@ -143,7 +143,7 @@ export function PersonPanel({ personId, onClose }: Props) {
         <button
           type="button"
           onClick={() => select(relative.id)}
-          className="min-h-11 rounded-full border border-stone-400 px-4 text-left hover:bg-stone-100"
+          className="min-h-11 rounded-full border border-stone-400 px-4 text-start hover:bg-stone-100"
         >
           {relative.firstName}
           {relative.lastName ? ` ${relative.lastName}` : ''}
@@ -184,7 +184,7 @@ export function PersonPanel({ personId, onClose }: Props) {
         if (mode.kind === 'view') onClose()
         else backToOverview()
       }}
-      className={`fixed inset-x-0 bottom-0 z-30 max-h-[62dvh] overflow-y-auto rounded-t-xl border-t border-stone-400 bg-white p-4 pt-1 shadow-lg md:static md:max-h-none md:w-96 md:shrink-0 md:rounded-none md:border-t-0 md:border-l md:p-4 md:shadow-none ${
+      className={`fixed inset-x-0 bottom-0 z-30 max-h-[62dvh] overflow-y-auto rounded-t-xl border-t border-stone-400 bg-white p-4 pt-1 shadow-lg md:static md:max-h-none md:w-96 md:shrink-0 md:rounded-none md:border-t-0 md:border-s md:p-4 md:shadow-none ${
         !wide && sheet === 'expanded' ? 'h-[62dvh]' : ''
       }`}
     >

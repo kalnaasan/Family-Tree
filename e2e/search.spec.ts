@@ -92,6 +92,8 @@ test('the List view filters instead of popping up results', async ({ page }) => 
 })
 
 test('axe finds nothing with the results open, in the tree and in the list', async ({ page }) => {
+  // axe must not sample the List view button halfway through its colour transition (a blend reads as low contrast)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
   await openWithTree(page, people())
   await box(page).fill('kel')
   await expect(results(page)).toHaveCount(2)

@@ -71,7 +71,7 @@ function useModel(): Model {
   }, [persons, parentLinks, partnerships, focusPersonId])
 }
 
-const buttonClass = 'min-h-11 rounded px-2 text-left hover:bg-stone-100'
+const buttonClass = 'min-h-11 rounded px-2 text-start hover:bg-stone-100'
 
 /** "with Ana, Ben (former)": the partners of a Person, or nothing. */
 function usePartnersLine(model: Model): (personId: string) => string | null {
@@ -132,7 +132,10 @@ function Item({ person, depth, model, words }: { person: Person; depth: number; 
             onClick={() => setOpen(!open)}
             className="grid size-11 shrink-0 place-items-center rounded hover:bg-stone-100"
           >
-            <span aria-hidden="true">{open ? '▾' : '▸'}</span>
+            {/* the "closed" triangle points the way the page reads, so it is flipped when that is right to left */}
+            <span aria-hidden="true" className="inline-block rtl:-scale-x-100">
+              {open ? '▾' : '▸'}
+            </span>
           </button>
         ) : (
           <span aria-hidden="true" className="size-11 shrink-0" />
@@ -148,12 +151,12 @@ function Item({ person, depth, model, words }: { person: Person; depth: number; 
         </button>
       </div>
       {open && expandable && (
-        <ul className="ml-5 border-l border-stone-300 pl-2">
+        <ul className="ms-5 border-s border-stone-300 ps-2">
           {kids.map((kid) => (
             <Item key={kid.id} person={kid} depth={depth + 1} model={model} words={words} />
           ))}
           {refs.map(({ person: other, home }) => (
-            <li key={other.id} className="pl-11">
+            <li key={other.id} className="ps-11">
               <button type="button" onClick={() => select(other.id)} className={buttonClass}>
                 {t('list.alsoChild', { name: displayName(other), home: home.firstName })}
               </button>

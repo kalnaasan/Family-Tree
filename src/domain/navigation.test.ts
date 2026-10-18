@@ -63,23 +63,23 @@ describe('up and down', () => {
   })
 })
 
-describe('left and right', () => {
+describe('next and previous sibling', () => {
   it('walk the siblings in the order they were added, and wrap round', () => {
-    expect(walk(3, ['right', 'right', 'right'])).toEqual(['Anna', 'Tim', 'Max']) // Max shares only Karl
-    expect(walk(3, ['left'])).toEqual(['Max'])
+    expect(walk(3, ['next', 'next', 'next'])).toEqual(['Anna', 'Tim', 'Max']) // Max shares only Karl
+    expect(walk(3, ['previous'])).toEqual(['Max'])
   })
 
-  it('right then left is back where we started', () => {
-    expect(walk(4, ['right', 'left'])).toEqual(['Tim', 'Anna'])
+  it('next then previous is back where we started', () => {
+    expect(walk(4, ['next', 'previous'])).toEqual(['Tim', 'Anna'])
   })
 
   it('go all the way round', () => {
-    expect(walk(3, ['right', 'right', 'right', 'right'])).toEqual(['Anna', 'Tim', 'Max', 'Ben'])
+    expect(walk(3, ['next', 'next', 'next', 'next'])).toEqual(['Anna', 'Tim', 'Max', 'Ben'])
   })
 
   it('say so for an only child', () => {
-    expect(walk(8, ['right'])).toEqual(['Mia'])
-    expect(walk(2, ['right'])).toEqual(['(Maria has no recorded siblings)'])
+    expect(walk(8, ['next'])).toEqual(['Mia'])
+    expect(walk(2, ['next'])).toEqual(['(Maria has no recorded siblings)'])
   })
 })
 
@@ -118,11 +118,11 @@ describe('announcements', () => {
     expect(said(8, 'up')).toBe('Ben, father of Leo, 2 children')
     expect(said(3, 'down')).toBe('Leo, son of Ben')
     expect(said(3, 'partner')).toBe('Eva, wife of Ben, 2 children')
-    expect(said(3, 'right')).toBe('Anna, sister of Ben')
+    expect(said(3, 'next')).toBe('Anna, sister of Ben')
   })
 
   it('marks half-siblings and former partners', () => {
-    expect(said(5, 'right')).toBe('Max, half-brother of Tim')
+    expect(said(5, 'next')).toBe('Max, half-brother of Tim')
     const toEva = move(tree, id(3), 'partner', freshMemory())
     const toZoe = move(tree, id(6 - 1), 'partner', toEva.memory) // pressed again, from Eva
     expect(toZoe.kind === 'moved' && renderEnglish(toZoe.word)).toBe('ex-wife')

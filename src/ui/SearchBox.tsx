@@ -115,7 +115,7 @@ export function SearchBox() {
           hidden={!popup}
           // keep the box focused while a result is pressed
           onMouseDown={(event) => event.preventDefault()}
-          className="absolute top-full left-0 z-40 mt-1 max-h-[60dvh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded border border-line-strong bg-white shadow-lg"
+          className="absolute top-full start-0 z-40 mt-1 max-h-[60dvh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded border border-line-strong bg-white shadow-lg"
         >
           <ul id={listId} role="listbox" aria-label={t('search.resultsLabel')}>
             {shown.map((person, n) => {

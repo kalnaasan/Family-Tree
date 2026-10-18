@@ -46,7 +46,7 @@ export function App() {
     <main className="flex h-dvh flex-col">
       <header className="border-b border-line bg-paper-deep/60 px-4 py-2">
         <div className="flex items-center gap-2">
-          <h1 className="mr-auto text-xl font-semibold tracking-tight text-bark sm:text-2xl">{t('app.title')}</h1>
+          <h1 className="me-auto text-xl font-semibold tracking-tight text-bark sm:text-2xl">{t('app.title')}</h1>
           <SaveIndicator />
           <UndoControls />
           <button

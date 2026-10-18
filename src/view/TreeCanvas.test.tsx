@@ -339,6 +339,51 @@ const press = (key: string, init: KeyboardEventInit = {}) => {
   settle(300)
 }
 
+/** Karl and Maria's three children in the order they were added: Ben (the Focus person), Anna, Zoe. */
+function threeSiblings(): Tree {
+  let tree = smallFamily()
+  tree = addPerson(tree, { id: id(7), firstName: 'Zoe', gender: 'female' })
+  tree = addParentLink(tree, id(7), id(1))
+  return addParentLink(tree, id(7), id(2))
+}
+
+describe('the sibling keys follow the direction the page reads (spec section 13.2)', () => {
+  // the page's own `dir`, which is what the Language sets on <html>
+  const readRightToLeft = () => document.documentElement.setAttribute('dir', 'rtl')
+  afterEach(() => document.documentElement.setAttribute('dir', 'ltr'))
+
+  it('left to right: ArrowRight is the next sibling, ArrowLeft the previous', () => {
+    const { frame } = mountTree(threeSiblings())
+    cursor(frame).focus()
+    press('ArrowRight')
+    expect(active()).toBe(id(4)) // Anna, after Ben
+    press('ArrowLeft')
+    press('ArrowLeft')
+    expect(active()).toBe(id(7)) // back past Ben, round to Zoe
+  })
+
+  it('right to left: the arrow pointing the way Arabic reads, ArrowLeft, is the next sibling', () => {
+    readRightToLeft()
+    const { frame } = mountTree(threeSiblings())
+    cursor(frame).focus()
+    press('ArrowLeft')
+    expect(active()).toBe(id(4)) // Anna, after Ben
+    press('ArrowRight')
+    press('ArrowRight')
+    expect(active()).toBe(id(7)) // back past Ben, round to Zoe
+  })
+
+  it('panning with Shift and an arrow stays physical in both directions', () => {
+    readRightToLeft()
+    const { frame } = mountTree(threeSiblings())
+    cursor(frame).focus()
+    const before = frame.getAttribute('data-zoom')
+    press('ArrowRight', { shiftKey: true })
+    expect(active()).toBe(id(3)) // the cursor did not move: Shift + arrow pans
+    expect(frame.getAttribute('data-zoom')).toBe(before)
+  })
+})
+
 describe('keyboard navigation along family links (spec section 7)', () => {
   it('starts at the Focus person, named for a screen reader', () => {
     const { frame } = mountTree(smallFamily())
