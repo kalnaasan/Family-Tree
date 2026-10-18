@@ -30,7 +30,7 @@ export function Toast() {
             {canUndoThis && ' · '}
           </span>
           {canUndoThis && (
-            <button type="button" onClick={undoLatest} className="-ml-2 min-h-11 px-2 font-medium underline">
+            <button type="button" onClick={undoLatest} className="-ms-2 min-h-11 px-2 font-medium underline">
               {t('history.undo')}
             </button>
           )}

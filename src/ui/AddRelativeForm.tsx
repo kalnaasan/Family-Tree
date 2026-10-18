@@ -196,7 +196,7 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
 
       <div aria-live="polite" className="rounded bg-stone-100 p-3 text-sm">
         <p className="font-medium">{t('preview.title')}</p>
-        <ul className="mt-1 list-disc pl-5">
+        <ul className="mt-1 list-disc ps-5">
           {preview.map((line, n) => (
             <li key={n}>{renderMessage(t, line)}</li>
           ))}

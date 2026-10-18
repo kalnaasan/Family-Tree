@@ -1,11 +1,15 @@
 import type { ReactNode } from 'react'
 
-/** Small line icons for the toolbar. They are decoration: the button that holds one carries the accessible name. */
-const Icon = ({ children }: { children: ReactNode }) => (
+/**
+ * Small line icons for the toolbar. They are decoration: the button that holds one carries the accessible name.
+ * `mirror`: a curved arrow that points the way of reading (undo back, redo forward) is flipped when the page reads
+ * right to left; the other icons mean the same either way (spec section 13.2).
+ */
+const Icon = ({ children, mirror = false }: { children: ReactNode; mirror?: boolean }) => (
   <svg
     aria-hidden="true"
     viewBox="0 0 24 24"
-    className="size-5"
+    className={mirror ? 'size-5 rtl:-scale-x-100' : 'size-5'}
     fill="none"
     stroke="currentColor"
     strokeWidth="2"
@@ -17,14 +21,14 @@ const Icon = ({ children }: { children: ReactNode }) => (
 )
 
 export const UndoIcon = () => (
-  <Icon>
+  <Icon mirror>
     <path d="M9 14 4 9l5-5" />
     <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
   </Icon>
 )
 
 export const RedoIcon = () => (
-  <Icon>
+  <Icon mirror>
     <path d="m15 14 5-5-5-5" />
     <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
   </Icon>

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { deriveRelationships } from '../domain/labels.ts'
 import type { Tree } from '../domain/schema.ts'
 import { addParentLink, addPartnership, addPerson, emptyTree } from '../domain/tree.ts'
+import { useLanguageStore } from '../i18n/language.ts'
 import { generateTree } from '../layout/fixtures.ts'
 import { layoutTree } from '../layout/layoutTree.ts'
 import { NODE_RADIUS, ROOTS_DEPTH, TRUNK_HEIGHT } from './geometry.ts'
@@ -338,6 +339,49 @@ const press = (key: string, init: KeyboardEventInit = {}) => {
   fireEvent.keyDown(document.activeElement ?? document.body, { key, ...init })
   settle(300)
 }
+
+/** Karl and Maria's three children in the order they were added: Ben (the Focus person), Anna, Zoe. */
+function threeSiblings(): Tree {
+  let tree = smallFamily()
+  tree = addPerson(tree, { id: id(7), firstName: 'Zoe', gender: 'female' })
+  tree = addParentLink(tree, id(7), id(1))
+  return addParentLink(tree, id(7), id(2))
+}
+
+describe('the sibling keys follow the direction the page reads (spec section 13.2)', () => {
+  afterEach(() => useLanguageStore.setState({ language: 'en' }))
+
+  it('left to right: ArrowRight is the next sibling, ArrowLeft the previous', () => {
+    const { frame } = mountTree(threeSiblings())
+    cursor(frame).focus()
+    press('ArrowRight')
+    expect(active()).toBe(id(4)) // Anna, after Ben
+    press('ArrowLeft')
+    press('ArrowLeft')
+    expect(active()).toBe(id(7)) // back past Ben, round to Zoe
+  })
+
+  it('right to left: the arrow pointing the way Arabic reads, ArrowLeft, is the next sibling', () => {
+    useLanguageStore.setState({ language: 'ar' })
+    const { frame } = mountTree(threeSiblings())
+    cursor(frame).focus()
+    press('ArrowLeft')
+    expect(active()).toBe(id(4)) // Anna, after Ben
+    press('ArrowRight')
+    press('ArrowRight')
+    expect(active()).toBe(id(7)) // back past Ben, round to Zoe
+  })
+
+  it('panning with Shift and an arrow stays physical in both directions', () => {
+    useLanguageStore.setState({ language: 'ar' })
+    const { frame } = mountTree(threeSiblings())
+    cursor(frame).focus()
+    const before = frame.getAttribute('data-zoom')
+    press('ArrowRight', { shiftKey: true })
+    expect(active()).toBe(id(3)) // the cursor did not move: Shift + arrow pans
+    expect(frame.getAttribute('data-zoom')).toBe(before)
+  })
+})
 
 describe('keyboard navigation along family links (spec section 7)', () => {
   it('starts at the Focus person, named for a screen reader', () => {

@@ -3,7 +3,7 @@ import { relativesOf } from '../domain/groups.ts'
 import type { Relationship } from '../domain/labels.ts'
 import { type NavKey, type NavMemory, describeMove, freshMemory, move } from '../domain/navigation.ts'
 import type { ParentLink, Partnership, Person } from '../domain/schema.ts'
-import { useLanguageStore } from '../i18n/language.ts'
+import { DIRECTION, useLanguageStore } from '../i18n/language.ts'
 import { renderMessage } from '../i18n/messageRef.ts'
 import { useT } from '../i18n/useT.ts'
 import type { TreeLayout } from '../layout/layoutTree.ts'
@@ -208,13 +208,25 @@ export interface TreeCanvasProps {
  */
 const NO_RELATIONSHIPS: ReadonlyMap<string, Relationship> = new Map()
 
-const NAV_KEYS: Record<string, NavKey> = {
-  ArrowUp: 'up',
-  ArrowDown: 'down',
-  ArrowLeft: 'left',
-  ArrowRight: 'right',
-  p: 'partner',
-  P: 'partner',
+/**
+ * What a key means for moving along family links. Up and down are a parent and a child whatever the page reads like;
+ * left and right are the previous and next sibling in the direction it reads, so under right-to-left the arrow
+ * pointing the way Arabic reads (left) is "next" (spec section 13.2). Shift with an arrow pans, and stays physical.
+ */
+function navKeyFor(key: string, direction: 'ltr' | 'rtl'): NavKey | undefined {
+  switch (key) {
+    case 'ArrowUp':
+      return 'up'
+    case 'ArrowDown':
+      return 'down'
+    case 'ArrowRight':
+      return direction === 'rtl' ? 'previous' : 'next'
+    case 'ArrowLeft':
+      return direction === 'rtl' ? 'next' : 'previous'
+    case 'p':
+    case 'P':
+      return 'partner'
+  }
 }
 
 export function TreeCanvas({
@@ -273,6 +285,7 @@ export function TreeCanvas({
   }, [selectedPersonId, selectedIndex, links, persons, focusPersonId])
 
   const t = useT()
+  const direction = useLanguageStore((s) => DIRECTION[s.language])
   // The keyboard's place in the tree: the one Person in the tab order. It starts at the Focus person.
   const [cursorId, setCursorId] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState('')
@@ -463,7 +476,7 @@ export function TreeCanvas({
     const onPerson = target?.closest('[data-person-id]') ?? null
 
     // Shift with an arrow pans; Shift with a letter is just a capital letter.
-    const navKey = NAV_KEYS[event.key]
+    const navKey = navKeyFor(event.key, direction)
     if (navKey && (!event.shiftKey || navKey === 'partner')) moveCursor(navKey)
     else if ((event.key === 'Enter' || event.key === ' ') && onPerson) {
       const id = onPerson.getAttribute('data-person-id')!
@@ -605,7 +618,7 @@ export function TreeCanvas({
         hidden={hideControls}
         // centred in the part of the screen a sheet leaves free
         style={{ top: `calc((100% - ${coveredBottom}px) / 2)` }}
-        className="absolute right-2 flex -translate-y-1/2 flex-col gap-2"
+        className="absolute end-2 flex -translate-y-1/2 flex-col gap-2"
       >
         <ControlButton label={t('tree.zoomIn')} onClick={() => controllerRef.current?.zoomBy(KEY_ZOOM)}>
           <path d="M12 5v14M5 12h14" />

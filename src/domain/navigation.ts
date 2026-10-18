@@ -4,18 +4,19 @@ import { relativesOf } from './groups.ts'
 import type { Gender, Person, Tree } from './schema.ts'
 
 /**
- * Keyboard navigation along family links (spec section 7): up = a parent, down = a child, left/right = the
- * previous/next sibling, partner = a partner. Pure; the canvas only moves focus to the result.
+ * Keyboard navigation along family links (spec section 7): up = a parent, down = a child, previous/next = the
+ * previous/next sibling, partner = a partner. Pure; the canvas only moves focus to the result. Which arrow key
+ * means previous or next depends on the direction the page reads, so that is the canvas's to decide (spec 13.2).
  *
  * Stable order, so the same keys always lead the same way:
  * - Up goes to the first parent. Down goes back to the child you came from, else to the first child.
- * - Left/right walk a ring of the Person and their siblings in the order the Persons were added, wrapping round.
+ * - Previous/next walk a ring of the Person and their siblings in the order the Persons were added, wrapping round.
  * - Partner goes to the first partner; pressing it again right away cycles through the partners of the Person you
  *   started from, so every partner can be reached.
  *
  * The words this says are messages, not sentences: the interface turns them into the language in use.
  */
-export type NavKey = 'up' | 'down' | 'left' | 'right' | 'partner'
+export type NavKey = 'up' | 'down' | 'previous' | 'next' | 'partner'
 
 export interface NavMemory {
   lastKey: NavKey | null
@@ -72,13 +73,13 @@ export function move(tree: Tree, currentId: string, key: NavKey, memory: NavMemo
         memory: next({ origin: null }),
       }
     }
-    case 'left':
-    case 'right': {
+    case 'previous':
+    case 'next': {
       const order = new Map(tree.persons.map((p, i) => [p.id, i]))
       const ring = [current, ...relatives.siblings.map((s) => s.person)].sort((a, b) => order.get(a.id)! - order.get(b.id)!)
       if (ring.length === 1) return nothing('nav.noSiblings')
       const at = ring.findIndex((p) => p.id === currentId)
-      const target = ring[(at + (key === 'right' ? 1 : -1) + ring.length) % ring.length]!
+      const target = ring[(at + (key === 'next' ? 1 : -1) + ring.length) % ring.length]!
       const half = relatives.siblings.find((s) => s.person.id === target.id)?.half ?? false
       const word = half
         ? pick(target.gender, 'relation.halfBrother', 'relation.halfSister', 'relation.halfSibling')
