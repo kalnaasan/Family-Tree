@@ -1,5 +1,4 @@
 import type { Person } from '../domain/schema.ts'
-import { normalizeName, withoutArticle } from '../domain/search.ts'
 import { formatList } from '../i18n/format.ts'
 import type { Language } from '../i18n/languageType.ts'
 import type { Translate } from '../i18n/messageRef.ts'
@@ -29,18 +28,33 @@ export function displayName(person: Pick<Person, 'firstName' | 'lastName'>): str
  * article "ال" is skipped when more letters follow, so "الحسن" shows "ح" and not the "ا" every such name would share.
  */
 export function initialOf(person: Pick<Person, 'firstName'>): string {
-  const name = person.firstName.trim()
-  const parts = letters(name)
-  const firstWord = normalizeName(name.split(/\s+/)[0] ?? '')
-  const skip = withoutArticle(firstWord) !== firstWord ? 2 : 0
-  return (parts[skip] ?? parts[0] ?? '?').toUpperCase()
+  const word = letters(person.firstName.trim().split(/\s+/)[0] ?? '').filter((letter) => letter !== TATWEEL)
+  return (word[hasArticle(word) ? 2 : 0] ?? word[0] ?? '?').toUpperCase()
 }
+
+const TATWEEL = 'ـ'
+/** The first code point of a letter: its base, without the vowel marks that follow it. */
+const baseOf = (letter: string | undefined) => (letter === undefined ? '' : String.fromCodePoint(letter.codePointAt(0)!))
+
+/**
+ * Whether the first word (as letters, without tatweel) starts with the article "ال": a plain alef (or alef wasla) and
+ * a lam, and at least two letters after them. Read from the written letters, not the search-normalised ones: there
+ * "أ" and "إ" lose their hamza, so a name like "ألين" or "إلياس" would look like it had the article, and it has not.
+ */
+function hasArticle(word: readonly string[]): boolean {
+  return (baseOf(word[0]) === 'ا' || baseOf(word[0]) === 'ٱ') && baseOf(word[1]) === 'ل' && word.length >= 4
+}
+
+/** Scripts written from right to left. A presentation form of Arabic letters is in the Arabic script too. */
+const RIGHT_TO_LEFT =
+  /[\p{Script=Arabic}\p{Script=Hebrew}\p{Script=Thaana}\p{Script=Syriac}\p{Script=Nko}\p{Script=Adlam}\p{Script=Samaritan}\p{Script=Mandaic}\p{Script=Hanifi_Rohingya}\p{Script=Mende_Kikakui}]/u
+const LETTER = /\p{L}/u
 
 /** The direction a name reads, from the first letter that has one: not the page's, because the name is the Person's own. */
 export function directionOf(text: string): 'ltr' | 'rtl' {
   for (const character of text) {
-    if (/[\p{Script=Arabic}\p{Script=Hebrew}]/u.test(character)) return 'rtl'
-    if (/\p{L}/u.test(character)) return 'ltr'
+    if (RIGHT_TO_LEFT.test(character)) return 'rtl'
+    if (LETTER.test(character)) return 'ltr'
   }
   return 'ltr'
 }

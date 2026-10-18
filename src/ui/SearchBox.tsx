@@ -4,6 +4,7 @@ import { searchPersons } from '../domain/search.ts'
 import { useTreeStore } from '../domain/store.ts'
 import { useT } from '../i18n/useT.ts'
 import { displayName, lifeSpan } from '../view/text.ts'
+import { PersonLine } from './PersonLine.tsx'
 import { useUiStore } from './uiStore.ts'
 import { useLabeler } from './useLabeler.ts'
 
@@ -121,18 +122,16 @@ export function SearchBox() {
           <ul id={listId} role="listbox" aria-label={t('search.resultsLabel')}>
             {shown.map((person, n) => {
               const label = person.id === focusPersonId ? t('person.focus') : labelOf(person)
-              const text = [displayName(person), label, lifeSpan(person, t)].filter(Boolean).join(' · ')
               return (
                 <li
                   key={person.id}
                   id={optionId(n)}
-                  dir="auto"
                   role="option"
                   aria-selected={n === active}
                   onClick={() => pick(person.id)}
                   className={`flex min-h-11 cursor-pointer items-center px-3 ${n === active ? 'bg-stone-200 font-semibold' : ''}`}
                 >
-                  {text}
+                  <PersonLine name={displayName(person)} rest={[label, lifeSpan(person, t)]} />
                 </li>
               )
             })}

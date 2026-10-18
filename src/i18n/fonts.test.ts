@@ -6,7 +6,14 @@ import { describe, expect, it } from 'vitest'
 const STYLES = readFileSync('src/index.css', 'utf8')
 
 describe('fonts (spec section 13.3)', () => {
-  const stack = /body\s*\{[^}]*?font-family:\s*([^;]+);/.exec(STYLES)?.[1] ?? ''
+  // comments out first, so a brace or a font name inside one cannot be taken for the rule
+  const withoutComments = STYLES.replace(/\/\*[\s\S]*?\*\//g, '')
+  const bodyRule = /(?:^|\})\s*body\s*\{([^}]*)\}/.exec(withoutComments)?.[1] ?? ''
+  const stack = /font-family:\s*([^;]+);/.exec(bodyRule)?.[1] ?? ''
+
+  it('are set on the body', () => {
+    expect(stack).not.toBe('')
+  })
 
   it('are the fonts of the system, with nothing downloaded', () => {
     expect(STYLES).not.toMatch(/@font-face|fonts\.googleapis|@import url/)

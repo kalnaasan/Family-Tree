@@ -103,6 +103,15 @@ describe('initialOf', () => {
     it('keeps a vowel mark with its letter', () => {
       expect(initialOf({ firstName: 'الْحَسَن' })).toBe('حَ')
     })
+    it('does not mistake a name that only begins with أل or إل for the article: the hamza makes it a different letter', () => {
+      expect(initialOf({ firstName: 'ألين' })).toBe('أ')
+      expect(initialOf({ firstName: 'إلياس' })).toBe('إ')
+      expect(initialOf({ firstName: 'ألاء' })).toBe('أ')
+    })
+    it('finds the article through a stretching line or a vowel mark on the alef', () => {
+      expect(initialOf({ firstName: 'الـحسن' })).toBe('ح')
+      expect(initialOf({ firstName: 'اَلحسن' })).toBe('ح')
+    })
     it('does not skip what is not an article: the article alone, or the article and one letter', () => {
       expect(initialOf({ firstName: 'ال' })).toBe('ا')
       expect(initialOf({ firstName: 'الف' })).toBe('ا')
@@ -118,6 +127,10 @@ describe('directionOf', () => {
     ['Smith أحمد', 'ltr'],
     ['123 محمد', 'rtl'], // digits and punctuation have none
     ['(מרים)', 'rtl'],
+    ['ދިވެހި', 'rtl'], // Thaana
+    ['ܣܘܪܝܝܐ', 'rtl'], // Syriac
+    ['ߒߞߏ', 'rtl'], // N'Ko
+    ['ﻣﺤﻤﺪ', 'rtl'], // Arabic presentation forms
     ['😀', 'ltr'], // nothing has a direction: the usual one
     ['', 'ltr'],
   ])('%s reads %s', (name, direction) => {

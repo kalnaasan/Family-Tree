@@ -143,6 +143,7 @@ const SceneContents = memo(function SceneContents({
       {visible.persons.map((i) => {
         const person = persons[i]
         if (!person) return null
+        const name = displayName(person) // once: cutting a name at whole letters is not free
         return (
           <PersonNode
             key={person.id}
@@ -150,8 +151,8 @@ const SceneContents = memo(function SceneContents({
             x={layout.x[i]!}
             y={layout.y[i]!}
             bucket={bucket}
-            name={displayName(person)}
-            nameDirection={directionOf(displayName(person))}
+            name={name}
+            nameDirection={directionOf(name)}
             initial={initialOf(person)}
             life={lifeSpan(person, t)}
             lifeDirection={DIRECTION[language]}

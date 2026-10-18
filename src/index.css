@@ -35,7 +35,7 @@ body {
   .input-start {
     text-align: start;
   }
-  :where([dir='rtl']) .input-start {
+  :where(:root[dir='rtl']) .input-start {
     text-align: end;
   }
   .btn {

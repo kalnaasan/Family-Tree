@@ -10,6 +10,7 @@ import { type MessageRef, msg } from '../i18n/messageRef.ts'
 import { useT } from '../i18n/useT.ts'
 import { lifeSpan } from '../view/text.ts'
 import { AddRelativeForm } from './AddRelativeForm.tsx'
+import { PersonLine } from './PersonLine.tsx'
 import { PersonFields } from './PersonFields.tsx'
 import { Avatar, PhotoField } from './PhotoField.tsx'
 import { type PersonFormValues, toPersonFields, validate, valuesOf } from './personForm.ts'
@@ -143,12 +144,12 @@ export function PersonPanel({ personId, onClose }: Props) {
         <button
           type="button"
           onClick={() => select(relative.id)}
-          dir="auto"
           className="min-h-11 rounded-full border border-stone-400 px-4 text-start hover:bg-stone-100"
         >
-          {relative.firstName}
-          {relative.lastName ? ` ${relative.lastName}` : ''}
-          {details.length > 0 && ` · ${formatList(details, language)}`}
+          <PersonLine
+            name={[relative.firstName, relative.lastName].filter(Boolean).join(' ')}
+            rest={details.length > 0 ? [formatList(details, language)] : []}
+          />
         </button>
       </li>
     )
