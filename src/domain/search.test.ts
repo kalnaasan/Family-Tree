@@ -73,3 +73,68 @@ describe('searchPersons', () => {
     expect(names(searchPersons(same, 'berg'))).toEqual(['Eva Berg', 'Eve Berg', 'Eva Berger'])
   })
 })
+
+describe('Arabic names', () => {
+  it.each([
+    ['أحمد', 'احمد'], // alef with hamza above
+    ['إبراهيم', 'ابراهيم'], // alef with hamza below
+    ['آمنة', 'امنه'], // alef with madda, and ta marbuta
+    ['ٱبن', 'ابن'], // alef wasla
+    ['فاطمة', 'فاطمه'], // ta marbuta
+    ['على', 'علي'], // alef maqsura
+    ['مؤمن', 'مومن'], // hamza on waw
+    ['عائشة', 'عايشه'], // hamza on ya, and ta marbuta
+    ['كريـــم', 'كريم'], // tatweel
+    ['مُحَمَّد', 'محمد'], // short vowels and shadda
+    ['کریم', 'كريم'], // Persian kaf and ya
+    ['ﻣﺤﻤﺪ', 'محمد'], // presentation forms, as pasted from a PDF
+    ['ﻻ', 'لا'], // the lam-alef ligature
+  ])('folds %s to %s', (typed, folded) => {
+    expect(normalizeName(typed)).toBe(folded)
+  })
+
+  it('finds a name whichever way its letters were typed', () => {
+    const people = [person('أحمد'), person('فاطمة'), person('عائشة')]
+    expect(names(searchPersons(people, 'احمد'))).toEqual(['أحمد'])
+    expect(names(searchPersons(people, 'فاطمه'))).toEqual(['فاطمة'])
+    expect(names(searchPersons(people, 'عايشة'))).toEqual(['عائشة'])
+  })
+
+  it('never finds an Arabic name from Latin letters, or the reverse (no transliteration)', () => {
+    expect(searchPersons([person('محمد')], 'mohammed')).toEqual([])
+    expect(searchPersons([person('Maria')], 'مريم')).toEqual([])
+    // a Person who needs both has both: each part is searched in the script it is written in
+    const both = [person('محمد', 'Smith')]
+    expect(searchPersons(both, 'smith')).toHaveLength(1)
+    expect(searchPersons(both, 'محمد')).toHaveLength(1)
+  })
+
+  describe('the article "ال"', () => {
+    it('is ignored for ranking: a name word that starts with it counts as starting with what follows', () => {
+      // "بحسن" holds حسن in the middle; "الحسن" is the article plus حسن, so it comes first although added later
+      const people = [person('بحسن'), person('الحسن')]
+      expect(names(searchPersons(people, 'حسن'))).toEqual(['الحسن', 'بحسن'])
+    })
+
+    it('still matches when the article is typed', () => {
+      const people = [person('بحسن'), person('الحسن')]
+      expect(names(searchPersons(people, 'الحسن'))).toEqual(['الحسن'])
+    })
+
+    it('is not taken off a word that is just the article, or the article and one letter', () => {
+      // "الف" is ال + ف: one letter is not a word on its own, so ف in it is only a containing match
+      const people = [person('بف'), person('الف')]
+      expect(names(searchPersons(people, 'ف'))).toEqual(['بف', 'الف'])
+    })
+
+    it('matches both ways: typing the article finds a name stored without it, and the reverse', () => {
+      expect(names(searchPersons([person('حسن')], 'الحسن'))).toEqual(['حسن'])
+      expect(names(searchPersons([person('الأحمد')], 'احمد'))).toEqual(['الأحمد'])
+      expect(names(searchPersons([person('حسن'), person('الحسن')], 'الحسن'))).toEqual(['الحسن', 'حسن'])
+    })
+
+    it('does not change the stored name', () => {
+      expect(normalizeName('الحسن')).toBe('الحسن')
+    })
+  })
+})

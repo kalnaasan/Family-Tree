@@ -20,6 +20,32 @@ interface Couple {
   b: number | null
 }
 
+/** Arabic given names for the fixtures: men's and women's, with the kinds of letters search and drawing meet. */
+const ARABIC_GIVEN_NAMES = [
+  'محمد', 'أحمد', 'علي', 'عمر', 'خالد', 'يوسف', 'إبراهيم', 'حسن', 'حسين', 'مصطفى',
+  'عبد الله', 'عبد الرحمن', 'سعيد', 'ناصر', 'طارق', 'سامي', 'كريم', 'ياسر', 'زياد', 'فهد',
+  'فاطمة', 'عائشة', 'مريم', 'خديجة', 'زينب', 'نور', 'ليلى', 'سارة', 'هدى', 'سلمى',
+  'رنا', 'دانة', 'أمل', 'ريم', 'هنا', 'آمنة', 'أسماء', 'لينا', 'جميلة', 'رقية',
+] as const
+
+/** Arabic family names, several of them with the article "ال". */
+const ARABIC_FAMILY_NAMES = [
+  'الأحمد', 'القحطاني', 'الحربي', 'الشمري', 'العتيبي', 'الدوسري', 'الزهراني', 'الغامدي', 'المالكي', 'السالم',
+  'الخطيب', 'حداد', 'الساعدي', 'النجار', 'الشامي', 'المصري', 'البغدادي', 'التميمي', 'الكردي', 'الحلبي',
+] as const
+
+/**
+ * A few names that are hard for search and drawing, for tests: a plain one, a long one (it is shortened in the
+ * Tree), a mixed-script one, one with short vowels and shadda, and one that starts with the article "ال".
+ */
+export const TRICKY_ARABIC_NAMES: readonly { firstName: string; lastName?: string }[] = [
+  { firstName: 'محمد', lastName: 'الأحمد' },
+  { firstName: 'عبد الرحمن', lastName: 'بن عوف الحربي' },
+  { firstName: 'أحمد', lastName: 'Smith' },
+  { firstName: 'مُحَمَّد', lastName: 'الخَطِيب' },
+  { firstName: 'الحسن' },
+]
+
 /**
  * A realistic family Tree of exactly `size` people, the same for the same seed. Used by the layout tests, the
  * benchmarks and the large-tree performance tests (sizes 15 / 150 / 500 / 1,000 / 5,000).
@@ -28,9 +54,15 @@ interface Couple {
  * up (some partners are ended, some marry-ins are existing unpartnered relatives so the families connect), some
  * people have a second, ended partnership with children (half-siblings), a few raise children alone. The Focus
  * person is the most recently born child.
+ *
+ * `names: 'arabic'` gives everyone an Arabic first and last name from the lists above, picked deterministically
+ * from the seed by a random stream of its own, so the Tree has exactly the same shape as with the default names.
  */
-export function generateTree(size: number, seed = 1): Tree {
+export function generateTree(size: number, seed = 1, options: { names?: 'default' | 'arabic' } = {}): Tree {
   const random = createRandom(seed)
+  const nameRandom = createRandom(seed ^ 0x5bd1e995)
+  const arabic = options.names === 'arabic'
+  const pickOf = <T>(list: readonly T[]): T => list[Math.floor(nameRandom() * list.length)]!
   const persons: Person[] = []
   const parentLinks: ParentLink[] = []
   const partnerships: Partnership[] = []
@@ -45,11 +77,13 @@ export function generateTree(size: number, seed = 1): Tree {
     const r = random()
     return r < 0.48 ? 'female' : r < 0.96 ? 'male' : r < 0.98 ? 'other' : 'unknown'
   }
-  const addPerson = (generation: number): number => {
+  /** `family`: the family name a child takes from a parent (Arabic names); anyone else gets one at random. */
+  const addPerson = (generation: number, family?: string): number => {
     const index = persons.length
     persons.push({
       id: uuid(index + 1),
-      firstName: `P${index + 1}`,
+      firstName: arabic ? pickOf(ARABIC_GIVEN_NAMES) : `P${index + 1}`,
+      ...(arabic ? { lastName: family ?? pickOf(ARABIC_FAMILY_NAMES) } : {}),
       gender: pickGender(),
       deceased: generation < 2 && random() < 0.7,
     })
@@ -64,7 +98,7 @@ export function generateTree(size: number, seed = 1): Tree {
     })
   }
   const addChild = (couple: Couple, generation: number): number => {
-    const child = addPerson(generation)
+    const child = addPerson(generation, persons[couple.a]?.lastName)
     for (const parent of [couple.a, couple.b]) {
       if (parent === null) continue
       parentLinks.push({ childId: persons[child]!.id, parentId: persons[parent]!.id, kind: 'birth' })
