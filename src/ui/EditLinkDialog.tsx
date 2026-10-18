@@ -33,14 +33,14 @@ const inputClass = 'mt-1 block min-h-11 w-full rounded border border-line-strong
 
 const nameOf = (tree: Tree, id: string) => tree.persons.find((p) => p.id === id)?.firstName ?? ''
 
-/** Whether the Tree refuses this kind for the Parent link: the child would have three birth parents. */
+/** Whether the Tree refuses this kind for the Parent link: the child would have three birth parents. Any other
+ * refusal is not a reason to hide a choice: Save reports it. */
 function refusesKind(tree: Tree, link: ParentLink, kind: ParentLinkKind): boolean {
   try {
     setParentLinkKind(tree, link.childId, link.parentId, kind)
     return false
   } catch (error) {
-    if (error instanceof IntegrityError && error.rule === 'third-birth-parent') return true
-    throw error
+    return error instanceof IntegrityError && error.rule === 'third-birth-parent'
   }
 }
 
@@ -67,6 +67,8 @@ export function EditLinkDialog({ target, onClose }: { target: LinkTarget; onClos
   useEffect(() => {
     const dialog = dialogRef.current
     if (dialog && !dialog.open) dialog.showModal()
+    // the choice that is on now, so the keyboard starts where the answer is
+    dialog?.querySelector<HTMLInputElement>('input:checked:not(:disabled)')?.focus()
     return () => dialog?.close()
   }, [])
 
@@ -152,7 +154,6 @@ function ParentLinkForm({ tree, link, onClose }: { tree: Tree; link: ParentLink;
                   disabled={refused}
                   aria-describedby={refused ? `${id}-${value}-reason` : undefined}
                   onChange={() => setKind(value)}
-                  autoFocus={link.kind === value}
                   className="size-5"
                 />
                 {t(label)}
@@ -219,7 +220,6 @@ function PartnershipForm({ partnership, onClose }: { partnership: Partnership; o
               name={`${id}-status`}
               checked={status === value}
               onChange={() => setStatus(value)}
-              autoFocus={partnership.status === value}
               className="size-5"
             />
             {t(label)}

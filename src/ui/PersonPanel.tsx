@@ -145,7 +145,7 @@ export function PersonPanel({ personId, onClose }: Props) {
   const relativeButton = (relative: Person, note?: string, link?: LinkTarget) => {
     const details = [labelOf(relative), note].filter((part): part is string => Boolean(part))
     return (
-      <li key={relative.id} className="flex items-center gap-1">
+      <li key={relative.id} className="flex flex-wrap items-center gap-1">
         <button
           type="button"
           onClick={() => select(relative.id)}

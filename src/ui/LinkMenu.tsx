@@ -51,6 +51,8 @@ export function LinkMenu({ target, name, onRemoved }: Props) {
       event.stopPropagation()
       close()
     } else if (event.key === 'Tab') {
+      // the focused item goes away with the menu: keep the keyboard on the button, Tab moves on from there
+      buttonRef.current?.focus()
       setOpen(false)
       return
     } else return
@@ -64,8 +66,14 @@ export function LinkMenu({ target, name, onRemoved }: Props) {
       target.kind === 'parent'
         ? [nameOf(target.childId), nameOf(target.parentId)]
         : (store.partnerships.find((p) => p.id === target.id)?.personIds.map(nameOf) ?? ['', ''])
-    if (target.kind === 'parent') store.removeParentLink(target.childId, target.parentId)
-    else store.removePartnership(target.id)
+    try {
+      if (target.kind === 'parent') store.removeParentLink(target.childId, target.parentId)
+      else store.removePartnership(target.id)
+    } catch {
+      // the link is already gone (another tab changed it): there is nothing left to remove
+      setOpen(false)
+      return
+    }
     useUiStore
       .getState()
       .showToast(
@@ -79,7 +87,7 @@ export function LinkMenu({ target, name, onRemoved }: Props) {
   const item = 'flex min-h-11 w-full items-center px-4 text-start hover:bg-stone-100 focus:bg-stone-100'
 
   return (
-    <span ref={rootRef} className="relative">
+    <span ref={rootRef} className="contents">
       <button
         ref={buttonRef}
         type="button"
@@ -95,7 +103,7 @@ export function LinkMenu({ target, name, onRemoved }: Props) {
         <div
           role="menu"
           onKeyDown={onMenuKeyDown}
-          className="absolute end-0 top-full z-10 mt-1 w-max min-w-40 overflow-hidden rounded border border-stone-400 bg-white shadow-lg"
+          className="w-full overflow-hidden rounded border border-stone-400 bg-white"
         >
           <button
             type="button"
