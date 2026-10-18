@@ -38,6 +38,8 @@ export class ViewController {
   private bounds: Rect = { x0: 0, y0: 0, x1: 1, y1: 1 }
   private limits: ZoomLimits = { min: ZOOM_FLOOR, max: MAX_ZOOM }
   private frame = 0
+  /** Where a running animation ends; undefined when none runs. */
+  private heading: View | undefined
   /** Height of a bottom sheet over the screen; the view may go further past the Tree's edge to clear it. */
   private covered = 0
 
@@ -47,6 +49,11 @@ export class ViewController {
 
   get ready(): boolean {
     return this.size.width > 0 && this.size.height > 0
+  }
+
+  /** Where the view is heading: the end of a running animation, else the view itself. */
+  get destination(): View {
+    return this.heading ?? this.view
   }
 
   get zoomRange(): ZoomLimits {
@@ -118,6 +125,7 @@ export class ViewController {
       return
     }
     this.stop()
+    this.heading = end
     const start = this.view
     const from = worldCenter(start, this.size)
     const to = worldCenter(end, this.size)
@@ -128,6 +136,7 @@ export class ViewController {
       const k = Math.exp(Math.log(start.k) + (Math.log(end.k) - Math.log(start.k)) * e)
       this.set(centerOn({ x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e }, k, this.size))
       this.frame = t < 1 ? requestAnimationFrame(step) : 0
+      if (!this.frame) this.heading = undefined
     }
     this.frame = requestAnimationFrame(step)
   }
@@ -143,6 +152,7 @@ export class ViewController {
   private stop(): void {
     if (this.frame) cancelAnimationFrame(this.frame)
     this.frame = 0
+    this.heading = undefined
   }
 
   private set(view: View): void {

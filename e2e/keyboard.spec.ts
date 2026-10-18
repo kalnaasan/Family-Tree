@@ -225,9 +225,7 @@ test.describe('focus is visible, and the view follows it', () => {
     await expect(personButton(page, 'Karl').locator('.cursor-ring')).toBeHidden()
   })
 
-  test('on a big tree, moving keeps the person on screen', async ({ page }, testInfo) => {
-    // focus is sometimes left on the page body here in WebKit with Arabic (issue 87)
-    test.fixme(testInfo.project.name === 'webkit-ar', 'focus is lost on a big tree in WebKit with Arabic (issue 87)')
+  test('on a big tree, moving keeps the person on screen', async ({ page }) => {
     await openWithFixture(page, 500)
     const focusId = (await page.evaluate(() =>
       document.querySelector('[data-person-id][tabindex="0"]')?.getAttribute('data-person-id'),
