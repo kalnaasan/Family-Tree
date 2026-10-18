@@ -7,6 +7,9 @@ export interface Relatives {
   partners: { person: Person; status: PartnershipStatus }[]
   siblings: { person: Person; half: boolean }[]
   children: Person[]
+  /** Parents and children by a `step` Parent link: not blood relatives, but the panel lists them so the link can be edited. */
+  stepParents: Person[]
+  stepChildren: Person[]
 }
 
 export function relativesOf(tree: Tree, id: string): Relatives {
@@ -20,6 +23,11 @@ export function relativesOf(tree: Tree, id: string): Relatives {
     .map((l) => byId.get(l.childId))
     .filter((p): p is Person => p !== undefined)
 
+  const stepLinks = tree.parentLinks.filter((l) => l.kind === 'step')
+  const known = (ids: string[]) => ids.map((i) => byId.get(i)).filter((p): p is Person => p !== undefined)
+  const stepParents = known(stepLinks.filter((l) => l.childId === id).map((l) => l.parentId))
+  const stepChildren = known(stepLinks.filter((l) => l.parentId === id).map((l) => l.childId))
+
   const siblingIds = new Set<string>()
   for (const parentId of parentIds) {
     for (const link of blood) if (link.parentId === parentId && link.childId !== id) siblingIds.add(link.childId)
@@ -32,5 +40,5 @@ export function relativesOf(tree: Tree, id: string): Relatives {
     return { person: byId.get(siblingId)!, half }
   })
 
-  return { parents, partners: partnersOf(tree, id), siblings, children }
+  return { parents, partners: partnersOf(tree, id), siblings, children, stepParents, stepChildren }
 }

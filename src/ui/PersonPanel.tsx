@@ -10,7 +10,9 @@ import { type MessageRef, msg } from '../i18n/messageRef.ts'
 import { useT } from '../i18n/useT.ts'
 import { lifeSpan } from '../view/text.ts'
 import { AddRelativeForm } from './AddRelativeForm.tsx'
+import type { LinkTarget } from './EditLinkDialog.tsx'
 import { LinkExistingForm } from './LinkExistingForm.tsx'
+import { LinkMenu } from './LinkMenu.tsx'
 import { PersonLine } from './PersonLine.tsx'
 import { PersonFields } from './PersonFields.tsx'
 import { Avatar, PhotoField } from './PhotoField.tsx'
@@ -139,10 +141,11 @@ export function PersonPanel({ personId, onClose }: Props) {
 
   const inForm = mode.kind === 'add' || mode.kind === 'link'
   const relationWord = (relation: Relation) => t(RELATION_KEY[relation])
-  const relativeButton = (relative: Person, note?: string) => {
+  /** A chip for one relative; a parent, child or partner chip also has the link menu (a derived sibling has none). */
+  const relativeButton = (relative: Person, note?: string, link?: LinkTarget) => {
     const details = [labelOf(relative), note].filter((part): part is string => Boolean(part))
     return (
-      <li key={relative.id}>
+      <li key={relative.id} className="flex items-center gap-1">
         <button
           type="button"
           onClick={() => select(relative.id)}
@@ -153,8 +156,15 @@ export function PersonPanel({ personId, onClose }: Props) {
             rest={details.length > 0 ? [formatList(details, language)] : []}
           />
         </button>
+        {link && !readOnly && <LinkMenu target={link} name={relative.firstName} onRemoved={backToOverview} />}
       </li>
     )
+  }
+  const parentOf = (parent: Person): LinkTarget => ({ kind: 'parent', childId: person.id, parentId: parent.id })
+  const childOf = (child: Person): LinkTarget => ({ kind: 'parent', childId: child.id, parentId: person.id })
+  const partnershipWith = (other: Person): LinkTarget | undefined => {
+    const found = partnerships.find((p) => p.personIds.includes(person.id) && p.personIds.includes(other.id))
+    return found && { kind: 'partnership', id: found.id }
   }
 
   const onDelete = () => {
@@ -273,12 +283,19 @@ export function PersonPanel({ personId, onClose }: Props) {
           {GROUPS.map((group) => {
             const entries =
               group.key === 'parents'
-                ? relatives.parents.map((p) => relativeButton(p))
+                ? [
+                    ...relatives.parents.map((p) => relativeButton(p, undefined, parentOf(p))),
+                    ...relatives.stepParents.map((p) => relativeButton(p, t('panel.noteStep'), parentOf(p))),
+                  ]
                 : group.key === 'partners'
-                  ? relatives.partners.map((p) => relativeButton(p.person, p.status === 'ended' ? t('panel.noteFormer') : undefined))
+                  ? relatives.partners.map((p) => relativeButton(p.person, p.status === 'ended' ? t('panel.noteFormer') : undefined, partnershipWith(p.person)),
+                    )
                   : group.key === 'siblings'
                     ? relatives.siblings.map((s) => relativeButton(s.person, s.half ? t('panel.noteHalf') : undefined))
-                    : relatives.children.map((c) => relativeButton(c))
+                    : [
+                        ...relatives.children.map((c) => relativeButton(c, undefined, childOf(c))),
+                        ...relatives.stepChildren.map((c) => relativeButton(c, t('panel.noteStep'), childOf(c))),
+                      ]
             return (
               <section key={group.key} aria-labelledby={`group-${group.key}`} className="mt-5">
                 <h3 id={`group-${group.key}`} className="font-semibold">
