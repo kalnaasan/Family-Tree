@@ -105,4 +105,20 @@ test.describe('on a phone', () => {
       expect(box.width).toBeGreaterThanOrEqual(44)
     }
   })
+
+  test('the menu, and then the dialog, stay inside the screen', async ({ page }) => {
+    await openWithTree(page, withFather())
+    await openPerson(page, 'Ben')
+    await panel(page).getByRole('button', { name: words('panel.details') }).click()
+    const overflow = () =>
+      page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    await menuButton(page, 'Karl').click()
+    expect(await overflow()).toBeLessThanOrEqual(0)
+    await menuItem(page, 'panel.editLink').click()
+    await expect(dialog(page)).toBeVisible()
+    expect(await overflow()).toBeLessThanOrEqual(0)
+    const box = (await dialog(page).boundingBox())!
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width).toBeLessThanOrEqual(390)
+  })
 })
