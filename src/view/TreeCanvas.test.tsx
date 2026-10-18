@@ -5,6 +5,7 @@ import { deriveRelationships } from '../domain/labels.ts'
 import type { Tree } from '../domain/schema.ts'
 import { addParentLink, addPartnership, addPerson, emptyTree } from '../domain/tree.ts'
 import { useLanguageStore } from '../i18n/language.ts'
+import { ar, DICTIONARIES, en } from '../i18n/messages.ts'
 import { generateTree } from '../layout/fixtures.ts'
 import { layoutTree } from '../layout/layoutTree.ts'
 import { NODE_RADIUS, ROOTS_DEPTH, TRUNK_HEIGHT } from './geometry.ts'
@@ -58,7 +59,7 @@ function mountTree(tree: Tree, options: { focus?: boolean } = {}) {
     </Profiler>,
   )
   settle()
-  const frame = screen.getByRole('group', { name: 'Family tree' })
+  const frame = screen.getByRole('group', { name: DICTIONARIES[useLanguageStore.getState().language]['tree.label'] })
   return {
     tree,
     layout,
@@ -352,9 +353,9 @@ describe('names drawn in their own direction (spec section 13.3)', () => {
   afterEach(() => useLanguageStore.setState({ language: 'en' }))
 
   /** Zooms right in on the Focus person, so the names and dates are drawn. */
-  function zoomIn(surface: HTMLElement) {
+  function zoomIn(surface: HTMLElement, back = en['tree.backToFocus']) {
     act(() => void surface.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -50000 })))
-    fireEvent.click(screen.getByRole('button', { name: 'Back to Focus person' }))
+    fireEvent.click(screen.getByRole('button', { name: back }))
     settle(300)
   }
 
@@ -363,7 +364,7 @@ describe('names drawn in their own direction (spec section 13.3)', () => {
     let tree = addPerson(emptyTree(), { id: id(1), firstName: 'محمد', lastName: 'الأحمد', birthDate: '1930', deathDate: '2001' })
     tree = addPerson(tree, { id: id(2), firstName: 'Maria', lastName: 'Keller' })
     const { frame, surface } = mountTree({ ...tree, focusPersonId: id(1) })
-    zoomIn(surface)
+    zoomIn(surface, ar['tree.backToFocus'])
     const text = (words: string) => [...frame.querySelectorAll('text')].find((line) => line.textContent?.includes(words))
     expect(text('محمد')).toHaveAttribute('direction', 'rtl')
     expect(text('Maria')).toHaveAttribute('direction', 'ltr')
