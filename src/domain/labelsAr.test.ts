@@ -34,8 +34,8 @@ describe('Arabic relationship labels', () => {
     it('a shared father, a shared mother, and neither known', () => {
       expect(row(blood(1, 1, { half: true, sharedParent: 'male' }))).toEqual(['أخ لأب', 'أخت لأب', 'أخ/أخت لأب'])
       expect(row(blood(1, 1, { half: true, sharedParent: 'female' }))).toEqual(['أخ لأم', 'أخت لأم', 'أخ/أخت لأم'])
-      expect(row(blood(1, 1, { half: true, sharedParent: 'unknown' }))).toEqual(['أخ غير شقيق', 'أخت غير شقيقة', 'أخ/أخت غير شقيق'])
-      expect(row(blood(1, 1, { half: true }))).toEqual(['أخ غير شقيق', 'أخت غير شقيقة', 'أخ/أخت غير شقيق'])
+      expect(row(blood(1, 1, { half: true, sharedParent: 'unknown' }))).toEqual(['أخ غير شقيق', 'أخت غير شقيقة', 'أخ/أخت غير شقيق/شقيقة'])
+      expect(row(blood(1, 1, { half: true }))).toEqual(['أخ غير شقيق', 'أخت غير شقيقة', 'أخ/أخت غير شقيق/شقيقة'])
     })
   })
 

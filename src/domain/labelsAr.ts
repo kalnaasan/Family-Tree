@@ -23,8 +23,13 @@ const RELATIVE: Words = ['قريب', 'قريبة', 'قريب/قريبة']
 
 const ORDINALS = ['', 'الأولى', 'الثانية', 'الثالثة', 'الرابعة', 'الخامسة', 'السادسة', 'السابعة', 'الثامنة', 'التاسعة', 'العاشرة']
 
-/** "of the third degree", counted as Arabic inheritance law counts: a parent is the first, a grandparent the second. */
-const degree = (n: number) => ORDINALS[n] ?? String(n)
+/**
+ * "of the third degree". For ancestors and descendants it is counted as Arabic inheritance law counts: a parent is
+ * the first degree, a grandparent the second, a great-grandparent the third. For an uncle, a nephew or a cousin it
+ * is the number of generations beyond the first step (a great-uncle and a second cousin are both "the second"; the
+ * word before it tells them apart). Ten and below are words, above that the digits are written.
+ */
+const degree = (n: number) => ORDINALS[n] || String(n)
 
 /** The same three words, each with its degree: "جد من الدرجة الثالثة". */
 const withDegree = (words: Words, n: number): Words => [
@@ -80,7 +85,7 @@ function blood(d: Blood): Words {
     if (!d.half) return ['أخ', 'أخت', 'أخ/أخت']
     if (d.sharedParent === 'male') return ['أخ لأب', 'أخت لأب', 'أخ/أخت لأب']
     if (d.sharedParent === 'female') return ['أخ لأم', 'أخت لأم', 'أخ/أخت لأم']
-    return ['أخ غير شقيق', 'أخت غير شقيقة', 'أخ/أخت غير شقيق']
+    return ['أخ غير شقيق', 'أخت غير شقيقة', 'أخ/أخت غير شقيق/شقيقة']
   }
   if (d.down === 1) return uncleOrAunt(d)
   if (d.up === 1) return nephewOrNiece(d)
