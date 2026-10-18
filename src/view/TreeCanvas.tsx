@@ -305,6 +305,14 @@ export function TreeCanvas({
   }, [layout, cursorId, focusIndex])
   const cursorPersonId = cursorIndex >= 0 ? layout.ids[cursorIndex]! : null
 
+  /** Puts real focus on a Person once the cursor is there: at once if it already is, else after the render that moves it. */
+  const focusWhenCursor = (personId: string | null) => {
+    if (personId && personId === cursorPersonId) {
+      focusAfterRender.current = null
+      frameRef.current?.querySelector<SVGElement>(`[data-person-id="${personId}"]`)?.focus({ preventScroll: true })
+    } else focusAfterRender.current = personId
+  }
+
   /** Screen readers only hear a live region when its text changes, so a repeated message gets an invisible tail. */
   const announce = (text: string) => setAnnouncement((previous) => (previous === text ? `${text}​` : text))
 
@@ -419,7 +427,7 @@ export function TreeCanvas({
     const free = { width: size.width, height: Math.max(1, size.height - covered) }
     // judged from where a running pan ends, not from where it is now: a key pressed in the middle of one may need its own
     const safe = growRect(visibleRect(controller.destination, free), -0.15)
-    if (x < safe.x0 || x > safe.x1 || y < safe.y0 || y > safe.y1) controller.show({ x, y }, controller.view.k, covered)
+    if (x < safe.x0 || x > safe.x1 || y < safe.y0 || y > safe.y1) controller.show({ x, y }, controller.destination.k, covered)
   }
 
   // The view moves so the open Person is never hidden behind the sheet, also when the sheet grows or shrinks.
@@ -470,7 +478,7 @@ export function TreeCanvas({
     }
     announce(renderMessage(t, describeMove(tree, result)))
     setCursorId(result.target.id)
-    focusAfterRender.current = result.target.id
+    focusWhenCursor(result.target.id)
     ensureVisible(result.target.id)
   }
 
@@ -499,7 +507,7 @@ export function TreeCanvas({
     else if (event.key === '0') controller.fit()
     else if (event.key === 'Home') {
       showFocus()
-      focusAfterRender.current = focusPersonId
+      focusWhenCursor(focusPersonId)
       const name = focusIndex >= 0 ? persons[focusIndex]?.firstName : undefined
       announce(name ? t('tree.homeFocus', { name }) : t('tree.noFocus'))
     } else if (event.shiftKey && event.key === 'ArrowLeft') controller.panBy(KEY_PAN_PX, 0)
