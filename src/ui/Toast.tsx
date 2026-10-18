@@ -22,7 +22,7 @@ export function Toast() {
   }, [toast, clear])
 
   return (
-    <div aria-live="polite" className="pointer-events-none fixed bottom-4 left-1/2 z-40 -translate-x-1/2 px-4">
+    <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-4 z-40 mx-auto w-fit px-4">
       {toast && (
         <p className="pointer-events-auto flex items-center gap-3 rounded bg-stone-900 px-4 py-2 text-white shadow-lg">
           <span>

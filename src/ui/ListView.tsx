@@ -132,7 +132,10 @@ function Item({ person, depth, model, words }: { person: Person; depth: number; 
             onClick={() => setOpen(!open)}
             className="grid size-11 shrink-0 place-items-center rounded hover:bg-stone-100"
           >
-            <span aria-hidden="true">{open ? '▾' : '▸'}</span>
+            {/* the "closed" triangle points the way the page reads, so it is flipped when that is right to left */}
+            <span aria-hidden="true" className="inline-block rtl:-scale-x-100">
+              {open ? '▾' : '▸'}
+            </span>
           </button>
         ) : (
           <span aria-hidden="true" className="size-11 shrink-0" />

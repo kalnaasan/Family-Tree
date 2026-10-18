@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { deriveRelationships } from '../domain/labels.ts'
 import type { Tree } from '../domain/schema.ts'
 import { addParentLink, addPartnership, addPerson, emptyTree } from '../domain/tree.ts'
-import { useLanguageStore } from '../i18n/language.ts'
 import { generateTree } from '../layout/fixtures.ts'
 import { layoutTree } from '../layout/layoutTree.ts'
 import { NODE_RADIUS, ROOTS_DEPTH, TRUNK_HEIGHT } from './geometry.ts'
@@ -349,7 +348,9 @@ function threeSiblings(): Tree {
 }
 
 describe('the sibling keys follow the direction the page reads (spec section 13.2)', () => {
-  afterEach(() => useLanguageStore.setState({ language: 'en' }))
+  // the page's own `dir`, which is what the Language sets on <html>
+  const readRightToLeft = () => document.documentElement.setAttribute('dir', 'rtl')
+  afterEach(() => document.documentElement.setAttribute('dir', 'ltr'))
 
   it('left to right: ArrowRight is the next sibling, ArrowLeft the previous', () => {
     const { frame } = mountTree(threeSiblings())
@@ -362,7 +363,7 @@ describe('the sibling keys follow the direction the page reads (spec section 13.
   })
 
   it('right to left: the arrow pointing the way Arabic reads, ArrowLeft, is the next sibling', () => {
-    useLanguageStore.setState({ language: 'ar' })
+    readRightToLeft()
     const { frame } = mountTree(threeSiblings())
     cursor(frame).focus()
     press('ArrowLeft')
@@ -373,7 +374,7 @@ describe('the sibling keys follow the direction the page reads (spec section 13.
   })
 
   it('panning with Shift and an arrow stays physical in both directions', () => {
-    useLanguageStore.setState({ language: 'ar' })
+    readRightToLeft()
     const { frame } = mountTree(threeSiblings())
     cursor(frame).focus()
     const before = frame.getAttribute('data-zoom')

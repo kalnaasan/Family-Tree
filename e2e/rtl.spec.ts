@@ -1,5 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import { type Page, expect, test } from '@playwright/test'
+import type { Tree } from '../src/domain/schema.ts'
+import { addParentLink, addPerson, emptyTree } from '../src/domain/tree.ts'
 import { generateTree } from '../src/layout/fixtures.ts'
 import { frame, openPerson, panel, personButton } from './helpers.ts'
 import { openWithTree } from './seed.ts'
@@ -17,6 +19,18 @@ const centreOf = async (locator: ReturnType<Page['locator']>) => {
 }
 
 const tree = () => generateTree(12, 1)
+
+const id = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`
+
+/** Karl (1) and Maria (2), and their children in the order they were added: Ben (3, the Focus person), Anna (4), Zoe (5). */
+function threeSiblings(): Tree {
+  let family = ['Karl', 'Maria', 'Ben', 'Anna', 'Zoe'].reduce(
+    (t, firstName, i) => addPerson(t, { id: id(i + 1), firstName }),
+    emptyTree(),
+  )
+  for (const child of [3, 4, 5]) family = addParentLink(addParentLink(family, id(child), id(1)), id(child), id(2))
+  return { ...family, focusPersonId: id(3) }
+}
 
 test.describe('desktop', () => {
   test.use({ viewport: { width: 1280, height: 800 } })
@@ -67,6 +81,49 @@ test.describe('desktop', () => {
     const after = await place()
     expect(after!.x).toBeCloseTo(before!.x, 0)
     expect(after!.y).toBeCloseTo(before!.y, 0)
+  })
+
+  test('the list\'s closed triangle points the way the page reads', async ({ page }) => {
+    await openWithTree(page, generateTree(60, 1))
+    await page.getByRole('button', { name: 'List view' }).click()
+    const glyph = () =>
+      page
+        .getByRole('button', { name: /^Expand / })
+        .first()
+        .locator('span')
+        .evaluate((span) => getComputedStyle(span).scale)
+    expect(await glyph()).toBe('none')
+    await readRightToLeft(page)
+    expect(await glyph()).toMatch(/^-1\b/)
+  })
+
+  test('a toast stays in the middle of the screen in both directions', async ({ page }) => {
+    await openWithTree(page, tree())
+    await openPerson(page, 'P1')
+    await page.getByRole('button', { name: 'Make Focus person' }).click()
+    await page.getByRole('group', { name: 'History' }).getByRole('button', { name: 'Undo' }).click()
+    const toast = page.locator('div[aria-live="polite"].fixed')
+    await expect(toast).toContainText('Undid:')
+    expect(Math.abs((await centreOf(toast)) - 640)).toBeLessThan(2)
+    await readRightToLeft(page)
+    expect(Math.abs((await centreOf(toast)) - 640)).toBeLessThan(2)
+  })
+
+  test('the sibling keys follow the direction: ArrowRight is next, and under right-to-left ArrowLeft is', async ({ page }) => {
+    await openWithTree(page, threeSiblings())
+    await personButton(page, 'Ben').focus()
+    await page.keyboard.press('ArrowRight')
+    await expect(personButton(page, 'Anna')).toBeFocused()
+    await page.keyboard.press('ArrowLeft')
+    await expect(personButton(page, 'Ben')).toBeFocused()
+    await readRightToLeft(page)
+    await page.keyboard.press('ArrowLeft')
+    await expect(personButton(page, 'Anna')).toBeFocused()
+    await page.keyboard.press('ArrowRight')
+    await expect(personButton(page, 'Ben')).toBeFocused()
+    // Shift with an arrow pans the view whichever way the page reads: it does not move between people
+    await page.keyboard.press('Shift+ArrowLeft')
+    await expect(personButton(page, 'Ben')).toBeFocused()
   })
 
   test('axe finds nothing when reading right to left: tree, open Person, list and Settings', async ({ page }) => {

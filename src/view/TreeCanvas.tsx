@@ -3,7 +3,7 @@ import { relativesOf } from '../domain/groups.ts'
 import type { Relationship } from '../domain/labels.ts'
 import { type NavKey, type NavMemory, describeMove, freshMemory, move } from '../domain/navigation.ts'
 import type { ParentLink, Partnership, Person } from '../domain/schema.ts'
-import { DIRECTION, useLanguageStore } from '../i18n/language.ts'
+import { useLanguageStore } from '../i18n/language.ts'
 import { renderMessage } from '../i18n/messageRef.ts'
 import { useT } from '../i18n/useT.ts'
 import type { TreeLayout } from '../layout/layoutTree.ts'
@@ -226,6 +226,8 @@ function navKeyFor(key: string, direction: 'ltr' | 'rtl'): NavKey | undefined {
     case 'p':
     case 'P':
       return 'partner'
+    default:
+      return undefined
   }
 }
 
@@ -285,7 +287,6 @@ export function TreeCanvas({
   }, [selectedPersonId, selectedIndex, links, persons, focusPersonId])
 
   const t = useT()
-  const direction = useLanguageStore((s) => DIRECTION[s.language])
   // The keyboard's place in the tree: the one Person in the tab order. It starts at the Focus person.
   const [cursorId, setCursorId] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState('')
@@ -476,6 +477,8 @@ export function TreeCanvas({
     const onPerson = target?.closest('[data-person-id]') ?? null
 
     // Shift with an arrow pans; Shift with a letter is just a capital letter.
+    // the direction the page reads is the `dir` it has now (the Language sets it on <html>), not a copy of the setting
+    const direction = frameRef.current?.closest('[dir]')?.getAttribute('dir') === 'rtl' ? 'rtl' : 'ltr'
     const navKey = navKeyFor(event.key, direction)
     if (navKey && (!event.shiftKey || navKey === 'partner')) moveCursor(navKey)
     else if ((event.key === 'Enter' || event.key === ' ') && onPerson) {
