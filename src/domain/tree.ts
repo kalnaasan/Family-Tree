@@ -78,6 +78,12 @@ export function removeParentLink(tree: Tree, childId: string, parentId: string):
   return checked({ ...tree, parentLinks })
 }
 
+export function setParentLinkKind(tree: Tree, childId: string, parentId: string, kind: ParentLinkKind): Tree {
+  if (!tree.parentLinks.some((l) => l.childId === childId && l.parentId === parentId)) throw new Error('No such Parent link')
+  const parentLinks = tree.parentLinks.map((l) => (l.childId === childId && l.parentId === parentId ? { ...l, kind } : l))
+  return checked({ ...tree, parentLinks })
+}
+
 export interface NewPartnership {
   id?: string
   personIds: [string, string]

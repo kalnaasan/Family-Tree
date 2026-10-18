@@ -1,5 +1,6 @@
 import { type MessageParam, type MessageRef, msg } from '../i18n/messageRef.ts'
 import type { MessageKey } from '../i18n/messages.ts'
+import { IntegrityError } from './integrity.ts'
 import type { Gender, PartnershipStatus, Person, Tree } from './schema.ts'
 import { type NewPerson, addParentLink, addPartnership, addPerson } from './tree.ts'
 
@@ -164,29 +165,40 @@ function siblingParentIds(tree: Tree, anchorId: string, answers: RelativeAnswers
   return parents.map((p) => p.id)
 }
 
-function otherParentId(tree: Tree, anchorId: string, answers: RelativeAnswers): string | null {
+function otherParentId(tree: Tree, anchorId: string, answers: RelativeAnswers, personId?: string): string | null {
   if (answers.otherParentId !== undefined) {
-    if (answers.otherParentId === anchorId) throw new Error('A child cannot have the same Person as both parents')
+    if (answers.otherParentId === anchorId || answers.otherParentId === personId) throw new Error('A child cannot have the same Person as both parents')
     if (answers.otherParentId !== null) personOf(tree, answers.otherParentId)
     return answers.otherParentId
   }
   const question = questionFor(tree, anchorId, 'child')
-  return question.kind === 'child-other-parent' ? question.defaultParentId : null
+  const fallback = question.kind === 'child-other-parent' ? question.defaultParentId : null
+  // a linked child who is the anchor's own partner is not made their own other parent
+  return fallback === personId ? null : fallback
 }
 
-export function addRelative(tree: Tree, request: AddRelativeRequest): { tree: Tree; personId: string } {
-  const { anchorId, relation, person } = request
-  const answers = request.answers ?? {}
-  personOf(tree, anchorId)
-  const personId = crypto.randomUUID()
-  let next = addPerson(tree, { gender: RELATIONS[relation].gender, ...person, id: personId })
+const hasParentLink = (tree: Tree, childId: string, parentId: string) =>
+  tree.parentLinks.some((l) => l.childId === childId && l.parentId === parentId)
 
+const arePartners = (tree: Tree, a: string, b: string) =>
+  tree.partnerships.some((p) => p.personIds.includes(a) && p.personIds.includes(b))
+
+/** The links that make `personId`, already in the Tree, the anchor's `relation`. Shared by adding and linking. */
+export function relate(
+  tree: Tree,
+  anchorId: string,
+  relation: Relation,
+  personId: string,
+  answers: RelativeAnswers,
+  unnamedParentName: string,
+): Tree {
+  let next = tree
   switch (RELATIONS[relation].kind) {
     case 'parent': {
       const existing = birthParentsOf(tree, anchorId)
       next = addParentLink(next, anchorId, personId)
       const answer = answers.parentPartnership ?? 'current'
-      if (existing.length === 1 && answer !== 'none') {
+      if (existing.length === 1 && answer !== 'none' && !arePartners(tree, existing[0]!.id, personId)) {
         next = addPartnership(next, { personIds: [existing[0]!.id, personId], status: answer })
       }
       break
@@ -195,11 +207,16 @@ export function addRelative(tree: Tree, request: AddRelativeRequest): { tree: Tr
       let parentIds = siblingParentIds(tree, anchorId, answers)
       if (parentIds.length === 0) {
         const parentId = crypto.randomUUID()
-        next = addPerson(next, { id: parentId, firstName: request.unnamedParentName })
+        next = addPerson(next, { id: parentId, firstName: unnamedParentName })
         next = addParentLink(next, anchorId, parentId)
         parentIds = [parentId]
       }
-      for (const parentId of parentIds) next = addParentLink(next, personId, parentId)
+      // the anchor's own parent cannot be their sibling
+      if (parentIds.includes(personId)) throw new IntegrityError('parent-cycle', 'A parent cannot be their child’s sibling')
+      // someone who already shares a parent only gains the missing links
+      const missing = parentIds.filter((parentId) => !hasParentLink(tree, personId, parentId))
+      if (missing.length === 0) throw new IntegrityError('duplicate-link', 'They already share these parents')
+      for (const parentId of missing) next = addParentLink(next, personId, parentId)
       break
     }
     case 'partner':
@@ -207,21 +224,41 @@ export function addRelative(tree: Tree, request: AddRelativeRequest): { tree: Tr
       break
     case 'child': {
       next = addParentLink(next, personId, anchorId)
-      const other = otherParentId(tree, anchorId, answers)
-      if (other) next = addParentLink(next, personId, other)
+      const other = otherParentId(tree, anchorId, answers, personId)
+      if (other && !hasParentLink(tree, personId, other)) next = addParentLink(next, personId, other)
       break
     }
   }
-  return { tree: next, personId }
+  return next
+}
+
+export function addRelative(tree: Tree, request: AddRelativeRequest): { tree: Tree; personId: string } {
+  const { anchorId, relation, person } = request
+  personOf(tree, anchorId)
+  const personId = crypto.randomUUID()
+  const withPerson = addPerson(tree, { gender: RELATIONS[relation].gender, ...person, id: personId })
+  return {
+    tree: relate(withPerson, anchorId, relation, personId, request.answers ?? {}, request.unnamedParentName),
+    personId,
+  }
 }
 
 /** The lines of "This will create: ...", as messages the form words in the language in use. */
 export function previewFor(tree: Tree, request: AddRelativeRequest): MessageRef[] {
+  const typed = request.person.firstName.trim()
+  return previewLines(tree, request, typed || msg('preview.newPerson'))
+}
+
+/** The preview lines for a Person who is `who` in the words; `personId` is set when they are already in the Tree. */
+export function previewLines(
+  tree: Tree,
+  request: Pick<AddRelativeRequest, 'anchorId' | 'relation' | 'answers' | 'unnamedParentName'>,
+  who: MessageParam,
+  personId?: string,
+): MessageRef[] {
   const { anchorId, relation } = request
   const answers = request.answers ?? {}
   const anchor = personOf(tree, anchorId)
-  const typed = request.person.firstName.trim()
-  const who: MessageParam = typed || msg('preview.newPerson')
   const relationWord = relationRef(relation)
   const relationLine = () => msg('preview.relationOf', { who, relation: relationWord, name: name(anchor) })
   const lines: MessageRef[] = []
@@ -231,7 +268,7 @@ export function previewFor(tree: Tree, request: AddRelativeRequest): MessageRef[
       lines.push(relationLine())
       const existing = birthParentsOf(tree, anchorId)
       const answer = answers.parentPartnership ?? 'current'
-      if (existing.length === 1) {
+      if (existing.length === 1 && !(personId && arePartners(tree, existing[0]!.id, personId))) {
         lines.push(
           answer === 'none'
             ? msg('preview.noPartnership', { name: name(existing[0]!) })
@@ -262,7 +299,7 @@ export function previewFor(tree: Tree, request: AddRelativeRequest): MessageRef[
       lines.push(partnershipLine(answers.partnerStatus ?? 'current'))
       break
     case 'child': {
-      const other = otherParentId(tree, anchorId, answers)
+      const other = otherParentId(tree, anchorId, answers, personId)
       lines.push(
         other
           ? msg('preview.relationOfTwo', {
