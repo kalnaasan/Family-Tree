@@ -153,6 +153,21 @@ describe('ViewController', () => {
       expect(controller.view.k).toBeCloseTo(1.25)
     })
 
+    it('knows where a running animation is heading, and where it stopped when nothing runs', () => {
+      const { controller } = setup()
+      controller.jump({ x: 0, y: 0, k: 1 })
+      controller.show({ x: 100, y: 200 }, 1)
+      const target = { x: 400 / 2 - 100, y: 300 / 2 - 200, k: 1 }
+      vi.advanceTimersByTime(40)
+      expect(controller.view).not.toEqual(target)
+      expect(controller.destination).toEqual(target)
+      vi.advanceTimersByTime(300)
+      expect(controller.destination).toEqual(controller.view)
+      controller.show({ x: 0, y: 0 }, 1)
+      controller.panBy(5, 5) // a drag stops the animation: the view is where it is
+      expect(controller.destination).toEqual(controller.view)
+    })
+
     it('a drag stops a running animation', () => {
       const { controller } = setup()
       controller.jump({ x: 0, y: 0, k: 1 })

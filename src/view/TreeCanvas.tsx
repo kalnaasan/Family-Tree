@@ -294,7 +294,9 @@ export function TreeCanvas({
   const [cursorId, setCursorId] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState('')
   const navMemory = useRef<NavMemory>(freshMemory())
-  const focusCursorAfterRender = useRef(false)
+  // the Person that real focus should go to once drawn: named, since an effect of an earlier render may still be waiting
+  // to run when a key sets it, and must not take it for its own (it would focus the cursor it was rendered with)
+  const focusAfterRender = useRef<string | null>(null)
   const cursorIndex = useMemo(() => {
     const own = cursorId ? layout.ids.indexOf(cursorId) : -1
     if (own >= 0) return own
@@ -302,6 +304,14 @@ export function TreeCanvas({
     return layout.count > 0 ? 0 : -1
   }, [layout, cursorId, focusIndex])
   const cursorPersonId = cursorIndex >= 0 ? layout.ids[cursorIndex]! : null
+
+  /** Puts real focus on a Person once the cursor is there: at once if it already is, else after the render that moves it. */
+  const focusWhenCursor = (personId: string | null) => {
+    if (personId && personId === cursorPersonId) {
+      focusAfterRender.current = null
+      frameRef.current?.querySelector<SVGElement>(`[data-person-id="${personId}"]`)?.focus({ preventScroll: true })
+    } else focusAfterRender.current = personId
+  }
 
   /** Screen readers only hear a live region when its text changes, so a repeated message gets an invisible tail. */
   const announce = (text: string) => setAnnouncement((previous) => (previous === text ? `${text}​` : text))
@@ -415,8 +425,9 @@ export function TreeCanvas({
     const covered = coveredRef.current
     const size = sizeRef.current
     const free = { width: size.width, height: Math.max(1, size.height - covered) }
-    const safe = growRect(visibleRect(controller.view, free), -0.15)
-    if (x < safe.x0 || x > safe.x1 || y < safe.y0 || y > safe.y1) controller.show({ x, y }, controller.view.k, covered)
+    // judged from where a running pan ends, not from where it is now: a key pressed in the middle of one may need its own
+    const safe = growRect(visibleRect(controller.destination, free), -0.15)
+    if (x < safe.x0 || x > safe.x1 || y < safe.y0 || y > safe.y1) controller.show({ x, y }, controller.destination.k, covered)
   }
 
   // The view moves so the open Person is never hidden behind the sheet, also when the sheet grows or shrinks.
@@ -442,8 +453,8 @@ export function TreeCanvas({
 
   // After a key moved the cursor, real focus follows it (without scrolling the frame, which is only panned by the view).
   useEffect(() => {
-    if (!focusCursorAfterRender.current || !cursorPersonId) return
-    focusCursorAfterRender.current = false
+    if (!cursorPersonId || focusAfterRender.current !== cursorPersonId) return
+    focusAfterRender.current = null
     frameRef.current?.querySelector<SVGElement>(`[data-person-id="${cursorPersonId}"]`)?.focus({ preventScroll: true })
   }, [cursorPersonId, drawn])
 
@@ -467,7 +478,7 @@ export function TreeCanvas({
     }
     announce(renderMessage(t, describeMove(tree, result)))
     setCursorId(result.target.id)
-    focusCursorAfterRender.current = true
+    focusWhenCursor(result.target.id)
     ensureVisible(result.target.id)
   }
 
@@ -496,7 +507,7 @@ export function TreeCanvas({
     else if (event.key === '0') controller.fit()
     else if (event.key === 'Home') {
       showFocus()
-      focusCursorAfterRender.current = true
+      focusWhenCursor(focusPersonId)
       const name = focusIndex >= 0 ? persons[focusIndex]?.firstName : undefined
       announce(name ? t('tree.homeFocus', { name }) : t('tree.noFocus'))
     } else if (event.shiftKey && event.key === 'ArrowLeft') controller.panBy(KEY_PAN_PX, 0)
