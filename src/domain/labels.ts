@@ -1,4 +1,5 @@
 import type { Language } from '../i18n/languageType.ts'
+import { labelForArabic } from './labelsAr.ts'
 import { labelForEnglish } from './labelsEn.ts'
 import type { Gender, Tree } from './schema.ts'
 
@@ -51,14 +52,10 @@ export interface Relationship {
 // The word for a descriptor, in a language
 // ---------------------------------------------------------------------------------------------
 
-/**
- * One table per language. PLACEHOLDER: `ar` reads as English until "Arabic relationship labels" adds its own table
- * module (docs/spec/arabic-relationship-labels.md) and replaces this entry. Arabic is not offered to users before
- * that (`AVAILABLE_LANGUAGES`, spec section 13.8), so this cannot show English words in an Arabic interface.
- */
+/** One table per language (`labelsEn.ts`, `labelsAr.ts`): a language is added with its own module. */
 const TABLES: Record<Language, (descriptor: RelationDescriptor, gender: Gender) => string | null> = {
   en: labelForEnglish,
-  ar: labelForEnglish,
+  ar: labelForArabic,
 }
 
 /**
