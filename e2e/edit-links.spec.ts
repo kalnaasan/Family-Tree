@@ -105,7 +105,8 @@ test.describe('on a phone', () => {
       expect(box.width).toBeGreaterThanOrEqual(44)
     }
   })
-  test('nothing runs off the screen with the menu and the dialog open', async ({ page }) => {
+
+  test('the menu, and then the dialog, stay inside the screen', async ({ page }) => {
     await openWithTree(page, withFather())
     await openPerson(page, 'Ben')
     await panel(page).getByRole('button', { name: words('panel.details') }).click()

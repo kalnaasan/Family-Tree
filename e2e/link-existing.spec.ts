@@ -100,7 +100,8 @@ test('the picker finds people by an Arabic or a Latin name', async ({ page }) =>
   await expect(page.getByRole('option')).toHaveCount(1)
   await expect(option(page, 'Maria')).toBeVisible()
   await search.fill('')
-  await expect(page.getByRole('option')).toHaveCount(3)
+  await expect(option(page, 'ليلى')).toBeVisible()
+  await expect(option(page, 'Maria')).toBeVisible()
   await option(page, 'كريم').click()
   await link(page, 'relation.father').click()
   await expect(group(page, words('panel.group.parents'))).toContainText('كريم')
@@ -123,12 +124,20 @@ test.describe('on a phone', () => {
     await openWithTree(page, people('Ben', 'Karl', 'Maria'))
     await openPerson(page, 'Ben')
     await panel(page).getByRole('button', { name: words('panel.details') }).click()
-    const overflow = () =>
-      page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    // scrollWidth does not see content pushed past the left edge of a right-to-left page, so the boxes are checked too
+    const fits = async () => {
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0)
+      for (const target of [panel(page).getByRole('combobox'), panel(page).getByRole('listbox'), page.getByText(words('preview.linkTitle'))]) {
+        if (!(await target.count())) continue
+        const box = (await target.first().boundingBox())!
+        expect(box.x).toBeGreaterThanOrEqual(0)
+        expect(box.x + box.width).toBeLessThanOrEqual(390)
+      }
+    }
     await chooseButton(page, 'relation.father').click()
-    expect(await overflow()).toBeLessThanOrEqual(0)
+    await fits()
     await option(page, 'Karl').click()
     await expect(page.getByText(words('preview.linkTitle'))).toBeVisible()
-    expect(await overflow()).toBeLessThanOrEqual(0)
+    await fits()
   })
 })

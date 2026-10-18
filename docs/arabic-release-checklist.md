@@ -105,7 +105,7 @@ For each group: ticked when read and edited; date and result beside it.
 - [ ] The tree: its label, its keyboard hint, zoom buttons, "الشخص المحوري" for the Focus person (`tree.*`, `person.focus`). Date: ____ Result: ____
 - [ ] Search and the List view (`search.*`, `list.*`). Date: ____ Result: ____
 - [ ] The Person panel (`panel.*`). Date: ____ Result: ____
-- [ ] Linking someone already in the tree (`link.*`, `panel.linkAria`, `preview.linkTitle`, `step.link`): the picker's search and list names, the reasons a person cannot be linked ("مرتبط بالفعل", "سيصبح سلفًا لنفسه", "سيكون له ثلاثة آباء بيولوجيين", "شريكان بالفعل"), the "{count} أخرى" line, and the button "ربط بصفة {relation}". Date: ____ Result: ____
+- [ ] Linking someone already in the tree (`link.*` including `link.reason.self`, `link.reason.already-linked`, `link.reason.own-ancestor`, `link.reason.third-birth-parent` and `link.reason.already-partners`; `panel.linkAria`, `preview.linkTitle`, `step.link`): the picker's search and list names, the reasons a person cannot be linked ("مرتبط بالفعل", "سيصبح سلفًا لنفسه", "سيكون له ثلاثة آباء بيولوجيين", "شريكان بالفعل"), the "{count} أخرى" line, and the button "ربط بصفة {relation}". Date: ____ Result: ____
 - [ ] Editing and removing a link (`panel.linkMenuAria`, `panel.editLink`, `panel.removeLink`, `panel.noteStep`, `editLink.*`, `step.editLink`, `step.removeLink`, `toast.removedLink`): "خيارات الصلة مع {name}", "تعديل الصلة", "إزالة الصلة", the kinds "والد بيولوجي / والد بالتبني / والد بالمصاهرة", the dates "معًا منذ" and "انتهت في", the note "بالمصاهرة" on a step relative, and the toast "أُزيلت الصلة بين {first} و{second}". Date: ____ Result: ____
 
 Strings the draft is least sure of, to look at first:
