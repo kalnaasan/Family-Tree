@@ -28,7 +28,7 @@ The final table for section 13.6 of the [build spec](family-tree-spec.md): what 
 | up 1, down 1, full | brother / sister / sibling | أخ | أخت | أخ/أخت | (S) |
 | half, shared parent male | half-brother / half-sister / half-sibling | أخ لأب | أخت لأب | أخ/أخت لأب | (S) |
 | half, shared parent female | same | أخ لأم | أخت لأم | أخ/أخت لأم | (K) |
-| half, shared parent's gender unknown | same | أخ غير شقيق | أخت غير شقيقة | أخ/أخت غير شقيق | (K) |
+| half, shared parent's gender unknown | same | أخ غير شقيق | أخت غير شقيقة | أخ/أخت غير شقيق/شقيقة | (K) |
 
 ## Grandparents, grandchildren and "great-" lines
 
@@ -39,7 +39,7 @@ The final table for section 13.6 of the [build spec](family-tree-spec.md): what 
 | up 0, down 2 | grandson / granddaughter / grandchild | حفيد | حفيدة | حفيد/حفيدة | (S) M, F; UNSURE N |
 | up 0, down ≥ 3 (`n` = down) | great-grandson … | حفيد من الدرجة {n} | حفيدة من الدرجة {n} | حفيد/حفيدة من الدرجة {n} | (K), UNSURE |
 
-Degrees count generations as Arabic inheritance law does: a parent is the first degree, a grandparent the second, a great-grandparent the third. For a grandchild's line the same count applies downwards.
+Degrees in the direct line count generations as Arabic inheritance law does: a parent is the first degree, a grandparent the second, a great-grandparent the third, and the same downwards for grandchildren. For an uncle, a nephew or a cousin the number is the generations beyond the first step (a great-uncle and a second cousin are both "the second"; the word before it tells them apart).
 
 ## Uncles and aunts
 
