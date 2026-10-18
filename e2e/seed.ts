@@ -16,24 +16,35 @@ export async function openWithTree(page: Page, tree: Tree) {
   const document = serializeDocument(tree)
   // the first visit creates the database; then the fixture is written straight into it and the app reloaded
   await page.goto('/')
+  // WebKit does not draw frames for a page it takes to be in the background, which happens when tests run side by side:
+  // animations then stop half way and the drawing never catches up. The page being tested is in front.
+  await page.bringToFront()
   await expect(page.getByRole('status')).toHaveText(words('save.saved'))
-  await page.evaluate(
-    (stored) =>
-      new Promise<void>((resolve, reject) => {
-        const open = indexedDB.open('family-tree')
-        open.onerror = () => reject(open.error)
-        open.onsuccess = () => {
-          const tx = open.result.transaction('tree', 'readwrite')
-          tx.objectStore('tree').put(stored, 'current')
-          tx.oncomplete = () => {
-            open.result.close()
-            resolve()
+  // the app shows "Saved" before its own open has finished, so the database may not exist yet: opening it then would create
+  // an empty one for the app to find. Such an open is undone and tried again once the app has made the real one.
+  await expect(async () => {
+    await page.evaluate(
+      (stored) =>
+        new Promise<void>((resolve, reject) => {
+          const open = indexedDB.open('family-tree')
+          open.onupgradeneeded = () => {
+            open.transaction!.abort()
+            reject(new Error('the app has not created its database yet'))
           }
-          tx.onerror = () => reject(tx.error)
-        }
-      }),
-    document,
-  )
+          open.onerror = () => {} // the abort above reports it
+          open.onsuccess = () => {
+            const tx = open.result.transaction('tree', 'readwrite')
+            tx.objectStore('tree').put(stored, 'current')
+            tx.oncomplete = () => {
+              open.result.close()
+              resolve()
+            }
+            tx.onerror = () => reject(tx.error)
+          }
+        }),
+      document,
+    )
+  }).toPass()
   await page.reload()
   const frame = page.getByRole('group', { name: words('tree.label') })
   await expect(frame).toHaveAttribute('data-lod', /.+/)
