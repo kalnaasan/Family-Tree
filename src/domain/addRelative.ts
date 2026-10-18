@@ -180,7 +180,7 @@ function otherParentId(tree: Tree, anchorId: string, answers: RelativeAnswers, p
 const hasParentLink = (tree: Tree, childId: string, parentId: string) =>
   tree.parentLinks.some((l) => l.childId === childId && l.parentId === parentId)
 
-const arePartners = (tree: Tree, a: string, b: string) =>
+export const arePartners = (tree: Tree, a: string, b: string) =>
   tree.partnerships.some((p) => p.personIds.includes(a) && p.personIds.includes(b))
 
 /** The links that make `personId`, already in the Tree, the anchor's `relation`. Shared by adding and linking. */
