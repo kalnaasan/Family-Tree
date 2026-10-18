@@ -105,6 +105,8 @@ For each group: ticked when read and edited; date and result beside it.
 - [ ] The tree: its label, its keyboard hint, zoom buttons, "الشخص المحوري" for the Focus person (`tree.*`, `person.focus`). Date: ____ Result: ____
 - [ ] Search and the List view (`search.*`, `list.*`). Date: ____ Result: ____
 - [ ] The Person panel (`panel.*`). Date: ____ Result: ____
+- [ ] Linking someone already in the tree (`link.*`, `panel.linkAria`, `preview.linkTitle`, `step.link`): the picker's search and list names, the reasons a person cannot be linked ("مرتبط بالفعل", "سيصبح سلفًا لنفسه", "سيكون له ثلاثة آباء بيولوجيين", "شريكان بالفعل"), the "{count} أخرى" line, and the button "ربط بصفة {relation}". Date: ____ Result: ____
+- [ ] Editing and removing a link (`panel.linkMenuAria`, `panel.editLink`, `panel.removeLink`, `panel.noteStep`, `editLink.*`, `step.editLink`, `step.removeLink`, `toast.removedLink`): "خيارات الصلة مع {name}", "تعديل الصلة", "إزالة الصلة", the kinds "والد بيولوجي / والد بالتبني / والد بالمصاهرة", the dates "معًا منذ" and "انتهت في", the note "بالمصاهرة" on a step relative, and the toast "أُزيلت الصلة بين {first} و{second}". Date: ____ Result: ____
 
 Strings the draft is least sure of, to look at first:
 
@@ -139,7 +141,7 @@ The screenshot pass of the right-to-left screens, at a phone width (390 px) and 
 
 ## 5. The automatic checks
 
-- [ ] CI is green, including the Arabic Playwright projects: `chromium-ar` and `webkit-ar` re-run smoke, tree, keyboard, add-relative, search, backup, undo, touch and photos with the Language set to Arabic, and `rtl-arabic.spec.ts` repeats the right-to-left checks (mirroring, key swap, overflow at 390 px, axe) in real Arabic. Date: ____ Result: ____
+- [ ] CI is green, including the Arabic Playwright projects: `chromium-ar` and `webkit-ar` re-run smoke, tree, keyboard, add-relative, search, backup, undo, touch, photos, link-existing and edit-links with the Language set to Arabic, and `rtl-arabic.spec.ts` repeats the right-to-left checks (mirroring, key swap, overflow at 390 px, axe) in real Arabic. Date: ____ Result: ____
 - [ ] The Arabic-names variant of the performance test (1,000 and 5,000 people) is within the same budget (`npx playwright test --project=perf`). Date: ____ Result: ____
 - [ ] The release gate still holds before the change: `language.spec.ts` shows an Arabic browser still gets English. Date: ____ Result: ____
 

@@ -85,6 +85,27 @@ test('people who cannot be linked are disabled with their reason, and the open p
   await expect(panel(page).getByText(words('link.noMatch'))).toBeVisible()
 })
 
+test('the picker finds people by an Arabic or a Latin name', async ({ page }) => {
+  const tree = ['Ben', 'كريم', 'Maria', 'ليلى'].reduce(
+    (t, firstName, i) => addPerson(t, { id: id(i + 1), firstName }),
+    emptyTree(),
+  )
+  await openWith(page, tree)
+  await chooseButton(page, 'relation.father').click()
+  const search = panel(page).getByRole('combobox', { name: words('link.search') })
+  await search.fill('كري')
+  await expect(page.getByRole('option')).toHaveCount(1)
+  await expect(option(page, 'كريم')).toBeVisible()
+  await search.fill('mar')
+  await expect(page.getByRole('option')).toHaveCount(1)
+  await expect(option(page, 'Maria')).toBeVisible()
+  await search.fill('')
+  await expect(page.getByRole('option')).toHaveCount(3)
+  await option(page, 'كريم').click()
+  await link(page, 'relation.father').click()
+  await expect(group(page, words('panel.group.parents'))).toContainText('كريم')
+})
+
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
 
@@ -97,5 +118,17 @@ test.describe('on a phone', () => {
       const box = (await option(page, name).boundingBox())!
       expect(box.height, name).toBeGreaterThanOrEqual(44)
     }
+  })
+  test('nothing runs off the screen with the picker open and a person chosen', async ({ page }) => {
+    await openWithTree(page, people('Ben', 'Karl', 'Maria'))
+    await openPerson(page, 'Ben')
+    await panel(page).getByRole('button', { name: words('panel.details') }).click()
+    const overflow = () =>
+      page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    await chooseButton(page, 'relation.father').click()
+    expect(await overflow()).toBeLessThanOrEqual(0)
+    await option(page, 'Karl').click()
+    await expect(page.getByText(words('preview.linkTitle'))).toBeVisible()
+    expect(await overflow()).toBeLessThanOrEqual(0)
   })
 })
