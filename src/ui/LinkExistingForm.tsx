@@ -76,7 +76,9 @@ export function LinkExistingForm({ anchor, relation, onDone, onCancel }: Props) 
 
   const choose = (n: number) => {
     const row = rows[n]
-    if (row?.status.valid) setPickedId(row.person.id)
+    if (!row?.status.valid) return
+    setAnswers({})
+    setPickedId(row.person.id)
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -93,6 +95,20 @@ export function LinkExistingForm({ anchor, relation, onDone, onCancel }: Props) 
     if (pickedId) formRef.current?.querySelector<HTMLElement>('input, button[type="submit"]')?.focus()
   }, [pickedId])
 
+  const question = questionFor(tree, anchor.id, relation)
+  if (question.kind === 'blocked') {
+    return (
+      <div className="flex flex-col gap-3">
+        <p role="alert" className="rounded border border-red-800 p-3 text-red-800">
+          {renderMessage(t, question.message)}
+        </p>
+        <button type="button" onClick={onCancel} className="btn px-4">
+          {t('addForm.back')}
+        </button>
+      </div>
+    )
+  }
+
   if (!picked) {
     return (
       <div className="flex flex-col gap-3">
@@ -102,7 +118,7 @@ export function LinkExistingForm({ anchor, relation, onDone, onCancel }: Props) 
           role="combobox"
           aria-label={t('link.search')}
           placeholder={t('link.search')}
-          aria-expanded="true"
+          aria-expanded={rows.length > 0}
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={rows.length > 0 ? rowId(active) : undefined}
@@ -129,6 +145,7 @@ export function LinkExistingForm({ anchor, relation, onDone, onCancel }: Props) 
               aria-disabled={!status.valid}
               aria-describedby={status.valid ? undefined : `${rowId(n)}-reason`}
               onClick={() => choose(n)}
+              onMouseMove={() => setActiveIndex(n)}
               className={`flex min-h-11 flex-col justify-center rounded px-3 py-1 ${
                 status.valid ? 'cursor-pointer' : 'cursor-not-allowed text-stone-700'
               } ${n === active ? 'bg-stone-200' : ''}`}
@@ -156,7 +173,7 @@ export function LinkExistingForm({ anchor, relation, onDone, onCancel }: Props) 
   }
 
   const request = { anchorId: anchor.id, relation, personId: picked.id, answers, unnamedParentName }
-  const asked: Question = linkQuestion(tree, questionFor(tree, anchor.id, relation), picked)
+  const asked: Question = linkQuestion(tree, question, picked)
   const preview = previewLinkFor(tree, request)
 
   const onSubmit = (event: FormEvent) => {
@@ -174,7 +191,10 @@ export function LinkExistingForm({ anchor, relation, onDone, onCancel }: Props) 
     <form ref={formRef} onSubmit={onSubmit} className="flex flex-col gap-4">
       <p className="font-medium">
         <bdi>{displayName(picked)}</bdi>{' '}
-        <button type="button" onClick={() => setPickedId(null)} className="text-sm underline">
+        <button type="button" onClick={() => {
+            setAnswers({})
+            setPickedId(null)
+          }} className="text-sm underline">
           {t('link.change')}
         </button>
       </p>
@@ -208,6 +228,11 @@ export function LinkExistingForm({ anchor, relation, onDone, onCancel }: Props) 
 function linkQuestion(tree: Tree, question: Question, picked: Person): Question {
   if (question.kind === 'parent-partnership' && arePartners(tree, question.existingParent.id, picked.id)) {
     return { kind: 'none' }
+  }
+  if (question.kind === 'sibling-parents') {
+    // the parents they already have are settled: one missing parent is simply added, so there is nothing to choose
+    const missing = question.parents.filter((p) => !tree.parentLinks.some((l) => l.childId === picked.id && l.parentId === p.id))
+    if (missing.length < 2) return { kind: 'none' }
   }
   if (question.kind === 'child-other-parent') {
     const partners = question.partners.filter((p) => p.person.id !== picked.id)

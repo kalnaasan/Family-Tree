@@ -137,6 +137,7 @@ export function PersonPanel({ personId, onClose }: Props) {
     queueMicrotask(() => headingRef.current?.focus())
   }
 
+  const inForm = mode.kind === 'add' || mode.kind === 'link'
   const relationWord = (relation: Relation) => t(RELATION_KEY[relation])
   const relativeButton = (relative: Person, note?: string) => {
     const details = [labelOf(relative), note].filter((part): part is string => Boolean(part))
@@ -206,7 +207,7 @@ export function PersonPanel({ personId, onClose }: Props) {
         </button>
       )}
       <div className="flex items-start justify-between gap-2">
-        {mode.kind !== 'add' && mode.kind !== 'link' && person.photoId && <Avatar person={person} size={56} />}
+        {!inForm && person.photoId && <Avatar person={person} size={56} />}
         <div className="min-w-0 flex-1">
           <h2 ref={headingRef} tabIndex={-1} dir="auto" className="text-xl font-semibold outline-offset-4">
             {mode.kind === 'add'
@@ -214,9 +215,9 @@ export function PersonPanel({ personId, onClose }: Props) {
               : mode.kind === 'link'
                 ? t('panel.linkTitle', { relation: relationWord(mode.relation), name: person.firstName })
                 : person.firstName}
-            {mode.kind !== 'add' && mode.kind !== 'link' && person.lastName ? ` ${person.lastName}` : ''}
+            {!inForm && person.lastName ? ` ${person.lastName}` : ''}
           </h2>
-          {mode.kind !== 'add' && mode.kind !== 'link' && (
+          {!inForm && (
             <p className="text-sm text-stone-700">
               {[isFocus ? t('person.focus') : label, lifeSpan(person, t)].filter(Boolean).join(' · ')}
               {person.deceased && ` · ${t('person.deceased')}`}
