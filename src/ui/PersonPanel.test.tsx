@@ -32,6 +32,33 @@ function open(tree: Tree, personId = id(1)) {
   return { user, onClose }
 }
 
+
+const ADD_BUTTON: Record<string, string> = {
+  father: 'Add parent', mother: 'Add parent', parent: 'Add parent',
+  brother: 'Add sibling', sister: 'Add sibling', sibling: 'Add sibling',
+  son: 'Add child', daughter: 'Add child', child: 'Add child',
+  husband: 'Add partner', wife: 'Add partner', partner: 'Add partner',
+}
+
+/** Opens the relative dialog from a section's Add button, chooses the relation and "Create a new person", and continues. */
+async function startAdd(user: ReturnType<typeof userEvent.setup>, relation: string, method: 'create' | 'link' = 'create') {
+  await user.click(screen.getByRole('button', { name: ADD_BUTTON[relation]! }))
+  const dialog = screen.getByRole('dialog')
+  await user.click(within(dialog).getByRole('radio', { name: relation[0]!.toUpperCase() + relation.slice(1) }))
+  if (method === 'link') await user.click(within(dialog).getByRole('radio', { name: /Link someone/ }))
+  await user.click(within(dialog).getByRole('button', { name: 'Continue' }))
+}
+
+/** The form's own submit button, "Add {relation}", inside the dialog. */
+const submitAdd = (user: ReturnType<typeof userEvent.setup>, relation: string) =>
+  user.click(within(screen.getByRole('dialog')).getByRole('button', { name: `Add ${relation}` }))
+
+/** Opens the Person's "More actions" menu and chooses an item. */
+async function chooseFromMenu(user: ReturnType<typeof userEvent.setup>, name: string, item: string) {
+  await user.click(screen.getByRole('button', { name }))
+  await user.click(screen.getByRole('menuitem', { name: item }))
+}
+
 const people = () => useTreeStore.getState().persons.map((p) => p.firstName)
 
 beforeEach(() => {
@@ -55,10 +82,11 @@ describe('overview', () => {
   it('shows the Focus person as such and offers "Make Focus person" to everyone else', async () => {
     const { user } = open(benWithParents())
     expect(screen.getByText(/Focus person/, { selector: 'p' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Make Focus person' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'More actions for Ben' }))
+    expect(screen.queryByRole('menuitem', { name: 'Make Focus person' })).toBeNull()
     cleanup()
     render(<PersonPanel key={id(2)} personId={id(2)} onClose={() => {}} />)
-    await user.click(screen.getByRole('button', { name: 'Make Focus person' }))
+    await chooseFromMenu(user, 'More actions for Karl', 'Make Focus person')
     expect(useTreeStore.getState().focusPersonId).toBe(id(2))
   })
 
@@ -78,7 +106,7 @@ describe('overview', () => {
 describe('add relative: parents', () => {
   it('a third birth parent is blocked with a message and no form', async () => {
     const { user } = open(benWithParents())
-    await user.click(screen.getByRole('button', { name: 'Add father' }))
+    await startAdd(user, 'father')
     expect(screen.getByRole('alert')).toHaveTextContent('already has two birth parents')
     expect(screen.queryByRole('button', { name: /^Add father$/ })).toBeNull()
     expect(people()).toHaveLength(6)
@@ -88,14 +116,14 @@ describe('add relative: parents', () => {
     let tree = treeOf(['Ben', 'Karl'])
     tree = addParentLink(tree, id(1), id(2))
     const { user } = open(tree)
-    await user.click(screen.getByRole('button', { name: 'Add mother' }))
+    await startAdd(user, 'mother')
     expect(screen.getByRole('radio', { name: 'Current partner' })).toBeChecked()
     await user.type(screen.getByLabelText('First name'), 'Maria')
     expect(screen.getByText('Maria, mother of Ben')).toBeInTheDocument()
     expect(screen.getByText('A current partnership with Karl')).toBeInTheDocument()
     await user.click(screen.getByRole('radio', { name: 'Former partner (ended)' }))
     expect(screen.getByText('An ended partnership with Karl')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Add mother' }))
+    await submitAdd(user, 'mother')
     expect(useTreeStore.getState().partnerships.map((p) => p.status)).toEqual(['ended'])
   })
 })
@@ -105,12 +133,12 @@ describe('add relative: siblings', () => {
     const { user } = open(benWithParents())
     const updates = vi.fn()
     useTreeStore.subscribe(updates)
-    await user.click(screen.getByRole('button', { name: 'Add brother' }))
+    await startAdd(user, 'brother')
     expect(screen.getByRole('radio', { name: 'Both: Karl and Maria' })).toBeChecked()
     await user.type(screen.getByLabelText('First name'), 'Tom')
     await user.click(screen.getByRole('radio', { name: 'Only Karl (half-sibling)' }))
     expect(screen.getByText('Half-sibling: shares only Karl as parent')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Add brother' }))
+    await submitAdd(user, 'brother')
     expect(updates).toHaveBeenCalledTimes(1)
     const tom = useTreeStore.getState().persons.find((p) => p.firstName === 'Tom')!
     expect(useTreeStore.getState().parentLinks.filter((l) => l.childId === tom.id)).toHaveLength(1)
@@ -121,14 +149,14 @@ describe('add relative: siblings', () => {
     let tree = treeOf(['Ben', 'Karl'])
     tree = addParentLink(tree, id(1), id(2))
     const first = open(tree)
-    await first.user.click(screen.getByRole('button', { name: 'Add sister' }))
+    await startAdd(first.user, 'sister')
     expect(screen.queryByRole('group')).toBeNull()
     expect(screen.queryAllByRole('radio')).toHaveLength(0)
   })
 
   it('with no parents the preview names the unnamed parent', async () => {
     const { user } = open(treeOf(['Ben']))
-    await user.click(screen.getByRole('button', { name: 'Add sister' }))
+    await startAdd(user, 'sister')
     expect(screen.getByText(/A new parent, "Unnamed parent", of both/)).toBeInTheDocument()
   })
 })
@@ -136,10 +164,10 @@ describe('add relative: siblings', () => {
 describe('add relative: children and partners', () => {
   it('a child with no partners asks nothing', async () => {
     const { user } = open(treeOf(['Ben']))
-    await user.click(screen.getByRole('button', { name: 'Add son' }))
+    await startAdd(user, 'son')
     expect(screen.queryAllByRole('radio')).toHaveLength(0)
     await user.type(screen.getByLabelText('First name'), 'Leo')
-    await user.click(screen.getByRole('button', { name: 'Add son' }))
+    await submitAdd(user, 'son')
     expect(people()).toEqual(['Ben', 'Leo'])
   })
 
@@ -148,39 +176,39 @@ describe('add relative: children and partners', () => {
     tree = addPartnership(tree, { personIds: [id(1), id(2)], status: 'ended' })
     tree = addPartnership(tree, { personIds: [id(1), id(3)], status: 'current' })
     const { user } = open(tree)
-    await user.click(screen.getByRole('button', { name: 'Add daughter' }))
+    await startAdd(user, 'daughter')
     expect(screen.getByRole('radio', { name: 'Eva (current partner)' })).toBeChecked()
     expect(screen.getByRole('radio', { name: 'Old (former partner)' })).not.toBeChecked()
     await user.click(screen.getByRole('radio', { name: 'Nobody / not recorded' }))
     await user.type(screen.getByLabelText('First name'), 'Mia')
     expect(screen.getByText('Mia, daughter of Ben')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Add daughter' }))
+    await submitAdd(user, 'daughter')
     const mia = useTreeStore.getState().persons.find((p) => p.firstName === 'Mia')!
     expect(useTreeStore.getState().parentLinks.filter((l) => l.childId === mia.id)).toHaveLength(1)
   })
 
   it('a partner is current by default and can be ended', async () => {
     const { user } = open(treeOf(['Ben']))
-    await user.click(screen.getByRole('button', { name: 'Add wife' }))
+    await startAdd(user, 'wife')
     expect(screen.getByRole('radio', { name: 'Current' })).toBeChecked()
     expect(screen.getByLabelText('Gender')).toHaveValue('female')
     await user.type(screen.getByLabelText('First name'), 'Eva')
     await user.click(screen.getByRole('radio', { name: 'Ended' }))
-    await user.click(screen.getByRole('button', { name: 'Add wife' }))
+    await submitAdd(user, 'wife')
     expect(useTreeStore.getState().partnerships.map((p) => p.status)).toEqual(['ended'])
   })
 
   it('needs a first name and says so', async () => {
     const { user } = open(treeOf(['Ben']))
-    await user.click(screen.getByRole('button', { name: 'Add son' }))
-    await user.click(screen.getByRole('button', { name: 'Add son' }))
+    await startAdd(user, 'son')
+    await submitAdd(user, 'son')
     expect(screen.getByText('Enter a first name')).toBeInTheDocument()
     expect(people()).toEqual(['Ben'])
   })
 
   it('Cancel goes back to the overview without adding anyone', async () => {
     const { user } = open(treeOf(['Ben']))
-    await user.click(screen.getByRole('button', { name: 'Add son' }))
+    await startAdd(user, 'son')
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(screen.getByRole('region', { name: 'Children' })).toBeInTheDocument()
     expect(people()).toEqual(['Ben'])
@@ -205,9 +233,18 @@ describe('edit and delete', () => {
     expect(ben).toMatchObject({ firstName: 'Benno', birthDate: '1962-04', deathDate: '2001', deceased: true })
   })
 
-  it('delete needs no confirmation, names what went with the Person, offers Undo, and closes', async () => {
+  it('delete is in the menu, asks first, then names what went with the Person, offers Undo, and closes', async () => {
     const { user, onClose } = open(benWithParents())
-    await user.click(screen.getByRole('button', { name: 'Delete Ben' }))
+    await chooseFromMenu(user, 'More actions for Ben', 'Delete Ben')
+    const dialog = screen.getByRole('dialog', { name: /Delete .*Ben/ })
+    expect(dialog).toHaveTextContent('Their relatives are not deleted')
+    // Cancel has the keyboard first, and changes nothing
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus()
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(people()).toContain('Ben')
+    expect(onClose).not.toHaveBeenCalled()
+    await chooseFromMenu(user, 'More actions for Ben', 'Delete Ben')
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete Ben' }))
     expect(people()).not.toContain('Ben')
     const toast = useUiStore.getState().toast!
     expect(renderEnglish(toast.message)).toBe('Deleted Ben, with 2 parent links')

@@ -23,7 +23,7 @@ export function ReadOnlyBanner() {
   }
 
   return (
-    <div className={readOnly ? 'mx-4 mt-2 flex flex-wrap items-center gap-3 rounded border border-amber-800 bg-amber-50 p-3 text-stone-900' : undefined}>
+    <div className={readOnly ? 'mx-4 mt-2 flex flex-wrap items-center gap-3 rounded border border-bark bg-accent-soft p-3 text-ink' : undefined}>
       <p aria-live="polite" className="min-w-0 basis-full sm:flex-1 sm:basis-0">
         {readOnly && t('readOnly.message')}
       </p>

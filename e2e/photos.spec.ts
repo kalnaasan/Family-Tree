@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 import type { Tree } from '../src/domain/schema.ts'
 import { addPerson, emptyTree } from '../src/domain/tree.ts'
 import { expect, startingWith, test, words } from './fixtures.ts'
-import { frame, openPerson, panel } from './helpers.ts'
+import { deletePerson, frame, openPerson, panel } from './helpers.ts'
 import { openWithTree } from './seed.ts'
 
 const ANNA = '00000000-0000-4000-8000-000000000001'
@@ -323,9 +323,7 @@ test('deleting a Person deletes their photo once Undo can no longer need it', as
   await panel(page)
     .getByRole('button', { name: words('common.cancel') })
     .click()
-  await panel(page)
-    .getByRole('button', { name: words('panel.delete', { name: 'Anna' }) })
-    .click()
+  await deletePerson(page, 'Anna')
   expect((await storedPhotos(page)).length).toBe(1)
   await reloadWhenSaved(page)
   await expect.poll(async () => (await storedPhotos(page)).length).toBe(0)
@@ -360,12 +358,14 @@ test('Settings shows how much storage the photos use', async ({ page }) => {
   await openWithTree(page, anna())
   await page.getByRole('button', { name: words('app.settings') }).click()
   const settings = page.getByRole('dialog', { name: words('app.settings') })
+  await settings.getByRole('tab', { name: words('settings.tab.storage') }).click()
   await expect(settings.getByText(words('settings.photosNone'))).toBeVisible()
   await settings.getByRole('button', { name: words('common.close') }).click()
 
   await editDetails(page)
   await addPhoto(page, await picture(page, 300, 300, 'image/jpeg'))
   await page.getByRole('button', { name: words('app.settings') }).click()
+  await settings.getByRole('tab', { name: words('settings.tab.storage') }).click()
   await expect(settings.getByText(photoSize())).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(settings).toHaveCount(0)
@@ -380,6 +380,7 @@ test('axe finds nothing in the crop dialog, the edit form with a photo, or Setti
   await confirmCrop(page)
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
   await page.getByRole('button', { name: words('app.settings') }).click()
+  await page.getByRole('dialog', { name: words('app.settings') }).getByRole('tab', { name: words('settings.tab.storage') }).click()
   await expect(
     page
       .getByRole('dialog', { name: words('app.settings') })

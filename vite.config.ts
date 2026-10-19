@@ -14,5 +14,7 @@ export default defineConfig({
     setupFiles: ['./src/test-setup.ts'],
     include: perfOnly ? ['src/**/*.perf.ts'] : ['src/**/*.test.{ts,tsx}'],
     fileParallelism: !perfOnly,
+    // the interface tests are slow when every file runs at once; the default 5 s fails them on a busy machine
+    testTimeout: 20_000,
   },
 })

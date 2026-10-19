@@ -68,8 +68,8 @@ describe('the dictionaries', () => {
   })
 
   it('write every Arabic text in Arabic: a Latin word is only a format, a key name or a unit, and the English text of that key has it too', () => {
-    // formats and key names (YYYY-MM-DD, the P and F keys, HEIC, JPEG, PNG, WebP, Enter, Home, Shift) may stay in Latin letters
-    const ALLOWED = /^(?:YYYY|MM|DD|P|F|Enter|Home|Shift|HEIC|JPEG|PNG|WebP|[-+ ,.:;()0-9])*$/
+    // formats and key names (YYYY-MM-DD, the P, F and C keys, HEIC, JPEG, PNG, WebP, Enter, Home, Shift) may stay in Latin letters
+    const ALLOWED = /^(?:YYYY|MM|DD|P|F|C|Enter|Home|Shift|HEIC|JPEG|PNG|WebP|[-+ ,.:;()0-9])*$/
     for (const [key, message] of Object.entries(ar) as [string, Message][]) {
       const english = texts((en as Record<string, Message>)[key]!).join(' ')
       for (const text of texts(message)) {

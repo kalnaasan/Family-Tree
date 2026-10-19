@@ -5,7 +5,7 @@ import { addParentLink, addPerson, emptyTree } from '../src/domain/tree.ts'
 import { generateTree } from '../src/layout/fixtures.ts'
 import { displayName } from '../src/view/text.ts'
 import { expect, test, words } from './fixtures.ts'
-import { frame, openPerson, panel, personButton } from './helpers.ts'
+import { frame, makeFocusPerson, openPerson, panel, personButton } from './helpers.ts'
 import { openWithTree } from './seed.ts'
 
 /**
@@ -81,14 +81,14 @@ test.describe('desktop', () => {
       .getByRole('region', { name: words('list.title') })
       .getByRole('button', { expanded: false })
       .first()
-      .locator('span')
+      .locator('svg')
     expect(await glyph.evaluate((span) => getComputedStyle(span).scale)).toMatch(/^-1\b/)
   })
 
   test('a toast stays in the middle of the screen', async ({ page }) => {
     await openWithTree(page, tree())
     await openPerson(page, first())
-    await page.getByRole('button', { name: words('panel.makeFocus') }).click()
+    await makeFocusPerson(page)
     await page
       .getByRole('group', { name: words('history.group') })
       .getByRole('button', { name: words('history.undo') })

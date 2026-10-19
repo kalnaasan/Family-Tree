@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 import type { Tree } from '../src/domain/schema.ts'
 import { addParentLink, addPartnership, addPerson, emptyTree } from '../src/domain/tree.ts'
 import { arrowTowardEnd, arrowTowardStart, expect, joined, startingWith, test, words } from './fixtures.ts'
-import { addButton, submitButton, frame, openPerson, panel, peopleList, personButton } from './helpers.ts'
+import { startAdd, submitButton, frame, openPerson, panel, peopleList, personButton } from './helpers.ts'
 import { openWithFixture, openWithTree } from './seed.ts'
 
 const id = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`
@@ -278,7 +278,7 @@ test.describe('List view', () => {
 
     await list.getByRole('button', { name: startingWith(`Leo · ${words('relation.son')}`) }).click()
     await expect(panel(page).getByRole('heading', { name: 'Leo' })).toBeFocused()
-    await addButton(panel(page), 'relation.daughter').click()
+    await startAdd(page, 'relation.daughter')
     await page.getByLabel(words('fields.firstName')).fill('Mia')
     await page.getByRole('radio', { name: words('addForm.otherNobody') }).count()
     await submitButton(page, 'relation.daughter').click()
@@ -303,7 +303,7 @@ test.describe('List view', () => {
     await expect(
       list.getByRole('button', { name: startingWith(`Anna · ${words('relation.sister')}`) }),
     ).toHaveAttribute('aria-current', 'true')
-    await page.getByRole('button', { name: words('app.listView') }).click()
+    await page.getByRole('button', { name: words('app.treeView') }).click()
     await expect(frame(page)).toBeVisible()
     await expect(peopleList(page)).toHaveCount(7)
   })

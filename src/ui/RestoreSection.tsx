@@ -42,28 +42,28 @@ export function RestoreSection({ onRestored }: { onRestored: (message: MessageRe
   }
 
   return (
-    <section aria-labelledby={titleId} className="mt-5">
-      <h3 id={titleId} className="font-semibold">
+    <section aria-labelledby={titleId}>
+      <h3 id={titleId} className="text-lg font-semibold">
         {t('restore.title')}
       </h3>
-      {readOnly && <p className="mt-1 text-stone-700">{t('restore.readOnlyNote')}</p>}
+      {readOnly && <p className="mt-1 text-ink-soft">{t('restore.readOnlyNote')}</p>}
       {versions === null ? (
-        <p className="mt-1 text-stone-700">{t('common.checking')}</p>
+        <p className="mt-1 text-ink-soft">{t('common.checking')}</p>
       ) : versions === 'unavailable' ? (
-        <p className="mt-1 text-stone-700">{t('restore.unavailable')}</p>
+        <p className="mt-1 text-ink-soft">{t('restore.unavailable')}</p>
       ) : versions.length === 0 ? (
-        <p className="mt-1 text-stone-700">{t('restore.none')}</p>
+        <p className="mt-1 text-ink-soft">{t('restore.none')}</p>
       ) : (
         <ul className="mt-1 flex flex-col gap-2">
           {versions.map((version) => {
             const at = when(version.takenAt)
             const people = (count: number) => renderMessage(t, msg('common.people', { count }))
             return (
-              <li key={version.id} className="rounded border border-stone-300 p-2">
+              <li key={version.id} className="rounded-lg border border-line bg-surface p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span>
                     {t('restore.line', { when: at, people: people(version.personCount) })}{' '}
-                    <span className="text-stone-700">
+                    <span className="text-ink-soft">
                       {t('restore.reasonNote', { reason: t(`restore.reason.${version.reason}`) })}
                     </span>
                   </span>
@@ -92,7 +92,7 @@ export function RestoreSection({ onRestored }: { onRestored: (message: MessageRe
                         type="button"
                         onClick={() => void restore(version)}
                         disabled={busy}
-                        className="min-h-11 rounded bg-red-800 px-3 font-medium text-white disabled:opacity-60"
+                        className="min-h-11 rounded bg-danger px-3 font-medium text-white disabled:opacity-60"
                       >
                         {t('restore.confirm')}
                       </button>
@@ -113,7 +113,7 @@ export function RestoreSection({ onRestored }: { onRestored: (message: MessageRe
         </ul>
       )}
       {problem && (
-        <p role="alert" className="mt-2 text-red-800">
+        <p role="alert" className="mt-2 text-danger">
           {renderMessage(t, problem)}
         </p>
       )}

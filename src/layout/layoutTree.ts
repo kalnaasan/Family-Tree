@@ -8,11 +8,22 @@ import type { Tree } from '../domain/schema.ts'
  *    parents and children, partners move together as a group; the row is then re-ordered with partners kept
  *    adjacent and spread to at least `gapX` apart with the smallest possible displacement.
  * 3. Fan crown: the horizontal position becomes an angle (about 270 degrees), the generation a ring radius.
+ *    With `shape: 'rows'` there is no crown: the rows stay straight, one `rowStep` apart, and `x` is the position
+ *    along the row (the top-down chart). `theta` and `radius` are then all zero.
  *
  * Warm start: pass the previous layout and the relaxation starts from it, so one edit moves little.
  */
 
+export type LayoutShape = 'crown' | 'rows'
+
 export interface LayoutOptions {
+  /** `crown` (default): the fan crown. `rows`: straight generation rows, for the chart. */
+  shape?: LayoutShape
+  /** `rows` only: the distance between two generation rows. */
+  rowStep?: number
+  /** `rows` only: the size of a Person's card, used for the bounds. */
+  cardWidth?: number
+  cardHeight?: number
   /** Minimum horizontal distance between neighbours in a row, before bending into the crown. */
   gapX?: number
   /** Radius added per generation ring at least. */
@@ -38,6 +49,7 @@ export interface LayoutOptions {
 }
 
 export interface TreeLayout {
+  shape: LayoutShape
   count: number
   /** Index -> Person id. Everything else is indexed the same way. */
   ids: string[]
@@ -63,6 +75,10 @@ export interface TreeLayout {
 }
 
 const DEFAULTS = {
+  shape: 'crown' as LayoutShape,
+  rowStep: 150,
+  cardWidth: 164,
+  cardHeight: 64,
   gapX: 110,
   ringStep: 140,
   innerRadius: 130,
@@ -82,7 +98,116 @@ const CHILD_WEIGHT = 1
 const MAX_GENERATION_PASSES = 24
 const KIND_CODE = { birth: 0, adoptive: 1, step: 2 } as const
 
+/**
+ * Lays out a Tree. In the `rows` shape each connected part of the Tree is laid out on its own and the parts are set
+ * side by side, so a person with no relatives does not drift away from the rest while the others settle (the crown hides
+ * that drift behind its angle limit; a straight row shows it as a very wide chart).
+ */
 export function layoutTree(tree: Tree, options: LayoutOptions = {}): TreeLayout {
+  if ((options.shape ?? DEFAULTS.shape) === 'rows') {
+    const parts = connectedParts(tree)
+    if (parts.length > 1) return packParts(tree, parts, options)
+  }
+  return layoutOne(tree, options)
+}
+
+/** Lists of person indices, one per connected part: linked by a parent link of any kind or a partnership. */
+function connectedParts(tree: Tree): number[][] {
+  const index = new Map(tree.persons.map((p, i) => [p.id, i]))
+  const root = tree.persons.map((_, i) => i)
+  const find = (i: number): number => {
+    while (root[i] !== i) {
+      root[i] = root[root[i]!]!
+      i = root[i]!
+    }
+    return i
+  }
+  const join = (a: string, b: string) => {
+    const x = index.get(a)
+    const y = index.get(b)
+    if (x !== undefined && y !== undefined) root[find(x)] = find(y)
+  }
+  for (const link of tree.parentLinks) join(link.childId, link.parentId)
+  for (const partnership of tree.partnerships) join(partnership.personIds[0], partnership.personIds[1])
+  const parts = new Map<number, number[]>()
+  tree.persons.forEach((_, i) => {
+    const key = find(i)
+    const list = parts.get(key)
+    if (list) list.push(i)
+    else parts.set(key, [i])
+  })
+  return [...parts.values()]
+}
+
+/** Lays the parts out one by one (straight rows, top aligned) and puts them in a line, `gapX` apart. */
+function packParts(tree: Tree, parts: number[][], options: LayoutOptions): TreeLayout {
+  const o = { ...DEFAULTS, ...options }
+  const n = tree.persons.length
+  const generation = new Uint16Array(n)
+  const lineX = new Float32Array(n)
+  const px = new Float32Array(n)
+  const py = new Float32Array(n)
+  const weight = new Uint32Array(n)
+  const parentEdges: number[] = []
+  const parentKinds: number[] = []
+  const partnerEdges: number[] = []
+  const partnerEnded: number[] = []
+  let offset = 0
+  let maxGeneration = 0
+  for (const members of parts) {
+    const ids = new Set(members.map((i) => tree.persons[i]!.id))
+    const part = layoutOne(
+      {
+        focusPersonId: null,
+        persons: members.map((i) => tree.persons[i]!),
+        parentLinks: tree.parentLinks.filter((l) => ids.has(l.childId) && ids.has(l.parentId)),
+        partnerships: tree.partnerships.filter((p) => ids.has(p.personIds[0]) && ids.has(p.personIds[1])),
+      },
+      { ...options, previous: undefined },
+    )
+    let width = 0
+    members.forEach((global, local) => {
+      generation[global] = part.generation[local]!
+      lineX[global] = part.lineX[local]! + offset
+      px[global] = part.x[local]! + offset
+      py[global] = part.y[local]!
+      weight[global] = part.weight[local]!
+      width = Math.max(width, part.lineX[local]!)
+    })
+    for (let e = 0; e < part.parentEdgeKind.length; e++) {
+      parentEdges.push(members[part.parentEdges[2 * e]!]!, members[part.parentEdges[2 * e + 1]!]!)
+      parentKinds.push(part.parentEdgeKind[e]!)
+    }
+    for (let e = 0; e < part.partnerEnded.length; e++) {
+      partnerEdges.push(members[part.partnerEdges[2 * e]!]!, members[part.partnerEdges[2 * e + 1]!]!)
+      partnerEnded.push(part.partnerEnded[e]!)
+    }
+    maxGeneration = Math.max(maxGeneration, part.maxGeneration)
+    offset += width + o.gapX
+  }
+  const padX = o.padding + o.cardWidth / 2
+  const padY = o.padding / 2 + o.cardHeight / 2
+  return {
+    shape: 'rows',
+    count: n,
+    ids: tree.persons.map((p) => p.id),
+    generation,
+    maxGeneration,
+    lineX,
+    x: px,
+    y: py,
+    theta: new Float32Array(n),
+    radius: new Float32Array(n),
+    weight,
+    parentEdges: Int32Array.from(parentEdges),
+    parentEdgeKind: Uint8Array.from(parentKinds),
+    partnerEdges: Int32Array.from(partnerEdges),
+    partnerEnded: Uint8Array.from(partnerEnded),
+    bounds: { x0: -padX, y0: -padY, x1: offset - o.gapX + padX, y1: maxGeneration * o.rowStep + padY },
+  }
+}
+
+function layoutOne(tree: Tree, options: LayoutOptions): TreeLayout {
   const o = { ...DEFAULTS, ...options }
   const n = tree.persons.length
   const ids = tree.persons.map((p) => p.id)
@@ -245,6 +370,41 @@ export function layoutTree(tree: Tree, options: LayoutOptions = {}): TreeLayout 
   for (let i = 0; i < n; i++) lineX[i] = x[i]! - minX
   const width = n > 0 ? maxX - minX : 0
 
+  // --- straight rows (the chart) -----------------------------------------------------------
+  if (o.shape === 'rows') {
+    const px = new Float32Array(n)
+    const py = new Float32Array(n)
+    for (let i = 0; i < n; i++) {
+      px[i] = lineX[i]!
+      py[i] = generation[i]! * o.rowStep
+    }
+    const padX = o.padding + o.cardWidth / 2
+    const padY = o.padding / 2 + o.cardHeight / 2
+    const weight = new Uint32Array(n).fill(1)
+    for (let k = order.length - 1; k >= 0; k--) {
+      const node = order[k]!
+      for (const parent of parents[node]!) weight[parent]! += weight[node]!
+    }
+    return {
+      shape: 'rows',
+      count: n,
+      ids,
+      generation,
+      maxGeneration: Math.max(0, rowCount - 1),
+      lineX,
+      x: px,
+      y: py,
+      theta: new Float32Array(n),
+      radius: new Float32Array(n),
+      weight,
+      parentEdges: Int32Array.from(parentEdgeList),
+      parentEdgeKind: Uint8Array.from(parentKindList),
+      partnerEdges: Int32Array.from(partnerEdgeList),
+      partnerEnded: Uint8Array.from(partnerEndedList),
+      bounds: { x0: -padX, y0: -padY, x1: width + padX, y1: Math.max(0, rowCount - 1) * o.rowStep + padY },
+    }
+  }
+
   // --- fan crown --------------------------------------------------------------------------
   // The row is centred above the trunk and spans one step per `gapX` of width, up to the full crown. Spreading
   // a handful of people over the whole 270 degrees would put a couple, or a parent and child, on opposite sides.
@@ -296,6 +456,7 @@ export function layoutTree(tree: Tree, options: LayoutOptions = {}): TreeLayout 
   }
 
   return {
+    shape: 'crown',
     count: n,
     ids,
     generation,

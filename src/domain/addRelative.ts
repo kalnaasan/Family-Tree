@@ -13,8 +13,10 @@ import { type NewPerson, addParentLink, addPartnership, addPerson } from './tree
 export type Relation =
   | 'father'
   | 'mother'
+  | 'parent'
   | 'brother'
   | 'sister'
+  | 'sibling'
   | 'husband'
   | 'wife'
   | 'partner'
@@ -27,8 +29,10 @@ export type RelationKind = 'parent' | 'sibling' | 'partner' | 'child'
 export const RELATIONS: Record<Relation, { kind: RelationKind; gender: Gender }> = {
   father: { kind: 'parent', gender: 'male' },
   mother: { kind: 'parent', gender: 'female' },
+  parent: { kind: 'parent', gender: 'unknown' },
   brother: { kind: 'sibling', gender: 'male' },
   sister: { kind: 'sibling', gender: 'female' },
+  sibling: { kind: 'sibling', gender: 'unknown' },
   husband: { kind: 'partner', gender: 'male' },
   wife: { kind: 'partner', gender: 'female' },
   partner: { kind: 'partner', gender: 'unknown' },
@@ -41,8 +45,10 @@ export const RELATIONS: Record<Relation, { kind: RelationKind; gender: Gender }>
 export const RELATION_KEY: Record<Relation, MessageKey> = {
   father: 'relation.father',
   mother: 'relation.mother',
+  parent: 'relation.parent',
   brother: 'relation.brother',
   sister: 'relation.sister',
+  sibling: 'relation.sibling',
   husband: 'relation.husband',
   wife: 'relation.wife',
   partner: 'relation.partner',

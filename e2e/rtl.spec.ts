@@ -88,9 +88,9 @@ test.describe('desktop', () => {
     await page.getByRole('button', { name: 'List view' }).click()
     const glyph = () =>
       page
-        .getByRole('button', { name: /^Expand / })
+        .getByRole('button', { expanded: false })
         .first()
-        .locator('span')
+        .locator('svg')
         .evaluate((span) => getComputedStyle(span).scale)
     expect(await glyph()).toBe('none')
     await readRightToLeft(page)
@@ -100,7 +100,8 @@ test.describe('desktop', () => {
   test('a toast stays in the middle of the screen in both directions', async ({ page }) => {
     await openWithTree(page, tree())
     await openPerson(page, 'P1')
-    await page.getByRole('button', { name: 'Make Focus person' }).click()
+    await page.getByRole('button', { name: 'More actions for P1' }).click()
+    await page.getByRole('menuitem', { name: 'Make Focus person' }).click()
     await page.getByRole('group', { name: 'History' }).getByRole('button', { name: 'Undo' }).click()
     const toast = page.locator('div[aria-live="polite"].fixed')
     await expect(toast).toContainText('Undid:')

@@ -2,8 +2,9 @@ import AxeBuilder from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
 import type { Tree } from '../src/domain/schema.ts'
 import { addParentLink, addPartnership, addPerson, emptyTree } from '../src/domain/tree.ts'
+import { capitalise } from '../src/i18n/format.ts'
 import { expect, msg, test, words } from './fixtures.ts'
-import { addButton, openPerson, panel, peopleList, personButton, submitButton } from './helpers.ts'
+import { deletePerson, makeFocusPerson, openActionsMenu, expectPeople, openPerson, startAdd, panel, peopleList, personButton, submitButton } from './helpers.ts'
 import { openWithTree } from './seed.ts'
 
 const id = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`
@@ -58,7 +59,7 @@ test.describe('first person', () => {
 test.describe('parents', () => {
   test('a third birth parent is blocked with a message', async ({ page }) => {
     await openWith(page, benWithTwoParents())
-    await addButton(panel(page), 'relation.father').click()
+    await startAdd(page, 'relation.father')
     await expect(page.getByRole('alert')).toContainText(words('addRelative.blockedParents', { name: 'Ben' }))
     await noViolations(page)
     await page.getByRole('button', { name: words('addForm.back'), exact: true }).click()
@@ -68,7 +69,7 @@ test.describe('parents', () => {
 
   test('with one parent, the partnership question defaults to current and shows a preview', async ({ page }) => {
     await openWith(page, addParentLink(people('Ben', 'Karl'), id(1), id(2)))
-    await addButton(panel(page), 'relation.mother').click()
+    await startAdd(page, 'relation.mother')
     await expect(page.getByRole('radio', { name: words('addForm.partnerCurrent') })).toBeChecked()
     await page.getByLabel(words('fields.firstName')).fill('Maria')
     await expect(page.getByText(words('preview.title'))).toBeVisible()
@@ -83,7 +84,7 @@ test.describe('parents', () => {
 test.describe('siblings', () => {
   test('two parents: both or only one (a half-sibling)', async ({ page }) => {
     await openWith(page, benWithTwoParents())
-    await addButton(panel(page), 'relation.brother').click()
+    await startAdd(page, 'relation.brother')
     await expect(
       page.getByRole('radio', { name: words('addForm.sharesBoth', { first: 'Karl', second: 'Maria' }) }),
     ).toBeChecked()
@@ -101,7 +102,7 @@ test.describe('siblings', () => {
 
   test('one parent: attached silently, without a question', async ({ page }) => {
     await openWith(page, addParentLink(people('Ben', 'Karl'), id(1), id(2)))
-    await addButton(panel(page), 'relation.sister').click()
+    await startAdd(page, 'relation.sister')
     await expect(page.getByRole('radio')).toHaveCount(0)
     await page.getByLabel(words('fields.firstName')).fill('Anna')
     await submitButton(page, 'relation.sister').click()
@@ -110,7 +111,7 @@ test.describe('siblings', () => {
 
   test('no parents: an unnamed shared parent is created and can be renamed', async ({ page }) => {
     await openWith(page, people('Ben'))
-    await addButton(panel(page), 'relation.sister').click()
+    await startAdd(page, 'relation.sister')
     await expect(page.getByRole('radio')).toHaveCount(0)
     await page.getByLabel(words('fields.firstName')).fill('Anna')
     await expect(page.getByText(words('preview.newParent', { name: words('person.unnamedParent') }))).toBeVisible()
@@ -134,7 +135,7 @@ test.describe('siblings', () => {
 test.describe('children', () => {
   test('without partners: a single-parent child, no question', async ({ page }) => {
     await openWith(page, people('Ben'))
-    await addButton(panel(page), 'relation.son').click()
+    await startAdd(page, 'relation.son')
     await expect(page.getByRole('radio')).toHaveCount(0)
     await page.getByLabel(words('fields.firstName')).fill('Leo')
     await submitButton(page, 'relation.son').click()
@@ -148,7 +149,7 @@ test.describe('children', () => {
     tree = addPartnership(tree, { personIds: [id(1), id(3)], status: 'current' })
     await openWith(page, tree)
 
-    await addButton(panel(page), 'relation.daughter').click()
+    await startAdd(page, 'relation.daughter')
     await expect(page.getByRole('radio', { name: words('addForm.otherCurrent', { name: 'Eva' }) })).toBeChecked()
     await expect(page.getByRole('radio', { name: words('addForm.otherFormer', { name: 'Old' }) })).not.toBeChecked()
     await page.getByLabel(words('fields.firstName')).fill('Mia')
@@ -174,7 +175,7 @@ test.describe('children', () => {
 test.describe('partners', () => {
   test('current by default; ended shows as former', async ({ page }) => {
     await openWith(page, people('Ben'))
-    await addButton(panel(page), 'relation.wife').click()
+    await startAdd(page, 'relation.wife')
     await expect(page.getByRole('radio', { name: words('addForm.statusCurrent') })).toBeChecked()
     await expect(page.getByLabel(words('fields.gender'))).toHaveValue('female')
     await page.getByLabel(words('fields.firstName')).fill('Eva')
@@ -187,7 +188,7 @@ test.describe('partners', () => {
 
   test('the gender a relation presets can be changed', async ({ page }) => {
     await openWith(page, people('Ben'))
-    await addButton(panel(page), 'relation.husband').click()
+    await startAdd(page, 'relation.husband')
     await expect(page.getByLabel(words('fields.gender'))).toHaveValue('male')
     await page.getByLabel(words('fields.gender')).selectOption('other')
     await page.getByLabel(words('fields.firstName')).fill('Alex')
@@ -222,29 +223,35 @@ test.describe('keyboard only', () => {
     await page.keyboard.press('Enter')
     await expect(panel(page).getByRole('heading', { name: 'Ben' })).toBeFocused()
 
-    await tabTo(page, words('panel.addAria', { relation: words('relation.son') }))
+    await tabTo(page, words('panel.addTo.children'))
     await page.keyboard.press('Enter')
+    await expect(page.getByRole('dialog').getByRole('radio', { name: capitalise(words('relation.child')), exact: true })).toBeFocused()
+    await page.keyboard.press('ArrowDown') // the arrows move within the group: son
+    await page.keyboard.press('Enter') // implicit submit of the first step: Continue
     await expect(page.getByLabel(words('fields.firstName'))).toBeFocused()
     await page.keyboard.type('Leo')
     await page.keyboard.press('Enter') // implicit form submit
     await expect(panel(page).getByRole('heading', { name: 'Leo' })).toBeFocused()
 
-    await tabTo(page, words('panel.addAria', { relation: words('relation.wife') }))
+    await tabTo(page, words('panel.addTo.partners'))
+    await page.keyboard.press('Enter')
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('ArrowDown') // partner, husband, wife
     await page.keyboard.press('Enter')
     await page.keyboard.type('Zoe')
     await tabTo(page, words('addForm.statusCurrent')) // Tab lands on the checked radio; arrow keys move within the group
     await page.keyboard.press('ArrowDown')
     await expect(page.getByRole('radio', { name: words('addForm.statusEnded') })).toBeChecked()
-    await tabTo(page, words('panel.addAria', { relation: words('relation.wife') }))
+    await tabTo(page, words('addForm.submit', { relation: words('relation.wife') }))
     await page.keyboard.press('Enter')
     await expect(panel(page).getByRole('heading', { name: 'Zoe' })).toBeFocused()
 
-    await expect(peopleList(page)).toHaveText(['Ben', 'Leo', 'Zoe'])
+    await expectPeople(page, ['Ben', 'Leo', 'Zoe'])
   })
 
   test('Escape steps back from a form, then closes the panel and returns to the tree', async ({ page }) => {
     await openWith(page, people('Ben'))
-    await addButton(panel(page), 'relation.son').click()
+    await startAdd(page, 'relation.son')
     await expect(page.getByLabel(words('fields.firstName'))).toBeFocused()
     await page.keyboard.press('Escape')
     await expect(panel(page).getByRole('heading', { name: 'Ben' })).toBeFocused()
@@ -256,7 +263,7 @@ test.describe('keyboard only', () => {
   test('the panel passes axe', async ({ page }) => {
     await openWith(page, benWithTwoParents())
     await noViolations(page)
-    await addButton(panel(page), 'relation.sister').click()
+    await startAdd(page, 'relation.sister')
     await noViolations(page)
   })
 })
@@ -266,7 +273,8 @@ test.describe('the tree and the panel', () => {
     await openWithTree(page, benWithTwoParents())
     await page.locator(`[data-person-id="${id(1)}"]`).click()
     await expect(panel(page).getByRole('heading', { name: 'Ben' })).toBeVisible()
-    await expect(page.locator(`[data-person-id="${id(1)}"] circle[stroke-dasharray]`)).toHaveCount(1)
+    // the open Person is marked (a dashed ring on the artistic tree, a filled card on the chart)
+    await expect(page.locator(`[data-person-id="${id(1)}"]`)).toHaveAttribute('aria-current', 'true')
 
     const frame = (await page.getByRole('group', { name: words('tree.label') }).boundingBox())!
     await page.mouse.click(frame.x + 6, frame.y + 6)
@@ -316,11 +324,12 @@ test.describe('edit, Focus person and delete', () => {
     await openWith(page, benWithTwoParents())
     await expect(group(page, words('panel.group.parents'))).toContainText(words('relation.father'))
     await openPerson(page, 'Karl')
-    await panel(page)
-      .getByRole('button', { name: words('panel.makeFocus') })
-      .click()
+    await makeFocusPerson(page)
     await expect(panel(page)).toContainText(words('person.focus'))
-    await expect(panel(page).getByRole('button', { name: words('panel.makeFocus') })).toHaveCount(0)
+    await openActionsMenu(page)
+    await expect(page.getByRole('menuitem', { name: words('panel.makeFocus') })).toHaveCount(0)
+    await expect(page.getByRole('menuitem', { name: new RegExp(words('panel.delete', { name: '' }).trim()) })).toHaveCount(1)
+    await page.keyboard.press('Escape')
     await expect(group(page, words('panel.group.children'))).toContainText(words('relation.son'))
     await expect(page.getByRole('status')).toHaveText(words('save.saved'))
     await page.reload()
@@ -328,15 +337,27 @@ test.describe('edit, Focus person and delete', () => {
     await expect(panel(page)).toContainText(words('person.focus'))
   })
 
+  test('deleting asks first: Cancel has the keyboard, changes nothing, and Escape does the same', async ({ page }) => {
+    await openWith(page, benWithTwoParents())
+    await openActionsMenu(page)
+    await page.getByRole('menuitem', { name: words('panel.delete', { name: 'Ben' }) }).click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toContainText(words('delete.undo'))
+    await expect(dialog.getByRole('button', { name: words('common.cancel'), exact: true })).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+    await expect(peopleList(page)).toHaveCount(3)
+    await expect(panel(page).getByRole('heading', { level: 2, name: 'Ben' })).toBeFocused()
+    await noViolations(page)
+  })
+
   test('deleting says what went with the Person', async ({ page }) => {
     await openWith(page, benWithTwoParents())
-    await panel(page)
-      .getByRole('button', { name: words('panel.delete', { name: 'Ben' }) })
-      .click()
+    await deletePerson(page, 'Ben')
     await expect(
       page.getByText(words('toast.deletedWith', { name: 'Ben', parts: msg('toast.parentLinks', { count: 2 }) })),
     ).toBeVisible()
     await expect(panel(page)).toHaveCount(0)
-    await expect(peopleList(page)).toHaveText(['Karl', 'Maria'])
+    await expectPeople(page, ['Karl', 'Maria'])
   })
 })

@@ -107,12 +107,12 @@ export function CropDialog({ bitmap, onCancel, onConfirm }: Props) {
       onKeyDown={(event) => {
         if (event.key === 'Escape') event.stopPropagation()
       }}
-      className="m-auto w-[min(92vw,26rem)] rounded-xl border border-stone-400 bg-white p-5 shadow-xl backdrop:bg-black/50"
+      className="m-auto w-[min(92vw,26rem)] rounded-xl border border-line-strong bg-white p-5 shadow-xl backdrop:bg-black/50"
     >
       <h2 id={titleId} className="text-xl font-semibold">
         {t('crop.title')}
       </h2>
-      <p id={hintId} className="mt-1 text-sm text-stone-700">
+      <p id={hintId} className="mt-1 text-sm text-ink-soft">
         {t('crop.hint')}
       </p>
 
@@ -127,7 +127,7 @@ export function CropDialog({ bitmap, onCancel, onConfirm }: Props) {
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         style={{ width: PREVIEW_PX, height: PREVIEW_PX }}
-        className="mx-auto my-4 cursor-grab touch-none overflow-hidden rounded-full border-4 border-stone-700 bg-stone-200 outline-offset-4 focus-visible:outline-3 focus-visible:outline-sky-800 active:cursor-grabbing"
+        className="mx-auto my-4 cursor-grab touch-none overflow-hidden rounded-full border-4 border-line-strong bg-surface-soft outline-offset-4 focus-visible:outline-3 focus-visible:outline-sky-800 active:cursor-grabbing"
       >
         <canvas
           ref={canvasRef}
@@ -152,7 +152,7 @@ export function CropDialog({ bitmap, onCancel, onConfirm }: Props) {
       </label>
 
       {error && (
-        <p role="alert" className="mt-3 text-red-800">
+        <p role="alert" className="mt-3 text-danger">
           {t('crop.error')}
         </p>
       )}

@@ -2,15 +2,21 @@
 
 /* Colours follow the tree canvas (src/view/palette.ts): parchment, bark brown, leaf green. */
 @theme {
-  --color-paper: #f6efe0;
-  --color-paper-deep: #ebe0c9;
-  --color-ink: #2b2118;
-  --color-ink-soft: #5a4b3b;
+  --color-paper: #f8f5ee;
+  --color-paper-deep: #efe8d8;
+  --color-surface: #ffffff;
+  --color-surface-soft: #f3eee2;
+  --color-ink: #242424;
+  --color-ink-soft: #55493b;
   --color-bark: #7a4f2b;
   --color-leaf: #2f6b34;
-  --color-leaf-deep: #245428;
-  --color-line: #cdbfa6;
+  --color-leaf-deep: #285943;
+  --color-accent: #c6a667;
+  --color-accent-soft: #f1e6cb;
+  --color-danger: #9b1c1c;
+  --color-line: #d9ceb7;
   --color-line-strong: #8a7556;
+  --shadow-raised: 0 1px 2px rgb(36 36 36 / 0.08), 0 4px 12px rgb(36 36 36 / 0.08);
 }
 
 body {
@@ -76,6 +82,57 @@ body {
   .btn-icon {
     padding: 0;
     width: 2.75rem;
+  }
+  /* A quiet button for secondary actions: no border until it is hovered. */
+  .btn-ghost {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    padding-inline: 0.75rem;
+    color: var(--color-leaf-deep);
+    font-weight: 500;
+    transition: background-color 150ms;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--color-accent-soft);
+  }
+  /* A person in a list or a panel: a whole-row button with an avatar and two lines of text. */
+  .person-row {
+    display: flex;
+    min-height: 3.25rem;
+    width: 100%;
+    align-items: center;
+    gap: 0.75rem;
+    border-radius: 0.5rem;
+    padding: 0.375rem 0.5rem;
+    text-align: start;
+    transition: background-color 150ms;
+  }
+  .person-row:hover {
+    background: var(--color-surface-soft);
+  }
+  .person-row[aria-current='true'] {
+    background: var(--color-accent-soft);
+    box-shadow: inset 3px 0 0 var(--color-leaf-deep);
+  }
+  :where(:root[dir='rtl']) .person-row[aria-current='true'] {
+    box-shadow: inset -3px 0 0 var(--color-leaf-deep);
+  }
+  .menu-item {
+    display: flex;
+    min-height: 2.75rem;
+    width: 100%;
+    align-items: center;
+    gap: 0.5rem;
+    padding-inline: 1rem;
+    text-align: start;
+  }
+  .menu-item:hover,
+  .menu-item:focus {
+    background: var(--color-surface-soft);
   }
   button:not(:disabled),
   summary {

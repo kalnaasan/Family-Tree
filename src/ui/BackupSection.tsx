@@ -75,10 +75,12 @@ export function BackupSection({ onReplaced }: { onReplaced: (message: MessageRef
 
   const status = busy ?? note
   return (
-    <section aria-labelledby={titleId} className="mt-5">
-      <h3 id={titleId} className="font-semibold">
+    <section aria-labelledby={titleId}>
+      <h3 id={titleId} className="text-lg font-semibold">
         {t('backup.title')}
       </h3>
+      <p className="mt-1 text-ink-soft">{t('backup.explain')}</p>
+      <p className="mt-2">{renderMessage(t, msg('backup.overview', { people: msg('common.people', { count: currentCount }) }))}</p>
       <p className="mt-1">
         {t('backup.lastBackup', { when: lastBackupAt ? when(lastBackupAt) : t('backup.never') })}
       </p>
@@ -123,11 +125,11 @@ export function BackupSection({ onReplaced }: { onReplaced: (message: MessageRef
         }}
       />
 
-      <p aria-live="polite" className="mt-2 text-stone-700">
+      <p aria-live="polite" className="mt-2 text-ink-soft">
         {status && renderMessage(t, status)}
       </p>
       {problem && (
-        <p role="alert" className="mt-2 text-red-800">
+        <p role="alert" className="mt-2 text-danger">
           {renderMessage(t, problem)}
         </p>
       )}
@@ -136,7 +138,7 @@ export function BackupSection({ onReplaced }: { onReplaced: (message: MessageRef
         <div
           role="group"
           aria-labelledby={`${titleId}-confirm`}
-          className="mt-3 rounded border border-amber-800 bg-amber-50 p-3"
+          className="mt-3 rounded border border-bark bg-accent-soft p-3"
         >
           <h4 id={`${titleId}-confirm`} ref={confirmHeading} tabIndex={-1} className="font-semibold outline-offset-4">
             {t('backup.confirmTitle')}
@@ -169,7 +171,7 @@ export function BackupSection({ onReplaced }: { onReplaced: (message: MessageRef
               type="button"
               onClick={() => void replace()}
               disabled={busy !== null}
-              className="min-h-11 rounded bg-red-800 px-3 font-medium text-white disabled:opacity-60"
+              className="min-h-11 rounded bg-danger px-3 font-medium text-white disabled:opacity-60"
             >
               {t('backup.replace')}
             </button>

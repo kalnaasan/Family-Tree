@@ -2,6 +2,11 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test, words } from './fixtures.ts'
 import { openWithFixture, zoomOf } from './seed.ts'
 
+/** These are the artistic tree's opening and zoom rules (spec section 12); the chart's are in collapse.spec. */
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('family-tree.treeShape', 'crown'))
+})
+
 const MIN_READABLE = 0.8
 const MAX_ZOOM = 2.5
 

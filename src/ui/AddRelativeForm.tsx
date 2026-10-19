@@ -23,13 +23,15 @@ interface Props {
   /** Called with the new Person's id once they have been added. */
   onDone: (personId: string) => void
   onCancel: () => void
+  /** When the caller has its own way back (the dialog's Back), a blocked add does not draw a second one. */
+  hasBack?: boolean
 }
 
 /**
  * Adds one relative. A question is asked only when the answer is ambiguous (spec section 5), and the form always
  * ends with "This will create: ..." so nothing happens that the user has not seen.
  */
-export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
+export function AddRelativeForm({ anchor, relation, onDone, onCancel, hasBack = false }: Props) {
   const t = useT()
   const persons = useTreeStore((s) => s.persons)
   const parentLinks = useTreeStore((s) => s.parentLinks)
@@ -79,12 +81,14 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
   if (question.kind === 'blocked') {
     return (
       <div className="flex flex-col gap-3">
-        <p role="alert" className="rounded border border-red-800 p-3 text-red-800">
+        <p role="alert" className="rounded border border-danger p-3 text-danger">
           {renderMessage(t, question.message)}
         </p>
-        <button type="button" onClick={onCancel} className="btn px-4">
-          {t('addForm.back')}
-        </button>
+        {!hasBack && (
+          <button type="button" onClick={onCancel} className="btn px-4">
+            {t('addForm.back')}
+          </button>
+        )}
       </div>
     )
   }
@@ -95,7 +99,7 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
 
       <RelativeQuestions question={question} answers={answers} onChange={setAnswers} />
 
-      <div aria-live="polite" className="rounded bg-stone-100 p-3 text-sm">
+      <div aria-live="polite" className="rounded bg-surface-soft p-3 text-sm">
         <p className="font-medium">{t('preview.title')}</p>
         <ul className="mt-1 list-disc ps-5">
           {preview.map((line, n) => (
@@ -105,7 +109,7 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel }: Props) {
       </div>
 
       {failure && (
-        <p role="alert" className="text-red-800">
+        <p role="alert" className="text-danger">
           {failure}
         </p>
       )}

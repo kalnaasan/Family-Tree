@@ -92,7 +92,7 @@ export function EditLinkDialog({ target, onClose }: { target: LinkTarget; onClos
         event.preventDefault()
         onClose()
       }}
-      className="m-auto max-h-[90dvh] w-[min(92vw,28rem)] overflow-y-auto rounded-xl border border-stone-400 bg-white p-5 shadow-xl backdrop:bg-black/50"
+      className="m-auto max-h-[90dvh] w-[min(92vw,28rem)] overflow-y-auto rounded-xl border border-line-strong bg-white p-5 shadow-xl backdrop:bg-black/50"
     >
       <h2 id={titleId} className="text-xl font-semibold">
         {t('step.editLink', { first, second })}
@@ -159,7 +159,7 @@ function ParentLinkForm({ tree, link, onClose }: { tree: Tree; link: ParentLink;
                 {t(label)}
               </label>
               {refused && (
-                <p id={`${id}-${value}-reason`} className="ms-7 text-sm text-stone-700">
+                <p id={`${id}-${value}-reason`} className="ms-7 text-sm text-ink-soft">
                   {t('link.reason.third-birth-parent')}
                 </p>
               )}
@@ -168,7 +168,7 @@ function ParentLinkForm({ tree, link, onClose }: { tree: Tree; link: ParentLink;
         })}
       </fieldset>
       {failure && (
-        <p role="alert" className="text-red-800">
+        <p role="alert" className="text-danger">
           {failure}
         </p>
       )}
@@ -242,13 +242,13 @@ function PartnershipForm({ partnership, onClose }: { partnership: Partnership; o
             aria-describedby={`${id}-${field}-help`}
             className={`${inputClass} input-start`}
           />
-          <p id={`${id}-${field}-help`} className={`mt-1 text-sm ${errors[field] ? 'text-red-800' : 'text-stone-700'}`}>
+          <p id={`${id}-${field}-help`} className={`mt-1 text-sm ${errors[field] ? 'text-danger' : 'text-ink-soft'}`}>
             {t(DATE_HELP)}
           </p>
         </div>
       ))}
       {failure && (
-        <p role="alert" className="text-red-800">
+        <p role="alert" className="text-danger">
           {failure}
         </p>
       )}

@@ -5,7 +5,7 @@ import { serializeDocument } from '../src/domain/document.ts'
 import type { Tree } from '../src/domain/schema.ts'
 import { addParentLink, addPerson, emptyTree } from '../src/domain/tree.ts'
 import { expect, startingWith, test, words } from './fixtures.ts'
-import { openPerson, panel, personButton } from './helpers.ts'
+import { openPerson, panel, personButton, startAdd, submitButton } from './helpers.ts'
 import { openWithTree } from './seed.ts'
 
 const ANNA = '00000000-0000-4000-8000-000000000001'
@@ -33,9 +33,11 @@ function family(): Tree {
 }
 
 const settings = (page: Page) => page.getByRole('dialog', { name: words('app.settings') })
-const openSettings = async (page: Page) => {
+/** Opens Settings on one of its tabs (Backup unless said otherwise; the English build has no Language tab). */
+const openSettings = async (page: Page, tab: 'storage' | 'backup' | 'versions' = 'backup') => {
   await page.getByRole('button', { name: words('app.settings') }).click()
   await expect(settings(page)).toBeVisible()
+  await settings(page).getByRole('tab', { name: words(`settings.tab.${tab}`) }).click()
 }
 const closeSettings = async (page: Page) => {
   await settings(page)
@@ -130,13 +132,9 @@ const storedPhotoCount = (page: Page): Promise<number> =>
 
 /** Adds a child to the open Person, the way persistence.spec does. */
 async function addChild(page: Page, name: string) {
-  await page
-    .getByRole('button', { name: words('panel.addAria', { relation: words('relation.child') }), exact: true })
-    .click()
+  await startAdd(page, 'relation.child')
   await page.getByLabel(words('fields.firstName')).fill(name)
-  await page
-    .getByRole('button', { name: words('panel.addAria', { relation: words('relation.child') }), exact: true })
-    .click()
+  await submitButton(page, 'relation.child').click()
   await expect(page.getByRole('heading', { level: 2, name })).toBeVisible()
 }
 
@@ -197,6 +195,7 @@ test('export then import gives the identical document with its photo, after a sa
   expect(sameness(await exportFile(page))).toEqual(sameness(first))
 
   // the tree before the import is kept as a version
+  await settings(page).getByRole('tab', { name: words('settings.tab.versions') }).click()
   await expect(
     settings(page)
       .getByRole('listitem')
@@ -246,7 +245,7 @@ test('restoring the version from before an import brings back the people and the
   // Anna's photo is not thrown away while a saved version still shows it
   expect(await storedPhotoCount(page)).toBe(1)
 
-  await openSettings(page)
+  await openSettings(page, 'versions')
   const versions = settings(page).getByRole('listitem')
   await expect(versions.filter({ hasText: words('restore.reason.load') })).toBeVisible()
   const before = versions.filter({ hasText: words('restore.reason.import') })
@@ -272,7 +271,7 @@ test('restoring the version from before an import brings back the people and the
 
   // restoring kept the tree it replaced, so that is one click away too
   await saved(page)
-  await openSettings(page)
+  await openSettings(page, 'versions')
   await expect(
     settings(page)
       .getByRole('listitem')

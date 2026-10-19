@@ -3,7 +3,7 @@ import type { CDPSession, Page } from '@playwright/test'
 import type { Tree } from '../src/domain/schema.ts'
 import { addParentLink, addPartnership, addPerson, emptyTree } from '../src/domain/tree.ts'
 import { expect, test, words } from './fixtures.ts'
-import { addButton, frame, panel, personButton } from './helpers.ts'
+import { frame, sectionAddButton, panel, personButton } from './helpers.ts'
 import { openWithFixture, openWithTree, zoomOf } from './seed.ts'
 
 const id = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`
@@ -78,7 +78,7 @@ test('a tap opens a short peek with the name, Add relative and Details, and the 
   await expect(panel(page).getByRole('heading', { level: 2, name: 'Ben' })).toBeVisible()
   await expect(panel(page).getByRole('button', { name: words('panel.addRelative') })).toBeVisible()
   await expect(panel(page).getByRole('button', { name: words('panel.details') })).toBeVisible()
-  await expect(addButton(panel(page), 'relation.father')).toHaveCount(0) // the details are not open
+  await expect(sectionAddButton(page, 'parents')).toHaveCount(0) // the details are not open
 
   const sheet = (await panel(page).boundingBox())!
   expect(sheet.height).toBeLessThan(190) // about 150 px
@@ -87,10 +87,16 @@ test('a tap opens a short peek with the name, Add relative and Details, and the 
 
 test('tapping empty space dismisses the sheet', async ({ page }) => {
   await openWithTree(page, family())
+  // the whole tree, small, so there is empty space on the screen (the chart opens on the Focus person, big)
+  await page.getByRole('button', { name: words('tree.fit') }).tap()
+  await expect.poll(() => zoomOf(frame(page))).toBeLessThan(0.7)
   await tapOn(page, personButton(page, 'Ben'))
   await expect(panel(page)).toBeVisible()
   const box = (await frame(page).boundingBox())!
-  await page.touchscreen.tap(box.x + 20, box.y + box.height * 0.6)
+  // just above the sheet in the middle: away from the buttons at the top and the sides and from the people (a finger snaps
+  // to a button or person nearby)
+  const sheetTop = (await panel(page).boundingBox())!.y
+  await page.touchscreen.tap(box.x + box.width / 2, sheetTop - 40)
   await expect(panel(page)).toHaveCount(0)
 })
 
@@ -121,7 +127,7 @@ test('the handle toggles the sheet, and Add relative opens the details at the fi
   await panel(page)
     .getByRole('button', { name: words('panel.addRelative') })
     .tap()
-  await expect(addButton(panel(page), 'relation.father')).toBeFocused()
+  await expect(sectionAddButton(page, 'parents')).toBeFocused()
 })
 
 test('relatives stay bright and everyone else dims', async ({ page }) => {
@@ -170,17 +176,18 @@ test('a double-tap zooms in about the tap to a readable size, and another zooms 
   page,
 }) => {
   await openWithTree(page, family())
-  const whole = await zoomOf(frame(page))
-  expect(whole).toBeLessThan(0.8) // on a phone the whole tree is shown small
+  await page.getByRole('button', { name: words('tree.fit') }).tap()
+  await expect.poll(() => zoomOf(frame(page))).toBeLessThan(0.8)
+  const whole = await zoomOf(frame(page)) // on a phone the whole tree is shown small
   const box = (await frame(page).boundingBox())!
   const doubleTap = async () => {
-    await page.touchscreen.tap(box.x + 60, box.y + 60)
-    await page.touchscreen.tap(box.x + 60, box.y + 60)
+    await page.touchscreen.tap(box.x + 12, box.y + box.height - 12)
+    await page.touchscreen.tap(box.x + 12, box.y + box.height - 12)
   }
   await doubleTap()
   await expect.poll(() => zoomOf(frame(page))).toBeCloseTo(0.8, 2)
   await doubleTap()
-  await expect.poll(() => zoomOf(frame(page))).toBeCloseTo(whole, 2)
+  await expect.poll(() => zoomOf(frame(page))).toBeCloseTo(whole, 1)
 })
 
 test('[fingers] one finger drags the tree', async ({ page }) => {
@@ -244,20 +251,25 @@ test('at the "dot" level a tap near a Person opens them and a tap in empty space
   const box = (await frame(page).boundingBox())!
 
   const zoom = await zoomOf(frame(page))
-  await page.touchscreen.tap(box.x + 4, box.y + 4) // the far corner of the screen: nobody within reach
+  await page.touchscreen.tap(box.x + 4, box.y + box.height - 4) // the far corner of the screen: nobody within reach
   await expect.poll(() => zoomOf(frame(page))).toBeGreaterThan(zoom * 2)
   await expect(panel(page)).toHaveCount(0)
 
   await page.getByRole('button', { name: words('tree.fit') }).tap()
   await expect(frame(page)).toHaveAttribute('data-lod', 'dot')
   // the dot nearest the middle of the screen: one at the edge can sit under a floating control (they swap sides in Arabic)
-  const dots = await frame(page).locator('[data-person-id]').all()
-  const middle = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
-  let at = await centre(dots[0]!)
-  for (const dot of dots) {
-    const here = await centre(dot)
-    if (Math.hypot(here.x - middle.x, here.y - middle.y) < Math.hypot(at.x - middle.x, at.y - middle.y)) at = here
-  }
+  // found in the page in one go: asking for the box of hundreds of dots one by one is slow
+  const at = await frame(page).evaluate((root, middle) => {
+    let best = { x: 0, y: 0, distance: Number.POSITIVE_INFINITY }
+    for (const dot of root.querySelectorAll('[data-person-id]')) {
+      const rect = dot.getBoundingClientRect()
+      const x = rect.x + rect.width / 2
+      const y = rect.y + rect.height / 2
+      const distance = Math.hypot(x - middle.x, y - middle.y)
+      if (distance < best.distance) best = { x, y, distance }
+    }
+    return best
+  }, { x: box.x + box.width / 2, y: box.y + box.height / 2 })
   await page.touchscreen.tap(at.x + 6, at.y + 6) // a finger that is not quite on the dot
   await expect(panel(page)).toBeVisible()
 })

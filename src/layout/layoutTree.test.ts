@@ -305,3 +305,80 @@ describe('warm start', () => {
     expect(findOverlaps(layout, NODE_DIAMETER)).toEqual([])
   })
 })
+
+describe('the rows shape (the chart)', () => {
+  const rows = (spec: Spec) => {
+    const built = build(spec)
+    return { ...built, layout: layoutTree(built.tree, { shape: 'rows', gapX: 190, rowStep: 150 }) }
+  }
+
+  it('puts each generation on its own straight row, one step apart, with no crown angles', () => {
+    const { layout, ids, tree } = rows(bigFamily)
+    expect(layout.shape).toBe('rows')
+    expect(layout.theta.every((t) => t === 0)).toBe(true)
+    expect(layout.radius.every((r) => r === 0)).toBe(true)
+    for (let i = 0; i < layout.count; i++) expect(layout.y[i]).toBe(layout.generation[i]! * 150)
+    // the same generations as the crown gives
+    const crown = layoutTree(tree)
+    expect([...layout.generation]).toEqual([...crown.generation])
+    expect(ids.GF1).toBeDefined()
+  })
+
+  it('keeps neighbours in a row at least gapX apart, and partners next to each other', () => {
+    const { layout, at } = rows(bigFamily)
+    for (let g = 0; g <= layout.maxGeneration; g++) {
+      const xs = [...layout.ids.keys()].filter((i) => layout.generation[i] === g).map((i) => layout.x[i]!).sort((a, b) => a - b)
+      for (let k = 1; k < xs.length; k++) expect(xs[k]! - xs[k - 1]!).toBeGreaterThanOrEqual(190 - 0.01)
+    }
+    expect(Math.abs(layout.x[at('GF1')]! - layout.x[at('GM1')]!)).toBeCloseTo(190, 0)
+  })
+
+  it('bounds hold every Person with room for a card', () => {
+    const { layout } = rows(bigFamily)
+    for (let i = 0; i < layout.count; i++) {
+      expect(layout.x[i]! - 82).toBeGreaterThanOrEqual(layout.bounds.x0)
+      expect(layout.x[i]! + 82).toBeLessThanOrEqual(layout.bounds.x1)
+      expect(layout.y[i]! + 32).toBeLessThanOrEqual(layout.bounds.y1)
+    }
+  })
+
+  it('a child sits one or more rows below every parent, also for half-siblings and step links', () => {
+    const { layout, tree } = rows(bigFamily)
+    const row = (id: string) => layout.generation[layout.ids.indexOf(id)]!
+    for (const link of tree.parentLinks) if (link.kind !== 'step') expect(row(link.childId)).toBeGreaterThan(row(link.parentId))
+  })
+})
+
+describe('the rows shape with unconnected parts', () => {
+  const spec: Spec = {
+    people: ['Ben', 'Karl', 'Maria', 'Eva', 'Olaf', 'Pia'],
+    parents: [['Ben', 'Karl'], ['Ben', 'Maria']],
+    partners: [['Ben', 'Eva']],
+  }
+
+  it('sets each connected part next to the others instead of letting a loner drift away', () => {
+    const { tree, ids } = build(spec)
+    const layout = layoutTree(tree, { shape: 'rows', gapX: 190, rowStep: 150 })
+    expect(layout.ids).toEqual(tree.persons.map((p) => p.id))
+    const x = (name: string) => layout.x[layout.ids.indexOf(ids[name]!)]!
+    const width = Math.max(...layout.x) - Math.min(...layout.x)
+    // Karl, Maria, Ben, Eva form one part (three columns wide); Olaf and Pia follow it, one gap apart each
+    expect(width).toBeLessThanOrEqual(190 * 6)
+    expect(x('Olaf')).toBeGreaterThan(x('Eva'))
+    expect(x('Pia') - x('Olaf')).toBeCloseTo(190, 0)
+  })
+
+  it('keeps every part on the top rows, and every edge between the right people', () => {
+    const { tree, ids } = build(spec)
+    const layout = layoutTree(tree, { shape: 'rows', gapX: 190, rowStep: 150 })
+    const at = (name: string) => layout.ids.indexOf(ids[name]!)
+    expect(layout.generation[at('Olaf')]).toBe(0)
+    expect(layout.generation[at('Ben')]).toBe(1)
+    expect(layout.parentEdgeKind).toHaveLength(2)
+    const edges = [...layout.parentEdges]
+    expect(edges.slice(0, 2)).toEqual([at('Ben'), at('Karl')])
+    expect(layout.partnerEdges).toHaveLength(2)
+    expect([...layout.partnerEdges].sort()).toEqual([at('Ben'), at('Eva')].sort())
+    expect(layout.bounds.x1).toBeGreaterThan(Math.max(...layout.x))
+  })
+})

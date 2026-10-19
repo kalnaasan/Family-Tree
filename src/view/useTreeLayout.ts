@@ -3,16 +3,20 @@ import { PERF_BUDGET } from '../config/perf-budget.ts'
 import type { ParentLink, Partnership, Person, Tree } from '../domain/schema.ts'
 import { LAYOUT_MEASURE, createLayoutClient } from '../layout/layoutClient.ts'
 import { type TreeLayout, layoutTree } from '../layout/layoutTree.ts'
-import { NODE_RADIUS, ROOTS_DEPTH, TRUNK_HEIGHT } from './geometry.ts'
+import { CARD_H, CARD_PITCH, CARD_W, NODE_RADIUS, ROOTS_DEPTH, ROW_STEP, TRUNK_HEIGHT } from './geometry.ts'
+import type { TreeShape } from './treeShape.ts'
 
-const OPTIONS = { nodeRadius: NODE_RADIUS, trunkHeight: TRUNK_HEIGHT, rootsDepth: ROOTS_DEPTH }
+const CROWN_OPTIONS = { nodeRadius: NODE_RADIUS, trunkHeight: TRUNK_HEIGHT, rootsDepth: ROOTS_DEPTH }
+const ROWS_OPTIONS = { shape: 'rows' as const, gapX: CARD_PITCH, rowStep: ROW_STEP, cardWidth: CARD_W, cardHeight: CARD_H }
+const optionsFor = (shape: TreeShape) => (shape === 'rows' ? ROWS_OPTIONS : CROWN_OPTIONS)
 
 /** Lays out a Tree, starting from the previous result so one edit moves few people (spec section 4). */
-function createWarmLayout() {
+function createWarmLayout(shape: TreeShape) {
   let previous: TreeLayout | undefined
+  const options = optionsFor(shape)
   return (tree: Tree): TreeLayout => {
     const started = performance.now()
-    previous = layoutTree(tree, { previous, ...OPTIONS })
+    previous = layoutTree(tree, { previous, ...options })
     performance.measure?.(LAYOUT_MEASURE, { start: started, end: performance.now() })
     return previous
   }
@@ -32,9 +36,15 @@ export interface LaidOut {
  * While a big Tree is being laid out the previous drawing stays, with the people it was drawn for; the new one
  * replaces it as a whole.
  */
-export function useTreeLayout(persons: Person[], parentLinks: ParentLink[], partnerships: Partnership[]): LaidOut | null {
+export function useTreeLayout(
+  persons: Person[],
+  parentLinks: ParentLink[],
+  partnerships: Partnership[],
+  shape: TreeShape = 'crown',
+): LaidOut | null {
   const big = persons.length > PERF_BUDGET.workerLayoutAbove
-  const [warmLayout] = useState(createWarmLayout)
+  // a layout of one shape is no use as a warm start for the other
+  const warmLayout = useMemo(() => createWarmLayout(shape), [shape])
   const [client] = useState(() => createLayoutClient())
   const [fromWorker, setFromWorker] = useState<LaidOut | null>(null)
 
@@ -49,13 +59,13 @@ export function useTreeLayout(persons: Person[], parentLinks: ParentLink[], part
   useEffect(() => {
     if (!big) return
     let current = true
-    void client.layout({ persons, parentLinks, partnerships }, OPTIONS).then((layout) => {
+    void client.layout({ persons, parentLinks, partnerships }, optionsFor(shape)).then((layout) => {
       if (current) setFromWorker({ layout, persons })
     })
     return () => {
       current = false
     }
-  }, [big, client, persons, parentLinks, partnerships])
+  }, [big, client, persons, parentLinks, partnerships, shape])
   useEffect(() => () => client.dispose(), [client])
 
   return big ? fromWorker : sync

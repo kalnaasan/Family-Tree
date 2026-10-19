@@ -80,7 +80,8 @@ test('the List view filters instead of popping up results', async ({ page }) => 
   await page.getByRole('button', { name: words('app.listView') }).click()
   const search = page.getByRole('searchbox', { name: words('search.label') })
   const list = page.getByRole('region', { name: words('list.title') })
-  await expect(list.getByRole('button')).toHaveCount(5)
+  // five people, and the Expand all and Collapse all buttons above them
+  await expect(list.getByRole('button')).toHaveCount(7)
   await search.fill('kel')
   await expect(list.getByRole('button')).toHaveText([/^Karl Keller/, /^Maria Keller/])
   await expect(page.getByRole('listbox')).toHaveCount(0)
@@ -89,7 +90,7 @@ test('the List view filters instead of popping up results', async ({ page }) => 
   await search.fill('qqq')
   await expect(list.getByText(words('list.noMatch', { query: 'qqq' }))).toBeVisible()
   await search.fill('')
-  await expect(list.getByRole('button')).toHaveCount(5)
+  await expect(list.getByRole('button')).toHaveCount(7)
 })
 
 test('axe finds nothing with the results open, in the tree and in the list', async ({ page }) => {

@@ -83,3 +83,10 @@ export function rootPaths(): string[] {
 
 /** A small heart centred on the origin, about 20 units wide. */
 export const HEART_PATH = 'M0,9C-14,-2 -9,-14 -4,-14C-1.5,-14 0,-12 0,-10C0,-12 1.5,-14 4,-14C9,-14 14,-2 0,9Z'
+
+/** The chart (rows): a Person is a card this size, in world units, with a gap between neighbours and a step between rows. */
+export const CARD_W = 164
+export const CARD_H = 64
+export const CARD_GAP = 26
+export const ROW_STEP = 150
+export const CARD_PITCH = CARD_W + CARD_GAP

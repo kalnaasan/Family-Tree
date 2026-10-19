@@ -44,7 +44,7 @@ bilingual.describe('with Arabic offered', () => {
     await page.goto('/') // an English browser and nothing stored: English
     await expect(page.locator('html')).toHaveAttribute('lang', 'en')
     await openSettings(page, 'Settings')
-    await page.getByRole('dialog').getByLabel('Language').selectOption('ar')
+    await page.getByRole('dialog').getByRole('combobox', { name: 'Language' }).selectOption('ar')
     await expect(page.locator('html')).toHaveAttribute('lang', 'ar')
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
     await expect(page.getByRole('heading', { name: 'شجرة العائلة', exact: true })).toBeVisible()
@@ -52,7 +52,7 @@ bilingual.describe('with Arabic offered', () => {
     await expect(page.locator('html')).toHaveAttribute('lang', 'ar')
     await expect(page.getByRole('heading', { name: 'شجرة العائلة', exact: true })).toBeVisible()
     await openSettings(page, 'الإعدادات')
-    await page.getByRole('dialog').getByLabel('اللغة').selectOption('en')
+    await page.getByRole('dialog').getByRole('combobox', { name: 'اللغة' }).selectOption('en')
     await expect(page.locator('html')).toHaveAttribute('lang', 'en')
     await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
     await expect(page.getByRole('heading', { name: 'Family Tree', exact: true })).toBeVisible()

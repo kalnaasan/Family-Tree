@@ -28,7 +28,7 @@ export function EmptyState() {
         <h2 id="empty-title" className="text-xl font-semibold">
           {t('empty.readOnlyTitle')}
         </h2>
-        <p className="mt-2 text-stone-700">{t('empty.readOnlyBody')}</p>
+        <p className="mt-2 text-ink-soft">{t('empty.readOnlyBody')}</p>
       </section>
     )
   }
@@ -38,7 +38,7 @@ export function EmptyState() {
       <h2 id="empty-title" className="text-xl font-semibold">
         {t('empty.title')}
       </h2>
-      <p className="mt-2 text-stone-700">{t('empty.body')}</p>
+      <p className="mt-2 text-ink-soft">{t('empty.body')}</p>
       <form onSubmit={onSubmit} noValidate className="mt-6 flex flex-col gap-4">
         <PersonFields values={values} onChange={setValues} errors={errors} autoFocusFirstName />
         <button type="submit" className="btn-primary  px-4 font-medium text-white">
