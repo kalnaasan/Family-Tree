@@ -99,7 +99,7 @@ export const PersonCard = memo(function PersonCard(props: PersonCardProps) {
     return place(
       <g {...button}>
         <circle r={DOT_RADIUS} fill={isSelected ? CHART.selected : CHART.avatarInk} />
-        <CardCursorRing pad={14} />
+        {isCurrent && <CardCursorRing pad={14} />}
       </g>,
     )
   }
@@ -110,7 +110,7 @@ export const PersonCard = memo(function PersonCard(props: PersonCardProps) {
         <g {...button}>
           {isFocus && <circle r={INITIAL_RADIUS + 9} fill="none" stroke={CHART.focus} strokeWidth={4} aria-hidden="true" />}
           <circle r={INITIAL_RADIUS} fill={fill} stroke={outline} strokeWidth={outlineWidth + 1.5} strokeDasharray={deceased ? '8 5' : undefined} />
-          <CardCursorRing pad={14} />
+          {isCurrent && <CardCursorRing pad={14} />}
         </g>
         <text textAnchor="middle" dominantBaseline="central" fontSize={30} fontWeight={600} fill={ink} aria-hidden="true" pointerEvents="none">
           {initial}
@@ -141,7 +141,7 @@ export const PersonCard = memo(function PersonCard(props: PersonCardProps) {
           strokeWidth={outlineWidth}
           strokeDasharray={deceased && !isSelected ? '7 5' : undefined}
         />
-        <CardCursorRing pad={7} />
+        {isCurrent && <CardCursorRing pad={7} />}
       </g>
       <g aria-hidden="true" pointerEvents="none">
         {photoUrl ? (
@@ -167,7 +167,8 @@ export const PersonCard = memo(function PersonCard(props: PersonCardProps) {
             </text>
           </>
         )}
-        <g clipPath={`url(#${CARD_TEXT_CLIP})`}>
+        {/* the clip costs time on every frame of a pan, so only a name that may be wider than its card gets one */}
+        <g clipPath={name.length > 11 || life.length > 11 ? `url(#${CARD_TEXT_CLIP})` : undefined}>
           {/* each line is embedded in its own direction: the name's is the Person's own, the dates follow the page */}
           <text x={anchorX} y={nameY} textAnchor="start" dominantBaseline="central" direction={nameDirection} unicodeBidi="embed" fontSize={14} fontWeight={600} fill={ink}>
             {name}

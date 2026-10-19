@@ -79,7 +79,7 @@ const Bands = memo(function Bands({ scene }: { scene: ChartScene }) {
 })
 
 /** The button on a family's connector: "−" collapses the branch, "+N" shows how many people it hides. */
-function BranchChip({ groupKey, x, y, collapsed, hidden, label }: { groupKey: string; x: number; y: number; collapsed: boolean; hidden: number; label: string }) {
+const BranchChip = memo(function BranchChip({ groupKey, x, y, collapsed, hidden, label }: { groupKey: string; x: number; y: number; collapsed: boolean; hidden: number; label: string }) {
   return (
     <g transform={`translate(${x} ${y})`} data-chip-key={groupKey} role="button" aria-label={label} aria-expanded={!collapsed} tabIndex={-1} style={{ cursor: 'pointer' }}>
       {/* a 44 px target around the drawn button (spec section 8) */}
@@ -99,6 +99,14 @@ function BranchChip({ groupKey, x, y, collapsed, hidden, label }: { groupKey: st
       )}
     </g>
   )
+})
+
+interface CardText {
+  name: string
+  direction: 'ltr' | 'rtl'
+  initial: string
+  life: string
+  aria: string
 }
 
 /** Everything of the chart that depends on what is on screen. Re-rendered only when `drawn` changes, never per pan frame. */
@@ -121,6 +129,8 @@ export const ChartContents = memo(function ChartContents({
   const labelOf = useLabeler(relationships)
   const { layout } = scene
   const { bucket, rect } = drawn
+  // a card looks the same from full to "no leaves" (there are no leaves on the chart), so crossing that edge redraws nothing
+  const cardBucket: LodBucket = bucket === 'noLeaves' ? 'full' : bucket
   const visible = useMemo(() => {
     const picked = selectVisibleChart(scene, rect)
     if (cursorIndex >= 0 && !picked.persons.includes(cursorIndex)) {
@@ -147,11 +157,43 @@ export const ChartContents = memo(function ChartContents({
     return { solid, dashed, steps, current, ended }
   }, [scene, layout, visible])
 
-  const namesOf = (indices: number[]) =>
-    formatList(
-      indices.map((i) => persons[i]?.firstName ?? ''),
-      language,
-    )
+  // The words of a card and of a branch button are made once for as long as the Tree, the labels and the Language stay
+  // the same, not at every redraw (the lists and plurals behind them are not free, and a redraw runs while zooming).
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the dependencies are what the cached words are made from
+  const cardText = useMemo(() => new Map<number, CardText>(), [persons, relationships, language, t, focusIndex, labelOf])
+  const textOf = (i: number): CardText => {
+    let text = cardText.get(i)
+    if (!text) {
+      const person = persons[i]!
+      const name = displayName(person)
+      text = {
+        name,
+        direction: directionOf(name),
+        initial: initialOf(person),
+        life: lifeSpan(person, t),
+        aria: personAriaLabel(person, labelOf(person), i === focusIndex, { t, language }),
+      }
+      cardText.set(i, text)
+    }
+    return text
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- as above
+  const chipLabel = useMemo(() => new Map<string, string>(), [persons, scene, language, t])
+  const labelOfChip = (group: ChartScene['groups'][number]): string => {
+    const key = `${group.key}:${group.collapsed ? group.hiddenCount : 'open'}`
+    let label = chipLabel.get(key)
+    if (label === undefined) {
+      const names = formatList(
+        group.parents.map((i) => persons[i]?.firstName ?? ''),
+        language,
+      )
+      label = group.collapsed
+        ? t('tree.chipExpand', { names, hidden: renderMessage(t, msg('common.people', { count: group.hiddenCount })) })
+        : t('tree.chipCollapse', { names })
+      chipLabel.set(key, label)
+    }
+    return label
+  }
 
   return (
     <>
@@ -167,7 +209,7 @@ export const ChartContents = memo(function ChartContents({
       {visible.persons.map((i) => {
         const person = persons[i]
         if (!person) return null
-        const name = displayName(person)
+        const text = textOf(i)
         const isSelected = i === selectedIndex
         const kin: Kin = ancestors.has(person.id) ? 'ancestor' : descendants.has(person.id) ? 'descendant' : null
         const tag = isSelected
@@ -187,13 +229,13 @@ export const ChartContents = memo(function ChartContents({
             id={person.id}
             x={layout.x[i]!}
             y={layout.y[i]!}
-            bucket={bucket}
-            name={name}
-            nameDirection={directionOf(name)}
-            initial={initialOf(person)}
-            life={lifeSpan(person, t)}
+            bucket={cardBucket}
+            name={text.name}
+            nameDirection={text.direction}
+            initial={text.initial}
+            life={text.life}
             lifeDirection={DIRECTION[language]}
-            ariaLabel={personAriaLabel(person, labelOf(person), i === focusIndex, { t, language })}
+            ariaLabel={text.aria}
             deceased={person.deceased}
             isFocus={i === focusIndex}
             isSelected={isSelected}
@@ -206,24 +248,17 @@ export const ChartContents = memo(function ChartContents({
         )
       })}
       {(bucket === 'full' || bucket === 'noLeaves') &&
-        visible.groups.map((group) => {
-          const names = namesOf(group.parents)
-          return (
-            <BranchChip
-              key={group.key}
-              groupKey={group.key}
-              x={group.chip.x}
-              y={group.chip.y}
-              collapsed={group.collapsed}
-              hidden={group.hiddenCount}
-              label={
-                group.collapsed
-                  ? t('tree.chipExpand', { names, hidden: renderMessage(t, msg('common.people', { count: group.hiddenCount })) })
-                  : t('tree.chipCollapse', { names })
-              }
-            />
-          )
-        })}
+        visible.groups.map((group) => (
+          <BranchChip
+            key={group.key}
+            groupKey={group.key}
+            x={group.chip.x}
+            y={group.chip.y}
+            collapsed={group.collapsed}
+            hidden={group.hiddenCount}
+            label={labelOfChip(group)}
+          />
+        ))}
     </>
   )
 })
