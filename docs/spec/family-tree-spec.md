@@ -37,7 +37,7 @@ One breadth-first pass from the Focus person yields a descriptor per Person (kin
 
 ## 5. Adding and editing people ([Add-relative interaction flow](https://github.com/kalnaasan/Family-Tree/issues/5))
 
-- Click a Person: a popover on the card offers Father, Mother, Brother, Sister, Husband, Wife, Partner, Son, Daughter, Child. Gendered choices preset the gender (editable). The grouped detail panel (Parents / Partners / Siblings / Children with "+ Add") is the Person detail view and a second entry point to the same flow.
+- Click a Person: a popover on the card offers Father, Mother, Brother, Sister, Husband, Wife, Partner, Son, Daughter, Child. Gendered choices preset the gender (editable). The grouped detail panel (Parents / Partners / Children / Siblings, each with one "Add" button) is the Person detail view and a second entry point to the same flow. *Amended by the UI redesign:* each section's Add button opens one dialog: step 1 chooses the relation (neutral first: parent, partner, child, sibling, or the gendered words) and whether to create a new person or link one already in the tree; step 2 is the add or link form below, with its questions and its "This will create / link" preview as the review. Edit details and the menu (Make Focus person, Delete) are in the panel's sticky header.
 - An inline question appears **only when ambiguous**, always followed by a "This will create: …" preview. Rules:
   - Parent: a third birth parent is blocked with a message. With one existing birth parent, the new one defaults to that parent's current partner (change link: ended, none).
   - Sibling: two parents → choose both or only one (half-sibling); one parent → attach silently; none → create an unnamed shared parent (renameable).
@@ -95,7 +95,7 @@ JPEG/PNG/WebP up to 25 MB (HEIC rejected with "convert to JPEG first"); circular
 
 - Undo step = one user action (a whole add-relative flow, a Person edit save, a delete with its links, a Focus change). Ctrl/Cmd+Z, Shift+Z and buttons. In-memory history, ~50 steps, cleared on reload, everything but import undoable; deleted photo Blobs stay in memory until their step leaves history.
 - **Snapshots**: up to 5 automatic copies in their own IndexedDB store, taken on load, at most hourly during active editing, and always just before an import; settings "Restore a previous version" (date, number of people).
-- Person delete has no confirm; toast "Deleted Maria · Undo" (~8 s) naming removed links. Import confirms with the number of Persons replaced and offers "Export current tree first".
+- Person delete is in the panel's menu and asks first (a dialog that says what is removed and that relatives stay; Cancel has the keyboard); the toast "Deleted Maria · Undo" (~8 s) naming removed links follows. *Amended by the UI redesign: it was no-confirm before.* Import confirms with the number of Persons replaced and offers "Export current tree first".
 - `navigator.storage.persist()` on first edit; if denied (or Safari) a banner with "Export a backup". Export reminder after 20+ edits or 30+ days (dismissible 30 days). Settings shows "Last backup: date". No File System Access auto-save in v1.
 - One writing tab (Web Locks, BroadcastChannel fallback); the second tab is read-only with "Take over editing"; no live sync.
 - Autosave ~500 ms after the last change with a Saved / Saving… / Could not save indicator; `beforeunload` guard only while a write is pending or failed; a failed write keeps the in-memory Tree, offers "Export a backup now", and retries on the next change.

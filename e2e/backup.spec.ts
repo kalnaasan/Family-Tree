@@ -5,7 +5,7 @@ import { serializeDocument } from '../src/domain/document.ts'
 import type { Tree } from '../src/domain/schema.ts'
 import { addParentLink, addPerson, emptyTree } from '../src/domain/tree.ts'
 import { expect, startingWith, test, words } from './fixtures.ts'
-import { openPerson, panel, personButton } from './helpers.ts'
+import { openPerson, panel, personButton, startAdd, submitButton } from './helpers.ts'
 import { openWithTree } from './seed.ts'
 
 const ANNA = '00000000-0000-4000-8000-000000000001'
@@ -130,13 +130,9 @@ const storedPhotoCount = (page: Page): Promise<number> =>
 
 /** Adds a child to the open Person, the way persistence.spec does. */
 async function addChild(page: Page, name: string) {
-  await page
-    .getByRole('button', { name: words('panel.addAria', { relation: words('relation.child') }), exact: true })
-    .click()
+  await startAdd(page, 'relation.child')
   await page.getByLabel(words('fields.firstName')).fill(name)
-  await page
-    .getByRole('button', { name: words('panel.addAria', { relation: words('relation.child') }), exact: true })
-    .click()
+  await submitButton(page, 'relation.child').click()
   await expect(page.getByRole('heading', { level: 2, name })).toBeVisible()
 }
 

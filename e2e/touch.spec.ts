@@ -3,7 +3,7 @@ import type { CDPSession, Page } from '@playwright/test'
 import type { Tree } from '../src/domain/schema.ts'
 import { addParentLink, addPartnership, addPerson, emptyTree } from '../src/domain/tree.ts'
 import { expect, test, words } from './fixtures.ts'
-import { addButton, frame, panel, personButton } from './helpers.ts'
+import { frame, sectionAddButton, panel, personButton } from './helpers.ts'
 import { openWithFixture, openWithTree, zoomOf } from './seed.ts'
 
 const id = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`
@@ -78,7 +78,7 @@ test('a tap opens a short peek with the name, Add relative and Details, and the 
   await expect(panel(page).getByRole('heading', { level: 2, name: 'Ben' })).toBeVisible()
   await expect(panel(page).getByRole('button', { name: words('panel.addRelative') })).toBeVisible()
   await expect(panel(page).getByRole('button', { name: words('panel.details') })).toBeVisible()
-  await expect(addButton(panel(page), 'relation.father')).toHaveCount(0) // the details are not open
+  await expect(sectionAddButton(page, 'parents')).toHaveCount(0) // the details are not open
 
   const sheet = (await panel(page).boundingBox())!
   expect(sheet.height).toBeLessThan(190) // about 150 px
@@ -121,7 +121,7 @@ test('the handle toggles the sheet, and Add relative opens the details at the fi
   await panel(page)
     .getByRole('button', { name: words('panel.addRelative') })
     .tap()
-  await expect(addButton(panel(page), 'relation.father')).toBeFocused()
+  await expect(sectionAddButton(page, 'parents')).toBeFocused()
 })
 
 test('relatives stay bright and everyone else dims', async ({ page }) => {

@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 import type { Tree } from '../src/domain/schema.ts'
 import { addPerson, emptyTree } from '../src/domain/tree.ts'
 import { expect, startingWith, test, words } from './fixtures.ts'
-import { frame, openPerson, panel } from './helpers.ts'
+import { deletePerson, frame, openPerson, panel } from './helpers.ts'
 import { openWithTree } from './seed.ts'
 
 const ANNA = '00000000-0000-4000-8000-000000000001'
@@ -323,9 +323,7 @@ test('deleting a Person deletes their photo once Undo can no longer need it', as
   await panel(page)
     .getByRole('button', { name: words('common.cancel') })
     .click()
-  await panel(page)
-    .getByRole('button', { name: words('panel.delete', { name: 'Anna' }) })
-    .click()
+  await deletePerson(page, 'Anna')
   expect((await storedPhotos(page)).length).toBe(1)
   await reloadWhenSaved(page)
   await expect.poll(async () => (await storedPhotos(page)).length).toBe(0)

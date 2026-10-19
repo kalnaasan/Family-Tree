@@ -48,3 +48,50 @@ export const ListIcon = () => (
     <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />
   </Icon>
 )
+
+export const MoreIcon = () => (
+  <Icon>
+    <path d="M5 12h.01M12 12h.01M19 12h.01" strokeWidth="3" />
+  </Icon>
+)
+
+export const CloseIcon = () => (
+  <Icon>
+    <path d="M6 6l12 12M18 6 6 18" />
+  </Icon>
+)
+
+export const PlusIcon = () => (
+  <Icon>
+    <path d="M12 5v14M5 12h14" />
+  </Icon>
+)
+
+/** A chevron that points the way the page reads (closed) or down (open); flipped under right to left. */
+export const ChevronIcon = ({ open }: { open: boolean }) => (
+  <Icon mirror={!open}>
+    <path d={open ? 'm6 9 6 6 6-6' : 'm9 6 6 6-6 6'} />
+  </Icon>
+)
+
+export const TreeIcon = () => (
+  <Icon>
+    <circle cx="12" cy="5" r="2" />
+    <circle cx="6" cy="19" r="2" />
+    <circle cx="18" cy="19" r="2" />
+    <path d="M12 7v4M12 11H6v6M12 11h6v6" />
+  </Icon>
+)
+
+export const UserPlusIcon = () => (
+  <Icon>
+    <circle cx="10" cy="8" r="4" />
+    <path d="M3 21c0-3.9 3.1-7 7-7M18 8v6M15 11h6" />
+  </Icon>
+)
+
+export const LinkIcon = () => (
+  <Icon>
+    <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+  </Icon>
+)

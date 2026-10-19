@@ -20,8 +20,21 @@ function open(tree: Tree, personId = id(1)) {
   return user
 }
 
-const choose = (user: ReturnType<typeof userEvent.setup>, relation: string) =>
-  user.click(screen.getByRole('button', { name: `Choose ${relation} from the people already in the tree` }))
+const ADD_BUTTON: Record<string, string> = {
+  father: 'Add parent', mother: 'Add parent', parent: 'Add parent',
+  brother: 'Add sibling', sister: 'Add sibling', sibling: 'Add sibling',
+  son: 'Add child', daughter: 'Add child', child: 'Add child',
+  husband: 'Add partner', wife: 'Add partner', partner: 'Add partner',
+}
+
+/** Opens the relative dialog from the section's Add button, chooses the relation and "Link someone", and continues. */
+const choose = async (user: ReturnType<typeof userEvent.setup>, relation: string) => {
+  await user.click(screen.getByRole('button', { name: ADD_BUTTON[relation]! }))
+  const dialog = screen.getByRole('dialog')
+  await user.click(within(dialog).getByRole('radio', { name: relation[0]!.toUpperCase() + relation.slice(1) }))
+  await user.click(within(dialog).getByRole('radio', { name: /Link someone/ }))
+  await user.click(within(dialog).getByRole('button', { name: 'Continue' }))
+}
 const rowNames = () => screen.queryAllByRole('option').map((o) => o.textContent)
 
 beforeEach(() => {

@@ -15,8 +15,10 @@ async function addPerson(page: Page, name: string) {
     return
   }
   await page.getByRole('button', { name: 'Add child' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('button', { name: 'Continue' }).click()
   await page.getByLabel('First name').fill(name)
-  await page.getByRole('button', { name: 'Add child' }).click()
+  await dialog.getByRole('button', { name: 'Add child' }).click()
   await expect(page.getByRole('heading', { level: 2, name })).toBeVisible()
 }
 

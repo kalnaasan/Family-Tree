@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 import type { Tree } from '../src/domain/schema.ts'
 import { addParentLink, addPartnership, addPerson, emptyTree } from '../src/domain/tree.ts'
 import { expect, msg, startingWith, test, words } from './fixtures.ts'
-import { addButton, openPerson, panel, peopleList, submitButton } from './helpers.ts'
+import { deletePerson, makeFocusPerson, openActionsMenu, openPerson, startAdd, panel, peopleList, submitButton } from './helpers.ts'
 import { openWithTree } from './seed.ts'
 
 const id = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`
@@ -28,7 +28,7 @@ test('undo of an add-relative takes the whole flow back, redo returns it', async
   await openWithTree(page, family())
   await expect(undoButton(page)).toBeDisabled()
   await openPerson(page, 'Ben')
-  await addButton(panel(page), 'relation.sister').click()
+  await startAdd(page, 'relation.sister')
   await page.getByLabel(words('fields.firstName')).fill('Anna')
   await page.getByRole('radio', { name: words('addForm.sharesOnly', { name: 'Karl' }) }).check()
   await submitButton(page, 'relation.sister').click()
@@ -53,19 +53,20 @@ test('undo of an add-relative takes the whole flow back, redo returns it', async
 test('Ctrl+Z and Ctrl+Shift+Z work from the keyboard, and not inside a text field', async ({ page }) => {
   await openWithTree(page, family())
   await openPerson(page, 'Karl')
-  const makeFocus = panel(page).getByRole('button', {
-    name: words('panel.makeFocus'),
-  })
-  await makeFocus.click()
+  // "Make Focus person" is in the panel's menu; it is not offered for the Focus person
+  const makeFocus = page.getByRole('menuitem', { name: words('panel.makeFocus') })
+  await makeFocusPerson(page)
+  await openActionsMenu(page)
   await expect(makeFocus).toHaveCount(0) // Karl is the Focus person now
+  await page.keyboard.press('Escape')
 
   await page.getByRole('group', { name: words('tree.label') }).focus()
   await page.keyboard.press('Control+z')
   await expect(page.getByText(words('toast.undid', { what: msg('step.changeFocus') }))).toBeVisible()
-  await expect(makeFocus).toBeVisible()
+  await expect(panel(page)).not.toContainText(words('person.focus'))
   await page.keyboard.press('Control+Shift+z')
   await expect(page.getByText(words('toast.redid', { what: msg('step.changeFocus') }))).toBeVisible()
-  await expect(makeFocus).toHaveCount(0)
+  await expect(panel(page)).toContainText(words('person.focus'))
 
   // in a text field the app leaves Ctrl+Z to the field
   await panel(page)
@@ -80,9 +81,7 @@ test('Ctrl+Z and Ctrl+Shift+Z work from the keyboard, and not inside a text fiel
 test('undo of a delete restores the Person, their links and Partnership', async ({ page }) => {
   await openWithTree(page, family())
   await openPerson(page, 'Ben')
-  await panel(page)
-    .getByRole('button', { name: words('panel.delete', { name: 'Ben' }) })
-    .click()
+  await deletePerson(page, 'Ben')
   await expect(
     page.getByText(
       words('toast.deletedWith', {
@@ -110,9 +109,7 @@ test('undo of a delete restores the Person, their links and Partnership', async 
 test('the delete toast lasts about 8 seconds and loses its Undo after another change', async ({ page }) => {
   await openWithTree(page, family())
   await openPerson(page, 'Eva')
-  await panel(page)
-    .getByRole('button', { name: words('panel.delete', { name: 'Eva' }) })
-    .click()
+  await deletePerson(page, 'Eva')
   const toast = page.getByText(
     words('toast.deleted', { name: 'Eva' }).split('Eva')[0]!.trim()
       ? new RegExp('^' + words('toast.deleted', { name: 'Eva' }).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
@@ -122,9 +119,7 @@ test('the delete toast lasts about 8 seconds and loses its Undo after another ch
   await expect(page.getByRole('button', { name: words('history.undo') })).toHaveCount(2)
 
   await openPerson(page, 'Karl')
-  await panel(page)
-    .getByRole('button', { name: words('panel.makeFocus') })
-    .click()
+  await makeFocusPerson(page)
   await expect(page.getByRole('button', { name: words('history.undo') })).toHaveCount(1) // only the toolbar's
   await expect(toast).toBeVisible()
 
@@ -134,7 +129,7 @@ test('the delete toast lasts about 8 seconds and loses its Undo after another ch
 test('history is memory only: a reload starts with nothing to undo', async ({ page }) => {
   await openWithTree(page, family())
   await openPerson(page, 'Ben')
-  await addButton(panel(page), 'relation.son').click()
+  await startAdd(page, 'relation.son')
   await page.getByLabel(words('fields.firstName')).fill('Leo')
   await page.getByRole('radio', { name: words('addForm.otherNobody') }).check()
   await submitButton(page, 'relation.son').click()
@@ -150,7 +145,7 @@ test('history is memory only: a reload starts with nothing to undo', async ({ pa
 test('an undo is saved: after Undo and a reload the Person is still gone', async ({ page }) => {
   await openWithTree(page, family())
   await openPerson(page, 'Ben')
-  await addButton(panel(page), 'relation.son').click()
+  await startAdd(page, 'relation.son')
   await page.getByLabel(words('fields.firstName')).fill('Leo')
   await page.getByRole('radio', { name: words('addForm.otherNobody') }).check()
   await submitButton(page, 'relation.son').click()
@@ -164,9 +159,7 @@ test('an undo is saved: after Undo and a reload the Person is still gone', async
 test('the history controls and the toast pass axe', async ({ page }) => {
   await openWithTree(page, family())
   await openPerson(page, 'Ben')
-  await panel(page)
-    .getByRole('button', { name: words('panel.delete', { name: 'Ben' }) })
-    .click()
+  await deletePerson(page, 'Ben')
   await expect(page.getByText(startingWith(words('toast.deleted', { name: 'Ben' })))).toBeVisible()
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
 })

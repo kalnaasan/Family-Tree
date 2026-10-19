@@ -4,7 +4,7 @@ import type { MessageKey } from '../src/i18n/messages.ts'
 import type { Tree } from '../src/domain/schema.ts'
 import { addParentLink, addPerson, emptyTree } from '../src/domain/tree.ts'
 import { expect, test, words } from './fixtures.ts'
-import { openPerson, panel, peopleList } from './helpers.ts'
+import { openPerson, panel, peopleList, startAdd } from './helpers.ts'
 import { openWithTree } from './seed.ts'
 
 const id = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`
@@ -14,8 +14,6 @@ function people(...names: string[]): Tree {
 }
 
 const group = (page: Page, name: string) => panel(page).getByRole('region', { name })
-const chooseButton = (page: Page, relation: MessageKey) =>
-  panel(page).getByRole('button', { name: words('panel.linkAria', { relation: words(relation) }), exact: true })
 const option = (page: Page, name: string) => page.getByRole('option', { name: new RegExp(name) })
 const undo = (page: Page) =>
   page.getByRole('group', { name: words('history.group') }).getByRole('button', { name: words('history.undo') })
@@ -29,7 +27,7 @@ async function openWith(page: Page, tree: Tree, name = 'Ben') {
 
 test('link an existing father: the panel and the tree show him, Undo takes it back', async ({ page }) => {
   await openWith(page, people('Ben', 'Karl'))
-  await chooseButton(page, 'relation.father').click()
+  await startAdd(page, 'relation.father', 'link')
   await option(page, 'Karl').click()
   await expect(page.getByText(words('preview.linkTitle'))).toBeVisible()
   await link(page, 'relation.father').click()
@@ -44,12 +42,12 @@ test('link an existing father: the panel and the tree show him, Undo takes it ba
 
 test('link an existing child and an existing partner', async ({ page }) => {
   await openWith(page, people('Anna', 'Cora', 'Ben'), 'Anna')
-  await chooseButton(page, 'relation.child').click()
+  await startAdd(page, 'relation.child', 'link')
   await option(page, 'Cora').click()
   await link(page, 'relation.child').click()
   await expect(group(page, words('panel.group.children'))).toContainText('Cora')
 
-  await chooseButton(page, 'relation.partner').click()
+  await startAdd(page, 'relation.partner', 'link')
   await option(page, 'Ben').click()
   await page.getByRole('radio', { name: words('addForm.statusEnded') }).check()
   await link(page, 'relation.partner').click()
@@ -63,7 +61,7 @@ test('link an existing half-sibling', async ({ page }) => {
   let tree = people('Ben', 'Karl', 'Maria', 'Eva')
   tree = addParentLink(addParentLink(tree, id(1), id(2)), id(1), id(3))
   await openWith(page, tree)
-  await chooseButton(page, 'relation.sister').click()
+  await startAdd(page, 'relation.sister', 'link')
   await option(page, 'Eva').click()
   await page.getByRole('radio', { name: words('addForm.sharesOnly', { name: 'Karl' }) }).check()
   await expect(page.getByText(words('preview.halfSibling', { parent: 'Karl' }))).toBeVisible()
@@ -76,7 +74,7 @@ test('people who cannot be linked are disabled with their reason, and the open p
   page,
 }) => {
   await openWith(page, addParentLink(people('Ben', 'Karl', 'Maria'), id(1), id(2)))
-  await chooseButton(page, 'relation.father').click()
+  await startAdd(page, 'relation.father', 'link')
   await expect(option(page, 'Karl')).toHaveAttribute('aria-disabled', 'true')
   await expect(option(page, 'Karl')).toContainText(words('link.reason.already-linked'))
   await expect(option(page, 'Maria')).toHaveAttribute('aria-disabled', 'false')
@@ -91,7 +89,7 @@ test('the picker finds people by an Arabic or a Latin name', async ({ page }) =>
     emptyTree(),
   )
   await openWith(page, tree)
-  await chooseButton(page, 'relation.father').click()
+  await startAdd(page, 'relation.father', 'link')
   const search = panel(page).getByRole('combobox', { name: words('link.search') })
   await search.fill('كري')
   await expect(page.getByRole('option')).toHaveCount(1)
@@ -114,7 +112,7 @@ test.describe('on a phone', () => {
     await openWithTree(page, people('Ben', 'Karl', 'Maria'))
     await openPerson(page, 'Ben')
     await panel(page).getByRole('button', { name: words('panel.details') }).click()
-    await chooseButton(page, 'relation.father').click()
+    await startAdd(page, 'relation.father', 'link')
     for (const name of ['Karl', 'Maria']) {
       const box = (await option(page, name).boundingBox())!
       expect(box.height, name).toBeGreaterThanOrEqual(44)
@@ -134,7 +132,7 @@ test.describe('on a phone', () => {
         expect(box.x + box.width).toBeLessThanOrEqual(390)
       }
     }
-    await chooseButton(page, 'relation.father').click()
+    await startAdd(page, 'relation.father', 'link')
     await fits()
     await option(page, 'Karl').click()
     await expect(page.getByText(words('preview.linkTitle'))).toBeVisible()
