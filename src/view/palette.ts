@@ -24,3 +24,25 @@ export const PALETTE = {
   /** The keyboard focus ring, drawn over a white halo. */
   cursor: '#111111',
 } as const
+
+/** The chart (rows): the app's warm palette. Text and lines are checked against these in palette.test.ts. */
+export const CHART = {
+  background: '#f8f5ee',
+  card: '#ffffff',
+  border: '#d9ceb7',
+  borderStrong: '#8a7556',
+  ink: '#242424',
+  soft: '#55493b',
+  selected: '#285943',
+  ancestor: '#8a5a35',
+  descendant: '#c6a667',
+  focus: '#1f5f8b',
+  line: '#8f7c5c',
+  partner: '#8a5a35',
+  partnerEnded: '#6b7280',
+  avatar: '#f1e6cb',
+  avatarInk: '#7a4f2b',
+  bandA: 'rgba(198, 166, 103, 0.12)',
+  bandB: 'rgba(40, 89, 67, 0.06)',
+  bandLine: '#e4dac4',
+} as const

@@ -1,17 +1,20 @@
 import { memo, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { relativesOf } from '../domain/groups.ts'
+import { kinOf } from '../domain/kin.ts'
 import type { Relationship } from '../domain/labels.ts'
 import { type NavKey, type NavMemory, describeMove, freshMemory, move } from '../domain/navigation.ts'
 import type { ParentLink, Partnership, Person } from '../domain/schema.ts'
 import { DIRECTION, useLanguageStore } from '../i18n/language.ts'
-import { renderMessage } from '../i18n/messageRef.ts'
+import { msg, renderMessage } from '../i18n/messageRef.ts'
 import { useT } from '../i18n/useT.ts'
 import type { TreeLayout } from '../layout/layoutTree.ts'
 import { useLabeler } from '../ui/useLabeler.ts'
+import { type ChartScene, type GroupInfo, buildChartScene } from './chartScene.ts'
+import { ChartContents } from './ChartContents.tsx'
 import { HEART_PATH, rootPaths, trunkPath } from './geometry.ts'
 import { GestureTracker, ZOOM_OUT_OF_DOT, resolveTap } from './gestures.ts'
 import { type LodBucket, lodBucket } from './lod.ts'
-import { PALETTE } from './palette.ts'
+import { CHART, PALETTE } from './palette.ts'
 import { PersonNode } from './PersonNode.tsx'
 import { type Scene, buildScene, selectVisible } from './scene.ts'
 import { directionOf, displayName, initialOf, lifeSpan, personAriaLabel } from './text.ts'
@@ -182,7 +185,7 @@ export interface TreeCanvasProps {
   persons: Person[]
   focusPersonId: string | null
   /** The links the arrow keys follow. Without them the keys only zoom and pan. */
-  links?: { parentLinks: ParentLink[]; partnerships: Partnership[] }
+  links?: { parentLinks: ParentLink[]; partnerships: Partnership[]; /** Everyone, also those inside collapsed branches: the keys can lead there. Default: `persons`. */ persons?: Person[] }
   /** Each Person's Relationship descriptor, worded for the names screen readers read when they are drawn. */
   relationships?: ReadonlyMap<string, Relationship>
   /** `F` on a Person makes them the Focus person. */
@@ -202,6 +205,13 @@ export interface TreeCanvasProps {
   photoVersion?: number
   /** Draws no decorative detail at any zoom: for a Tree at the hard limit (spec section 9). */
   reducedDetail?: boolean
+  /** The chart: the whole Tree's branch groups, with which are collapsed, for the buttons on the connectors. */
+  groups?: GroupInfo[]
+  onToggleBranch?: (key: string) => void
+  onExpandAll?: () => void
+  onCollapseAll?: () => void
+  /** A Person the keyboard moved to may be inside a collapsed branch: this asks for the way to them to be opened. */
+  onEnsureShown?: (personId: string) => void
 }
 
 /**
@@ -210,6 +220,7 @@ export interface TreeCanvasProps {
  * the part of the Tree that is drawn (spec section 9).
  */
 const NO_RELATIONSHIPS: ReadonlyMap<string, Relationship> = new Map()
+const EMPTY_IDS: ReadonlySet<string> = new Set()
 
 /**
  * What a key means for moving along family links. Up and down are a parent and a child whatever the page reads like;
@@ -249,6 +260,11 @@ export function TreeCanvas({
   photoUrlFor,
   photoVersion = 0,
   reducedDetail = false,
+  groups,
+  onToggleBranch,
+  onExpandAll,
+  onCollapseAll,
+  onEnsureShown,
 }: TreeCanvasProps) {
   const reducedRef = useRef(reducedDetail)
   const hintId = useId()
@@ -265,29 +281,43 @@ export function TreeCanvas({
   const gestures = useRef(new GestureTracker())
   /** The Person under the first finger when it went down, read before pointer capture redirects events. */
   const pressedPerson = useRef<string | null>(null)
+  /** The branch button under the first finger when it went down: a press on it toggles the branch instead of selecting. */
+  const pressedChip = useRef<string | null>(null)
+  /** A Person the keyboard moved to who was inside a collapsed branch: shown and focused once the layout has them. */
+  const pendingShown = useRef<string | null>(null)
   const [drawn, setDrawn] = useState<Drawn | null>(null)
 
+  const rows = layout.shape === 'rows'
   const scene = useMemo(() => buildScene(layout), [layout])
+  const chartScene = useMemo<ChartScene | null>(() => (rows ? buildChartScene(layout, groups ?? []) : null), [rows, layout, groups])
   const focusIndex = useMemo(() => (focusPersonId ? layout.ids.indexOf(focusPersonId) : -1), [layout, focusPersonId])
   const selectedIndex = useMemo(
     () => (selectedPersonId ? layout.ids.indexOf(selectedPersonId) : -1),
     [layout, selectedPersonId],
   )
 
+  const kin = useMemo(() => {
+    if (!selectedPersonId || !links) return null
+    return kinOf(links, selectedPersonId)
+  }, [selectedPersonId, links])
+
   const brightIds = useMemo(() => {
     if (!selectedPersonId || !links || selectedIndex < 0) return null
     const relatives = relativesOf(
-      { focusPersonId, persons, parentLinks: links.parentLinks, partnerships: links.partnerships },
+      { focusPersonId, persons: links.persons ?? persons, parentLinks: links.parentLinks, partnerships: links.partnerships },
       selectedPersonId,
     )
-    return new Set([
+    const bright = new Set([
       selectedPersonId,
       ...relatives.parents.map((p) => p.id),
       ...relatives.partners.map((p) => p.person.id),
       ...relatives.siblings.map((s) => s.person.id),
       ...relatives.children.map((p) => p.id),
     ])
-  }, [selectedPersonId, selectedIndex, links, persons, focusPersonId])
+    // on the chart every ancestor and descendant is marked, so they are not dimmed either
+    if (rows && kin) for (const id of [...kin.ancestors, ...kin.descendants]) bright.add(id)
+    return bright
+  }, [selectedPersonId, selectedIndex, links, persons, focusPersonId, rows, kin])
 
   const t = useT()
   // The keyboard's place in the tree: the one Person in the tab order. It starts at the Focus person.
@@ -435,28 +465,40 @@ export function TreeCanvas({
     coveredRef.current = coveredBottom
     controllerRef.current?.setCoveredBottom(coveredBottom)
     if (selectedPersonId) ensureVisible(selectedPersonId)
-  }, [selectedPersonId, coveredBottom])
+  }, [selectedPersonId, coveredBottom, layout])
 
   // Picking a search result pans to the Person, centred above any sheet, keeping the zoom. A request made before this
   // canvas existed (the List view was showing) is not replayed.
   const handledReveal = useRef(revealRequest?.seq ?? 0)
   useEffect(() => {
     if (!revealRequest || revealRequest.seq === handledReveal.current) return
-    handledReveal.current = revealRequest.seq
     const index = layoutRef.current.ids.indexOf(revealRequest.id)
     const controller = controllerRef.current
+    // a Person inside a collapsed branch is not in the layout yet: the request waits for the layout that opens the way
     if (index < 0 || !controller?.ready) return
+    handledReveal.current = revealRequest.seq
     setCursorId(revealRequest.id)
     navMemory.current = freshMemory()
     controller.show({ x: layoutRef.current.x[index]!, y: layoutRef.current.y[index]! }, controller.view.k, coveredRef.current)
-  }, [revealRequest])
+  }, [revealRequest, layout])
 
   // After a key moved the cursor, real focus follows it (without scrolling the frame, which is only panned by the view).
+  // The keyboard moved to a Person inside a collapsed branch: once the way is open and laid out, show them and focus them.
   useEffect(() => {
+    const pending = pendingShown.current
+    if (pending && layout.ids.includes(pending)) {
+      pendingShown.current = null
+      focusAfterRender.current = pending
+      ensureVisible(pending)
+    }
     if (!cursorPersonId || focusAfterRender.current !== cursorPersonId) return
+    const card = frameRef.current?.querySelector<SVGElement>(`[data-person-id="${cursorPersonId}"]`)
+    // not drawn yet (the view is still moving to them): the next draw tries again
+    if (!card) return
     focusAfterRender.current = null
-    frameRef.current?.querySelector<SVGElement>(`[data-person-id="${cursorPersonId}"]`)?.focus({ preventScroll: true })
-  }, [cursorPersonId, drawn])
+    card.focus({ preventScroll: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when the cursor, the drawn part or the layout changes
+  }, [cursorPersonId, drawn, layout])
 
   const showFocus = () => {
     const controller = controllerRef.current
@@ -465,7 +507,7 @@ export function TreeCanvas({
     setCursorId(focusPersonId)
   }
 
-  const treeForKeys = () => links && { focusPersonId, persons, parentLinks: links.parentLinks, partnerships: links.partnerships }
+  const treeForKeys = () => links && { focusPersonId, persons: links.persons ?? persons, parentLinks: links.parentLinks, partnerships: links.partnerships }
 
   const moveCursor = (key: NavKey) => {
     const tree = treeForKeys()
@@ -478,8 +520,32 @@ export function TreeCanvas({
     }
     announce(renderMessage(t, describeMove(tree, result)))
     setCursorId(result.target.id)
+    if (!layoutRef.current.ids.includes(result.target.id)) {
+      pendingShown.current = result.target.id
+      onEnsureShown?.(result.target.id)
+      return
+    }
     focusWhenCursor(result.target.id)
     ensureVisible(result.target.id)
+  }
+
+  /** `C`: collapse the branches under the keyboard's Person, or open them if they are all collapsed. */
+  const toggleBranchesOfCursor = () => {
+    if (!cursorPersonId || !onToggleBranch) return
+    const own = (groups ?? []).filter((group) => group.parents.includes(cursorPersonId))
+    const person = persons[cursorIndex]
+    if (own.length === 0) {
+      announce(t('tree.noBranch', { name: person?.firstName ?? t('tree.thisPerson') }))
+      return
+    }
+    const collapse = own.some((group) => !group.collapsed)
+    for (const group of own) if (group.collapsed !== collapse) onToggleBranch(group.key)
+    const hidden = own.reduce((sum, group) => sum + group.hiddenCount, 0)
+    announce(
+      collapse
+        ? t('tree.branchCollapsed', { names: person?.firstName ?? '', hidden: renderMessage(t, msg('common.people', { count: hidden })) })
+        : t('tree.branchExpanded', { names: person?.firstName ?? '' }),
+    )
   }
 
   const onKeyDown = (event: React.KeyboardEvent) => {
@@ -502,7 +568,8 @@ export function TreeCanvas({
     } else if ((event.key === 'f' || event.key === 'F') && cursorPersonId) {
       onSetFocusPerson?.(cursorPersonId)
       announce(t('tree.nowFocus', { name: persons[cursorIndex]?.firstName ?? t('tree.thisPerson') }))
-    } else if (event.key === '+' || event.key === '=') controller.zoomBy(KEY_ZOOM)
+    } else if ((event.key === 'c' || event.key === 'C') && rows && !event.shiftKey) toggleBranchesOfCursor()
+    else if (event.key === '+' || event.key === '=') controller.zoomBy(KEY_ZOOM)
     else if (event.key === '-' || event.key === '_') controller.zoomBy(1 / KEY_ZOOM)
     else if (event.key === '0') controller.fit()
     else if (event.key === 'Home') {
@@ -530,6 +597,7 @@ export function TreeCanvas({
             null)
           : null
       pressedPerson.current = target?.getAttribute('data-person-id') ?? null
+      pressedChip.current = event.target instanceof Element ? (event.target.closest('[data-chip-key]')?.getAttribute('data-chip-key') ?? null) : null
     }
     const kind = event.pointerType === 'touch' || event.pointerType === 'pen' ? event.pointerType : 'mouse'
     gestures.current.down(event.pointerId, { x: event.clientX, y: event.clientY }, kind)
@@ -557,6 +625,13 @@ export function TreeCanvas({
     if (!gestures.current.active) delete surface.dataset.dragging
     const controller = controllerRef.current
     if (action?.type !== 'tap' || !controller) return
+    if (pressedChip.current) {
+      // a tap on a branch button opens or closes the branch; a double tap on it does nothing more
+      const key = pressedChip.current
+      pressedChip.current = null
+      if (!action.double) onToggleBranch?.(key)
+      return
+    }
     const box = surface.getBoundingClientRect()
     const screen = { x: action.at.x - box.left, y: action.at.y - box.top }
     if (action.double) {
@@ -592,9 +667,10 @@ export function TreeCanvas({
       // One tab stop: the keyboard's Person once there is one, else the tree itself.
       tabIndex={cursorPersonId ? -1 : 0}
       data-lod={drawn?.bucket}
+      data-shape={layout.shape}
       onKeyDown={onKeyDown}
       className="relative h-full min-h-0 w-full select-none overflow-hidden outline-offset-[-3px] focus-visible:outline-3 focus-visible:outline-sky-800"
-      style={{ background: PALETTE.background }}
+      style={{ background: rows ? CHART.background : PALETTE.background }}
     >
       <div
         ref={surfaceRef}
@@ -607,20 +683,42 @@ export function TreeCanvas({
         {/* role="presentation": otherwise the SVG itself is announced as an image, with the people inside it as its parts */}
         <svg width="100%" height="100%" className="block" focusable="false" role="presentation">
           <g ref={worldRef}>
-            <Decor />
-            {drawn && (
-              <SceneContents
-                scene={scene}
-                persons={persons}
-                relationships={relationships}
-                focusIndex={focusIndex}
-                selectedIndex={selectedIndex}
-                cursorIndex={cursorIndex}
-                brightIds={brightIds}
-                photoUrlFor={photoUrlFor}
-                photoVersion={photoVersion}
-                drawn={drawn}
-              />
+            {chartScene ? (
+              drawn && (
+                <ChartContents
+                  scene={chartScene}
+                  persons={persons}
+                  relationships={relationships}
+                  focusIndex={focusIndex}
+                  selectedIndex={selectedIndex}
+                  cursorIndex={cursorIndex}
+                  brightIds={brightIds}
+                  ancestors={kin?.ancestors ?? EMPTY_IDS}
+                  descendants={kin?.descendants ?? EMPTY_IDS}
+                  partners={kin?.partners ?? EMPTY_IDS}
+                  photoUrlFor={photoUrlFor}
+                  photoVersion={photoVersion}
+                  drawn={drawn}
+                />
+              )
+            ) : (
+              <>
+                <Decor />
+                {drawn && (
+                  <SceneContents
+                    scene={scene}
+                    persons={persons}
+                    relationships={relationships}
+                    focusIndex={focusIndex}
+                    selectedIndex={selectedIndex}
+                    cursorIndex={cursorIndex}
+                    brightIds={brightIds}
+                    photoUrlFor={photoUrlFor}
+                    photoVersion={photoVersion}
+                    drawn={drawn}
+                  />
+                )}
+              </>
             )}
           </g>
         </svg>
@@ -631,6 +729,26 @@ export function TreeCanvas({
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {announcement}
       </div>
+      {rows && (
+        <div data-controls hidden={hideControls} role="group" aria-label={t('tree.branches')} className="absolute start-2 top-2 flex gap-2">
+          <button
+            type="button"
+            onClick={onExpandAll}
+            disabled={!(groups ?? []).some((group) => group.collapsed)}
+            className="btn bg-white/90 px-3 text-sm font-medium shadow-sm disabled:opacity-50"
+          >
+            {t('tree.expandAll')}
+          </button>
+          <button
+            type="button"
+            onClick={onCollapseAll}
+            disabled={(groups ?? []).every((group) => group.collapsed)}
+            className="btn bg-white/90 px-3 text-sm font-medium shadow-sm disabled:opacity-50"
+          >
+            {t('tree.collapseAll')}
+          </button>
+        </div>
+      )}
       <div
         data-controls
         hidden={hideControls}

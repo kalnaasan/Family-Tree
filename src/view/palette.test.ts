@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Gender } from '../domain/schema.ts'
-import { PALETTE } from './palette.ts'
+import { CHART, PALETTE } from './palette.ts'
 
 function luminance(hex: string): number {
   const channels = [1, 3, 5].map((i) => {
@@ -46,5 +46,29 @@ describe('palette contrast (WCAG 2.2 AA, spec section 7)', () => {
 
   it('a deceased ring differs from the living one for every gender', () => {
     for (const gender of genders) expect(PALETTE.ringDeceased[gender]).not.toBe(PALETTE.ring[gender])
+  })
+})
+
+describe('chart palette contrast', () => {
+  it('names, dates and tags are at least 4.5:1 on a card and on the background', () => {
+    for (const text of [CHART.ink, CHART.soft]) {
+      expect(contrast(text, CHART.card)).toBeGreaterThanOrEqual(4.5)
+      expect(contrast(text, CHART.background)).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('white text is at least 4.5:1 on the selected card', () => {
+    expect(contrast('#ffffff', CHART.selected)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('every outline that carries meaning is at least 3:1 against the background and a card', () => {
+    for (const outline of [CHART.selected, CHART.ancestor, CHART.focus, CHART.borderStrong, CHART.line, CHART.partner, CHART.partnerEnded]) {
+      expect(contrast(outline, CHART.background)).toBeGreaterThanOrEqual(3)
+    }
+  })
+
+  it('the descendant outline is told apart from the plain one by its width as well, so its colour is not the only signal', () => {
+    // the gold is only 2:1: the chart draws it 2 px wide and adds a "Descendant" tag
+    expect(contrast(CHART.descendant, CHART.background)).toBeLessThan(3)
   })
 })

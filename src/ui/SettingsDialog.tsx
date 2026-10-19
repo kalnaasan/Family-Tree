@@ -1,6 +1,5 @@
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react'
 import type { MessageKey } from '../i18n/messages.ts'
-import { useLanguageStore } from '../i18n/language.ts'
 import type { MessageRef, Translate } from '../i18n/messageRef.ts'
 import { useT } from '../i18n/useT.ts'
 import { usePersistenceStatus } from '../persistence/saveStatus.ts'
@@ -9,6 +8,7 @@ import { BackupSection } from './BackupSection.tsx'
 import { LanguageSetting } from './LanguageSetting.tsx'
 import { Modal } from './kit/Modal.tsx'
 import { RestoreSection } from './RestoreSection.tsx'
+import { TreeStyleSetting } from './TreeStyleSetting.tsx'
 import { useUiStore } from './uiStore.ts'
 
 /** "1.4 MB", "820 KB". */
@@ -31,10 +31,10 @@ async function readUsage(): Promise<Usage> {
   return { photos, browser }
 }
 
-type TabKey = 'language' | 'storage' | 'backup' | 'versions'
+type TabKey = 'general' | 'storage' | 'backup' | 'versions'
 
 const TAB_LABEL: Record<TabKey, MessageKey> = {
-  language: 'settings.tab.language',
+  general: 'settings.tab.general',
   storage: 'settings.tab.storage',
   backup: 'settings.tab.backup',
   versions: 'settings.tab.versions',
@@ -116,15 +116,14 @@ function StorageTab() {
 }
 
 /**
- * Settings: a few tabs, one for each thing that can be set or done (Language when more than one is offered, storage,
- * backup and import, previous versions). Only the open tab is drawn. A tab list on the start side of a wide dialog and
+ * Settings: a few tabs, one for each thing that can be set or done (how the tree is drawn and the Language when more
+ * than one is offered, storage, backup and import, previous versions). Only the open tab is drawn. A tab list on the start side of a wide dialog and
  * across the top of a phone, where the dialog fills the screen.
  */
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const t = useT()
   const baseId = useId()
-  const available = useLanguageStore((s) => s.available)
-  const tabs: TabKey[] = [...(available.length > 1 ? (['language'] as const) : []), 'storage', 'backup', 'versions']
+  const tabs: TabKey[] = ['general', 'storage', 'backup', 'versions']
   const [tab, setTab] = useState<TabKey>(tabs[0]!)
   const tabRefs = useRef(new Map<TabKey, HTMLButtonElement>())
 
@@ -190,7 +189,12 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           tabIndex={0}
           className="min-w-0 flex-1 outline-offset-4"
         >
-          {tab === 'language' && <LanguageSetting />}
+          {tab === 'general' && (
+            <div className="flex flex-col gap-5">
+              <TreeStyleSetting />
+              <LanguageSetting />
+            </div>
+          )}
           {tab === 'storage' && <StorageTab />}
           {tab === 'backup' && <BackupSection onReplaced={replaced} />}
           {tab === 'versions' && <RestoreSection onRestored={replaced} />}

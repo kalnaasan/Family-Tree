@@ -22,6 +22,13 @@ interface UiState {
   query: string
   /** Set by picking a search result: the tree pans to this Person at the same zoom. `seq` makes a repeat count. */
   revealRequest: { id: string; seq: number } | null
+  /**
+   * The branch groups collapsed on the chart (`branchGroups` keys). Not part of the Tree and never saved: a reload shows
+   * everything again.
+   */
+  collapsed: ReadonlySet<string>
+  setCollapsed: (collapsed: ReadonlySet<string>) => void
+  toggleBranch: (key: string) => void
   setQuery: (query: string) => void
   /** Opens a Person and asks the tree to pan to them, keeping the zoom. */
   reveal: (id: string) => void
@@ -40,6 +47,14 @@ export const useUiStore = create<UiState>()((set) => ({
   sheet: 'peek',
   sheetHeight: 0,
   query: '',
+  collapsed: new Set<string>(),
+  setCollapsed: (collapsed) => set({ collapsed }),
+  toggleBranch: (key) =>
+    set((s) => {
+      const next = new Set(s.collapsed)
+      if (!next.delete(key)) next.add(key)
+      return { collapsed: next }
+    }),
   revealRequest: null,
   setQuery: (query) => set({ query }),
   reveal: (id) =>

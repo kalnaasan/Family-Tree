@@ -8,11 +8,22 @@ import type { Tree } from '../domain/schema.ts'
  *    parents and children, partners move together as a group; the row is then re-ordered with partners kept
  *    adjacent and spread to at least `gapX` apart with the smallest possible displacement.
  * 3. Fan crown: the horizontal position becomes an angle (about 270 degrees), the generation a ring radius.
+ *    With `shape: 'rows'` there is no crown: the rows stay straight, one `rowStep` apart, and `x` is the position
+ *    along the row (the top-down chart). `theta` and `radius` are then all zero.
  *
  * Warm start: pass the previous layout and the relaxation starts from it, so one edit moves little.
  */
 
+export type LayoutShape = 'crown' | 'rows'
+
 export interface LayoutOptions {
+  /** `crown` (default): the fan crown. `rows`: straight generation rows, for the chart. */
+  shape?: LayoutShape
+  /** `rows` only: the distance between two generation rows. */
+  rowStep?: number
+  /** `rows` only: the size of a Person's card, used for the bounds. */
+  cardWidth?: number
+  cardHeight?: number
   /** Minimum horizontal distance between neighbours in a row, before bending into the crown. */
   gapX?: number
   /** Radius added per generation ring at least. */
@@ -38,6 +49,7 @@ export interface LayoutOptions {
 }
 
 export interface TreeLayout {
+  shape: LayoutShape
   count: number
   /** Index -> Person id. Everything else is indexed the same way. */
   ids: string[]
@@ -63,6 +75,10 @@ export interface TreeLayout {
 }
 
 const DEFAULTS = {
+  shape: 'crown' as LayoutShape,
+  rowStep: 150,
+  cardWidth: 164,
+  cardHeight: 64,
   gapX: 110,
   ringStep: 140,
   innerRadius: 130,
@@ -245,6 +261,41 @@ export function layoutTree(tree: Tree, options: LayoutOptions = {}): TreeLayout 
   for (let i = 0; i < n; i++) lineX[i] = x[i]! - minX
   const width = n > 0 ? maxX - minX : 0
 
+  // --- straight rows (the chart) -----------------------------------------------------------
+  if (o.shape === 'rows') {
+    const px = new Float32Array(n)
+    const py = new Float32Array(n)
+    for (let i = 0; i < n; i++) {
+      px[i] = lineX[i]!
+      py[i] = generation[i]! * o.rowStep
+    }
+    const padX = o.padding + o.cardWidth / 2
+    const padY = o.padding / 2 + o.cardHeight / 2
+    const weight = new Uint32Array(n).fill(1)
+    for (let k = order.length - 1; k >= 0; k--) {
+      const node = order[k]!
+      for (const parent of parents[node]!) weight[parent]! += weight[node]!
+    }
+    return {
+      shape: 'rows',
+      count: n,
+      ids,
+      generation,
+      maxGeneration: Math.max(0, rowCount - 1),
+      lineX,
+      x: px,
+      y: py,
+      theta: new Float32Array(n),
+      radius: new Float32Array(n),
+      weight,
+      parentEdges: Int32Array.from(parentEdgeList),
+      parentEdgeKind: Uint8Array.from(parentKindList),
+      partnerEdges: Int32Array.from(partnerEdgeList),
+      partnerEnded: Uint8Array.from(partnerEndedList),
+      bounds: { x0: -padX, y0: -padY, x1: width + padX, y1: Math.max(0, rowCount - 1) * o.rowStep + padY },
+    }
+  }
+
   // --- fan crown --------------------------------------------------------------------------
   // The row is centred above the trunk and spans one step per `gapX` of width, up to the full crown. Spreading
   // a handful of people over the whole 270 degrees would put a couple, or a parent and child, on opposite sides.
@@ -296,6 +347,7 @@ export function layoutTree(tree: Tree, options: LayoutOptions = {}): TreeLayout 
   }
 
   return {
+    shape: 'crown',
     count: n,
     ids,
     generation,

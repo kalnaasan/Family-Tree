@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 import type { Language } from './src/i18n/languageType.ts'
 
 /** The specs that run again with the Language set to Arabic (spec section 13.7). Persistence, single-writer, large-tree, perf and `rtl.spec.ts` (which makes an English page read right to left by hand; `rtl-arabic` does it in Arabic) stay English. */
-const ARABIC_SPECS = /[\\/](smoke|tree|keyboard|add-relative|search|backup|undo|touch|photos|rtl-arabic|link-existing|edit-links|header|settings)\.spec\.ts$/
+const ARABIC_SPECS = /[\\/](smoke|tree|keyboard|add-relative|search|backup|undo|touch|photos|rtl-arabic|link-existing|edit-links|header|settings|collapse)\.spec\.ts$/
 /** Not run in the English projects: the timing tests have their own project, and `rtl-arabic` needs Arabic. */
 const ENGLISH_IGNORED = /(perf|rtl-arabic)\.spec\.ts$/
 const arabic: { language: Language; baseURL: string } = { language: 'ar', baseURL: 'http://localhost:4174' }

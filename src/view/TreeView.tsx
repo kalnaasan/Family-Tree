@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { PERF_BUDGET } from '../config/perf-budget.ts'
+import { allGroupKeys, branchGroups, branchSize, hiddenBy, revealPersons } from '../domain/collapse.ts'
 import { deriveRelationships } from '../domain/labels.ts'
 import { useTreeStore } from '../domain/store.ts'
 import { formatNumber } from '../i18n/format.ts'
@@ -8,10 +9,13 @@ import { msg } from '../i18n/messageRef.ts'
 import { useT } from '../i18n/useT.ts'
 import { photoCache, usePhotoVersion } from '../photos/photos.ts'
 import { useUiStore } from '../ui/uiStore.ts'
+import type { GroupInfo } from './chartScene.ts'
 import { TreeCanvas } from './TreeCanvas.tsx'
+import { useTreeShape } from './treeShape.ts'
 import { useTreeLayout } from './useTreeLayout.ts'
 
 const NOTICE_KEY = 'family-tree.limit-notice'
+const NOBODY: ReadonlySet<string> = new Set()
 
 /** Says once, in this browser, that a Tree this big is drawn with less detail. */
 function announceLimitOnce(): void {
@@ -40,12 +44,45 @@ export function TreeView() {
   const sheetHeight = useUiStore((s) => s.sheetHeight)
   const revealRequest = useUiStore((s) => s.revealRequest)
   const photoVersion = usePhotoVersion()
-  const laidOut = useTreeLayout(persons, parentLinks, partnerships)
+  const shape = useTreeShape((s) => s.shape)
+  const rows = shape === 'rows'
+  const collapsed = useUiStore((s) => s.collapsed)
+  const setCollapsed = useUiStore((s) => s.setCollapsed)
+  const toggleBranch = useUiStore((s) => s.toggleBranch)
+  const tree = useMemo(() => ({ focusPersonId, persons, parentLinks, partnerships }), [focusPersonId, persons, parentLinks, partnerships])
+
+  // On the chart, collapsed branches are taken out before the layout is made, so the rest closes up around the gap.
+  const hidden = useMemo(() => (rows ? hiddenBy(tree, collapsed) : NOBODY), [rows, tree, collapsed])
+  const shown = useMemo(() => {
+    if (hidden.size === 0) return { persons, parentLinks, partnerships }
+    return {
+      persons: persons.filter((p) => !hidden.has(p.id)),
+      parentLinks: parentLinks.filter((l) => !hidden.has(l.childId) && !hidden.has(l.parentId)),
+      partnerships: partnerships.filter((p) => !hidden.has(p.personIds[0]) && !hidden.has(p.personIds[1])),
+    }
+  }, [hidden, persons, parentLinks, partnerships])
+  const laidOut = useTreeLayout(shown.persons, shown.parentLinks, shown.partnerships, shape)
+  const groups = useMemo<GroupInfo[] | undefined>(
+    () =>
+      rows
+        ? branchGroups(tree).map((group) => {
+            const isCollapsed = collapsed.has(group.key)
+            return { ...group, collapsed: isCollapsed, hiddenCount: isCollapsed ? branchSize(tree, group.key) : 0 }
+          })
+        : undefined,
+    [rows, tree, collapsed],
+  )
+  // Opening a Person, or picking them in the search, opens the way to them if they are inside a collapsed branch.
+  useEffect(() => {
+    if (hidden.size === 0) return
+    const wanted = [selectedId, revealRequest?.id].filter((id): id is string => Boolean(id) && hidden.has(id as string))
+    if (wanted.length > 0) setCollapsed(revealPersons(tree, collapsed, wanted))
+  }, [hidden, selectedId, revealRequest, tree, collapsed, setCollapsed])
   const atLimit = persons.length >= PERF_BUDGET.hardLimit
   useEffect(() => {
     if (atLimit) announceLimitOnce()
   }, [atLimit])
-  const links = useMemo(() => ({ parentLinks, partnerships }), [parentLinks, partnerships])
+  const links = useMemo(() => ({ persons, parentLinks, partnerships }), [persons, parentLinks, partnerships])
   const relationships = useMemo(
     () => deriveRelationships({ focusPersonId, persons, parentLinks, partnerships }),
     [focusPersonId, persons, parentLinks, partnerships],
@@ -74,6 +111,11 @@ export function TreeView() {
       photoVersion={photoVersion}
       coveredBottom={sheetHeight}
       hideControls={sheetHeight > 0 && sheet === 'expanded'}
+      groups={groups}
+      onToggleBranch={toggleBranch}
+      onExpandAll={() => setCollapsed(new Set())}
+      onCollapseAll={() => setCollapsed(allGroupKeys(tree))}
+      onEnsureShown={(id) => setCollapsed(revealPersons(tree, collapsed, [id]))}
     />
   )
 }
