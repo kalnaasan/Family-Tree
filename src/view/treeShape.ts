@@ -9,7 +9,7 @@ export type TreeShape = 'rows' | 'crown'
 export const TREE_SHAPE_KEY = 'family-tree.treeShape'
 
 /** What is used when nothing is stored. */
-export const DEFAULT_TREE_SHAPE: TreeShape = 'crown'
+export const DEFAULT_TREE_SHAPE: TreeShape = 'rows'
 
 function read(): TreeShape {
   try {

@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 import type { Tree } from '../src/domain/schema.ts'
 import { addParentLink, addPartnership, addPerson, emptyTree } from '../src/domain/tree.ts'
 import { expect, msg, startingWith, test, words } from './fixtures.ts'
-import { deletePerson, makeFocusPerson, openActionsMenu, openPerson, startAdd, panel, peopleList, submitButton } from './helpers.ts'
+import { deletePerson, makeFocusPerson, openActionsMenu, expectPeople, openPerson, startAdd, panel, submitButton } from './helpers.ts'
 import { openWithTree } from './seed.ts'
 
 const id = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`
@@ -32,10 +32,10 @@ test('undo of an add-relative takes the whole flow back, redo returns it', async
   await page.getByLabel(words('fields.firstName')).fill('Anna')
   await page.getByRole('radio', { name: words('addForm.sharesOnly', { name: 'Karl' }) }).check()
   await submitButton(page, 'relation.sister').click()
-  await expect(peopleList(page)).toHaveText(['Ben', 'Karl', 'Maria', 'Eva', 'Anna'])
+  await expectPeople(page, ['Ben', 'Karl', 'Maria', 'Eva', 'Anna'])
 
   await undoButton(page).click()
-  await expect(peopleList(page)).toHaveText(['Ben', 'Karl', 'Maria', 'Eva'])
+  await expectPeople(page, ['Ben', 'Karl', 'Maria', 'Eva'])
   await expect(
     page.getByText(
       words('toast.undid', {
@@ -46,7 +46,7 @@ test('undo of an add-relative takes the whole flow back, redo returns it', async
   await expect(panel(page)).toHaveCount(0) // the open Person was Anna
 
   await redoButton(page).click()
-  await expect(peopleList(page)).toHaveText(['Ben', 'Karl', 'Maria', 'Eva', 'Anna'])
+  await expectPeople(page, ['Ben', 'Karl', 'Maria', 'Eva', 'Anna'])
   await expect(redoButton(page)).toBeDisabled()
 })
 
@@ -93,13 +93,13 @@ test('undo of a delete restores the Person, their links and Partnership', async 
       }),
     ),
   ).toBeVisible()
-  await expect(peopleList(page)).toHaveText(['Karl', 'Maria', 'Eva'])
+  await expectPeople(page, ['Karl', 'Maria', 'Eva'])
 
   await page
     .getByRole('button', { name: words('history.undo') })
     .last()
     .click() // the toast's own Undo
-  await expect(peopleList(page)).toHaveText(['Ben', 'Karl', 'Maria', 'Eva'])
+  await expectPeople(page, ['Ben', 'Karl', 'Maria', 'Eva'])
   await openPerson(page, 'Ben')
   await expect(group(page, words('panel.group.parents'))).toContainText('Karl')
   await expect(group(page, words('panel.group.parents'))).toContainText('Maria')
@@ -137,7 +137,7 @@ test('history is memory only: a reload starts with nothing to undo', async ({ pa
   await expect(page.getByRole('status')).toHaveText(words('save.saved'))
 
   await page.reload()
-  await expect(peopleList(page)).toHaveText(['Ben', 'Karl', 'Maria', 'Eva', 'Leo'])
+  await expectPeople(page, ['Ben', 'Karl', 'Maria', 'Eva', 'Leo'])
   await expect(undoButton(page)).toBeDisabled()
   await expect(redoButton(page)).toBeDisabled()
 })
@@ -153,7 +153,7 @@ test('an undo is saved: after Undo and a reload the Person is still gone', async
   await undoButton(page).click()
   await expect(page.getByRole('status')).toHaveText(words('save.saved'))
   await page.reload()
-  await expect(peopleList(page)).toHaveText(['Ben', 'Karl', 'Maria', 'Eva'])
+  await expectPeople(page, ['Ben', 'Karl', 'Maria', 'Eva'])
 })
 
 test('the history controls and the toast pass axe', async ({ page }) => {

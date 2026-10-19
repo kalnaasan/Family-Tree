@@ -90,7 +90,7 @@ export const PersonCard = memo(function PersonCard(props: PersonCardProps) {
   const ink = isSelected ? '#ffffff' : CHART.ink
   const soft = isSelected ? '#ffffff' : CHART.soft
   const place = (children: ReactNode) => (
-    <g transform={`translate(${x} ${y})`} data-person-wrapper="" opacity={isDimmed ? 0.4 : undefined}>
+    <g transform={`translate(${x} ${y})`} data-person-wrapper="" opacity={isDimmed ? 0.35 : undefined}>
       {children}
     </g>
   )

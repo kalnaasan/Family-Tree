@@ -4,7 +4,7 @@ import type { Tree } from '../src/domain/schema.ts'
 import { addParentLink, addPartnership, addPerson, emptyTree } from '../src/domain/tree.ts'
 import { capitalise } from '../src/i18n/format.ts'
 import { expect, msg, test, words } from './fixtures.ts'
-import { deletePerson, makeFocusPerson, openActionsMenu, openPerson, startAdd, panel, peopleList, personButton, submitButton } from './helpers.ts'
+import { deletePerson, makeFocusPerson, openActionsMenu, expectPeople, openPerson, startAdd, panel, peopleList, personButton, submitButton } from './helpers.ts'
 import { openWithTree } from './seed.ts'
 
 const id = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`
@@ -246,7 +246,7 @@ test.describe('keyboard only', () => {
     await page.keyboard.press('Enter')
     await expect(panel(page).getByRole('heading', { name: 'Zoe' })).toBeFocused()
 
-    await expect(peopleList(page)).toHaveText(['Ben', 'Leo', 'Zoe'])
+    await expectPeople(page, ['Ben', 'Leo', 'Zoe'])
   })
 
   test('Escape steps back from a form, then closes the panel and returns to the tree', async ({ page }) => {
@@ -273,7 +273,8 @@ test.describe('the tree and the panel', () => {
     await openWithTree(page, benWithTwoParents())
     await page.locator(`[data-person-id="${id(1)}"]`).click()
     await expect(panel(page).getByRole('heading', { name: 'Ben' })).toBeVisible()
-    await expect(page.locator(`[data-person-id="${id(1)}"] circle[stroke-dasharray]`)).toHaveCount(1)
+    // the open Person is marked (a dashed ring on the artistic tree, a filled card on the chart)
+    await expect(page.locator(`[data-person-id="${id(1)}"]`)).toHaveAttribute('aria-current', 'true')
 
     const frame = (await page.getByRole('group', { name: words('tree.label') }).boundingBox())!
     await page.mouse.click(frame.x + 6, frame.y + 6)
@@ -357,6 +358,6 @@ test.describe('edit, Focus person and delete', () => {
       page.getByText(words('toast.deletedWith', { name: 'Ben', parts: msg('toast.parentLinks', { count: 2 }) })),
     ).toBeVisible()
     await expect(panel(page)).toHaveCount(0)
-    await expect(peopleList(page)).toHaveText(['Karl', 'Maria'])
+    await expectPeople(page, ['Karl', 'Maria'])
   })
 })

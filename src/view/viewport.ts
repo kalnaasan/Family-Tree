@@ -34,6 +34,8 @@ export const FIT_PADDING_PX = 16
 export const OPEN_FIT_MAX_PEOPLE = 150
 /** Zoom at which names and dates are comfortably readable: the lower edge of the "full" bucket. */
 export const READABLE_ZOOM = 0.8
+/** The chart opens whole only if its cards are drawn at least this big (a card is 164 units wide). */
+export const CHART_MIN_OPEN_ZOOM = 0.45
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
@@ -63,9 +65,11 @@ export function fitView(bounds: Rect, size: Size): View {
 }
 
 /** The view a Tree opens with (spec section 12, point 1). */
-export function openingView(input: { count: number; bounds: Rect; focus?: Point; size: Size }): View {
-  const { count, bounds, focus, size } = input
-  if (count <= OPEN_FIT_MAX_PEOPLE || !focus) return fitView(bounds, size)
+export function openingView(input: { count: number; bounds: Rect; focus?: Point; size: Size; minFitZoom?: number }): View {
+  const { count, bounds, focus, size, minFitZoom = 0 } = input
+  // a chart too wide to read when it all fits opens on the Focus person at a readable size instead
+  const unreadable = fitZoom(bounds, size) < minFitZoom
+  if ((count <= OPEN_FIT_MAX_PEOPLE && !unreadable) || !focus) return fitView(bounds, size)
   const limits = zoomLimits(bounds, size)
   return centerOn(focus, clamp(READABLE_ZOOM, limits.min, limits.max), size)
 }

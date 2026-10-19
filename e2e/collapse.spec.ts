@@ -4,7 +4,7 @@ import type { Tree } from '../src/domain/schema.ts'
 import { addParentLink, addPartnership, addPerson, emptyTree } from '../src/domain/tree.ts'
 import { expect, test, words } from './fixtures.ts'
 import { frame, openPerson, panel, peopleList, personButton } from './helpers.ts'
-import { openWithTree } from './seed.ts'
+import { openWithFixture, openWithTree, zoomOf } from './seed.ts'
 
 const id = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`
 
@@ -125,4 +125,22 @@ test('the chart, with a collapsed branch and a Person open, passes axe', async (
   await chips(page).nth(1).click()
   await openPerson(page, 'Anna')
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+})
+
+test.describe('the opening view', () => {
+  test('a chart small enough to read opens whole', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('family-tree.treeShape', 'rows'))
+    const { frame } = await openWithFixture(page, 15)
+    expect(await frame.locator('[data-person-id]').count()).toBe(15)
+  })
+
+  test('a chart too wide to read opens on the Focus person at a readable size, and Show whole tree still shows it all', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('family-tree.treeShape', 'rows'))
+    const { frame, tree } = await openWithFixture(page, 150)
+    expect(await zoomOf(frame)).toBeCloseTo(0.8, 3)
+    await expect(frame.locator(`[data-person-id="${tree.focusPersonId}"]`)).toBeVisible()
+    expect(await frame.locator('[data-person-id]').count()).toBeLessThan(150)
+    await page.getByRole('button', { name: words('tree.fit') }).click()
+    await expect.poll(() => zoomOf(frame)).toBeLessThan(0.45)
+  })
 })

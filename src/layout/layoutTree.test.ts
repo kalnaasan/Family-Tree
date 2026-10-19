@@ -348,3 +348,37 @@ describe('the rows shape (the chart)', () => {
     for (const link of tree.parentLinks) if (link.kind !== 'step') expect(row(link.childId)).toBeGreaterThan(row(link.parentId))
   })
 })
+
+describe('the rows shape with unconnected parts', () => {
+  const spec: Spec = {
+    people: ['Ben', 'Karl', 'Maria', 'Eva', 'Olaf', 'Pia'],
+    parents: [['Ben', 'Karl'], ['Ben', 'Maria']],
+    partners: [['Ben', 'Eva']],
+  }
+
+  it('sets each connected part next to the others instead of letting a loner drift away', () => {
+    const { tree, ids } = build(spec)
+    const layout = layoutTree(tree, { shape: 'rows', gapX: 190, rowStep: 150 })
+    expect(layout.ids).toEqual(tree.persons.map((p) => p.id))
+    const x = (name: string) => layout.x[layout.ids.indexOf(ids[name]!)]!
+    const width = Math.max(...layout.x) - Math.min(...layout.x)
+    // Karl, Maria, Ben, Eva form one part (three columns wide); Olaf and Pia follow it, one gap apart each
+    expect(width).toBeLessThanOrEqual(190 * 6)
+    expect(x('Olaf')).toBeGreaterThan(x('Eva'))
+    expect(x('Pia') - x('Olaf')).toBeCloseTo(190, 0)
+  })
+
+  it('keeps every part on the top rows, and every edge between the right people', () => {
+    const { tree, ids } = build(spec)
+    const layout = layoutTree(tree, { shape: 'rows', gapX: 190, rowStep: 150 })
+    const at = (name: string) => layout.ids.indexOf(ids[name]!)
+    expect(layout.generation[at('Olaf')]).toBe(0)
+    expect(layout.generation[at('Ben')]).toBe(1)
+    expect(layout.parentEdgeKind).toHaveLength(2)
+    const edges = [...layout.parentEdges]
+    expect(edges.slice(0, 2)).toEqual([at('Ben'), at('Karl')])
+    expect(layout.partnerEdges).toHaveLength(2)
+    expect([...layout.partnerEdges].sort()).toEqual([at('Ben'), at('Eva')].sort())
+    expect(layout.bounds.x1).toBeGreaterThan(Math.max(...layout.x))
+  })
+})

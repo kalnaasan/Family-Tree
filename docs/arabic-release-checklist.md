@@ -160,3 +160,14 @@ Written by Claude, not by the owner: read each one and correct it. Record the da
 - [ ] `app.treeView` عرض الشجرة · `app.view` العرض · `app.addPerson` إضافة شخص
 - [ ] `list.alsoUnder` مُدرَج أيضًا تحت {home} · `list.children` (all six forms) · `list.expandAll` توسيع الكل · `list.collapseAll` طيّ الكل
 - [ ] `settings.tabs`, `settings.tab.*` (اللغة, البيانات والتخزين, النسخ الاحتياطي, الإصدارات السابقة), `settings.storageNote`, `settings.usageLabel`, `backup.overview`, `backup.explain`
+
+## 6. Strings added by the chart
+
+Written by Claude, not by the owner: read each one and correct it. Record the date and any change next to the key.
+
+- [ ] `tree.generationRow` الجيل {n} · {people} (the people count reuses `common.people`)
+- [ ] `tree.chipCollapse` طيّ فرع {names} · `tree.chipExpand` توسيع فرع {names}، {hidden} مخفي · `tree.branchCollapsed` · `tree.branchExpanded` · `tree.noBranch`
+- [ ] `tree.branches` الفروع · `tree.expandAll` توسيع الكل · `tree.collapseAll` طيّ الكل
+- [ ] `tree.tag.selected` المحدد · `tree.tag.ancestor` سلف · `tree.tag.descendant` سليل · `tree.tag.partner` شريك
+- [ ] `tree.hint`, the new last sentence about the C key
+- [ ] `settings.tab.general` عام · `settings.treeStyle` · `settings.treeStyle.rows` · `settings.treeStyle.crown`

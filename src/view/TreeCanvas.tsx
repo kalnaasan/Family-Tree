@@ -20,6 +20,7 @@ import { type Scene, buildScene, selectVisible } from './scene.ts'
 import { directionOf, displayName, initialOf, lifeSpan, personAriaLabel } from './text.ts'
 import { ViewController } from './viewController.ts'
 import {
+  CHART_MIN_OPEN_ZOOM,
   READABLE_ZOOM,
   type Rect,
   type Size,
@@ -396,6 +397,7 @@ export function TreeCanvas({
             bounds: current.bounds,
             focus: focus >= 0 ? { x: current.x[focus]!, y: current.y[focus]! } : undefined,
             size,
+            minFitZoom: current.shape === 'rows' ? CHART_MIN_OPEN_ZOOM : 0,
           }),
         )
         // An empty Tree keeps re-fitting until the first Person arrives, then the view is left to the user.
@@ -729,26 +731,6 @@ export function TreeCanvas({
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {announcement}
       </div>
-      {rows && (
-        <div data-controls hidden={hideControls} role="group" aria-label={t('tree.branches')} className="absolute start-2 top-2 flex gap-2">
-          <button
-            type="button"
-            onClick={onExpandAll}
-            disabled={!(groups ?? []).some((group) => group.collapsed)}
-            className="btn bg-white/90 px-3 text-sm font-medium shadow-sm disabled:opacity-50"
-          >
-            {t('tree.expandAll')}
-          </button>
-          <button
-            type="button"
-            onClick={onCollapseAll}
-            disabled={(groups ?? []).every((group) => group.collapsed)}
-            className="btn bg-white/90 px-3 text-sm font-medium shadow-sm disabled:opacity-50"
-          >
-            {t('tree.collapseAll')}
-          </button>
-        </div>
-      )}
       <div
         data-controls
         hidden={hideControls}
@@ -770,6 +752,26 @@ export function TreeCanvas({
           <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
         </ControlButton>
       </div>
+      {rows && (
+        <div data-controls hidden={hideControls} role="group" aria-label={t('tree.branches')} className="absolute start-2 top-2 flex gap-2">
+          <button
+            type="button"
+            onClick={onExpandAll}
+            disabled={!(groups ?? []).some((group) => group.collapsed)}
+            className="btn bg-white/90 px-3 text-sm font-medium shadow-sm disabled:opacity-50"
+          >
+            {t('tree.expandAll')}
+          </button>
+          <button
+            type="button"
+            onClick={onCollapseAll}
+            disabled={(groups ?? []).every((group) => group.collapsed)}
+            className="btn bg-white/90 px-3 text-sm font-medium shadow-sm disabled:opacity-50"
+          >
+            {t('tree.collapseAll')}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

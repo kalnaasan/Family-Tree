@@ -8,6 +8,18 @@ export const frame = (page: Page) => page.getByRole('group', { name: words('tree
 /** The people drawn in the tree, in the order they were added. Their text is their name (and years, if known). */
 export const peopleList = (page: Page) => frame(page).locator('[data-person-wrapper]')
 
+/**
+ * The names of the people drawn, in the order they were added. Read from their accessible names ("Ben, Focus person"),
+ * since a card also holds an initial, the years and a tag.
+ */
+export async function drawnNames(page: Page): Promise<string[]> {
+  const labels = await peopleList(page).locator('[data-person-id]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label') ?? ''))
+  return labels.map((label) => label.split(/[,،]/)[0]!.trim())
+}
+
+/** Waits until the people drawn are exactly these, in this order. */
+export const expectPeople = (page: Page, names: string[]) => expect.poll(() => drawnNames(page)).toEqual(names)
+
 export const panel = (page: Page) => page.getByRole('complementary', { name: words('panel.label') })
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

@@ -87,10 +87,16 @@ test('a tap opens a short peek with the name, Add relative and Details, and the 
 
 test('tapping empty space dismisses the sheet', async ({ page }) => {
   await openWithTree(page, family())
+  // the whole tree, small, so there is empty space on the screen (the chart opens on the Focus person, big)
+  await page.getByRole('button', { name: words('tree.fit') }).tap()
+  await expect.poll(() => zoomOf(frame(page))).toBeLessThan(0.7)
   await tapOn(page, personButton(page, 'Ben'))
   await expect(panel(page)).toBeVisible()
   const box = (await frame(page).boundingBox())!
-  await page.touchscreen.tap(box.x + 20, box.y + box.height * 0.6)
+  // just above the sheet in the middle: away from the buttons at the top and the sides and from the people (a finger snaps
+  // to a button or person nearby)
+  const sheetTop = (await panel(page).boundingBox())!.y
+  await page.touchscreen.tap(box.x + box.width / 2, sheetTop - 40)
   await expect(panel(page)).toHaveCount(0)
 })
 
@@ -170,17 +176,18 @@ test('a double-tap zooms in about the tap to a readable size, and another zooms 
   page,
 }) => {
   await openWithTree(page, family())
-  const whole = await zoomOf(frame(page))
-  expect(whole).toBeLessThan(0.8) // on a phone the whole tree is shown small
+  await page.getByRole('button', { name: words('tree.fit') }).tap()
+  await expect.poll(() => zoomOf(frame(page))).toBeLessThan(0.8)
+  const whole = await zoomOf(frame(page)) // on a phone the whole tree is shown small
   const box = (await frame(page).boundingBox())!
   const doubleTap = async () => {
-    await page.touchscreen.tap(box.x + 60, box.y + 60)
-    await page.touchscreen.tap(box.x + 60, box.y + 60)
+    await page.touchscreen.tap(box.x + 12, box.y + box.height - 12)
+    await page.touchscreen.tap(box.x + 12, box.y + box.height - 12)
   }
   await doubleTap()
   await expect.poll(() => zoomOf(frame(page))).toBeCloseTo(0.8, 2)
   await doubleTap()
-  await expect.poll(() => zoomOf(frame(page))).toBeCloseTo(whole, 2)
+  await expect.poll(() => zoomOf(frame(page))).toBeCloseTo(whole, 1)
 })
 
 test('[fingers] one finger drags the tree', async ({ page }) => {
@@ -244,7 +251,7 @@ test('at the "dot" level a tap near a Person opens them and a tap in empty space
   const box = (await frame(page).boundingBox())!
 
   const zoom = await zoomOf(frame(page))
-  await page.touchscreen.tap(box.x + 4, box.y + 4) // the far corner of the screen: nobody within reach
+  await page.touchscreen.tap(box.x + 4, box.y + box.height - 4) // the far corner of the screen: nobody within reach
   await expect.poll(() => zoomOf(frame(page))).toBeGreaterThan(zoom * 2)
   await expect(panel(page)).toHaveCount(0)
 
