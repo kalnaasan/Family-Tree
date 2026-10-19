@@ -15,7 +15,7 @@ export function Avatar({ person, size }: { person: Pick<Person, 'photoId'>; size
     <span
       aria-hidden="true"
       style={{ width: size, height: size }}
-      className="grid shrink-0 place-items-center overflow-hidden rounded-full border-2 border-stone-400 bg-stone-100"
+      className="grid shrink-0 place-items-center overflow-hidden rounded-full border-2 border-line-strong bg-surface-soft"
     >
       {url ? (
         <img src={url} alt="" className="size-full object-cover" />
@@ -105,7 +105,7 @@ export function PhotoField({ person }: { person: Person }) {
         }}
       />
       {message && (
-        <p role="alert" className="text-red-800">
+        <p role="alert" className="text-danger">
           {renderMessage(t, message)}
         </p>
       )}

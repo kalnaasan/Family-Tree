@@ -25,9 +25,12 @@ const TITLE: Record<RelationKind, MessageKey> = {
 
 type Method = 'create' | 'link'
 
+const KINDS: RelationKind[] = ['parent', 'partner', 'child', 'sibling']
+
 interface Props {
   anchor: Person
-  kind: RelationKind
+  /** The kind of relative, when the button that opened the dialog says so; otherwise the first step asks. */
+  kind?: RelationKind
   onClose: () => void
   /** A new Person was added (their id), or an existing one linked (no id). */
   onDone: (newPersonId?: string) => void
@@ -39,15 +42,16 @@ interface Props {
  * add-relative or link form unchanged, so a question is still asked only when the answer is ambiguous and the
  * "This will create / link" preview is still the review before anything is saved.
  */
-export function RelativeDialog({ anchor, kind, onClose, onDone }: Props) {
+export function RelativeDialog({ anchor, kind: fixedKind, onClose, onDone }: Props) {
   const t = useT()
   const [step, setStep] = useState<'choose' | 'details'>('choose')
-  const [relation, setRelation] = useState<Relation>(CHOICES[kind][0]!)
+  const [kind, setKind] = useState<RelationKind>(fixedKind ?? 'child')
+  const [relation, setRelation] = useState<Relation>(CHOICES[fixedKind ?? 'child'][0]!)
   const [method, setMethod] = useState<Method>('create')
   const relationWord = (r: Relation) => capitalise(t(RELATION_KEY[r]))
 
   return (
-    <Modal title={t(TITLE[kind], { name: isolate(anchor.firstName) })} onClose={onClose} wide={step === 'details'}>
+    <Modal title={t(fixedKind ? TITLE[fixedKind] : 'relDialog.title.any', { name: isolate(anchor.firstName) })} onClose={onClose} wide={step === 'details'}>
       <p className="mb-3 text-sm text-ink-soft">{t('relDialog.step', { n: step === 'choose' ? 1 : 2, total: 2 })}</p>
 
       {step === 'choose' ? (
@@ -58,6 +62,34 @@ export function RelativeDialog({ anchor, kind, onClose, onDone }: Props) {
           }}
           className="flex flex-col gap-5"
         >
+          {!fixedKind && (
+            <fieldset>
+              <legend className="font-semibold">{t('relDialog.kind', { name: isolate(anchor.firstName) })}</legend>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {KINDS.map((choice) => (
+                  <label
+                    key={choice}
+                    className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-line-strong px-4 has-[:checked]:border-leaf-deep has-[:checked]:bg-accent-soft has-[:checked]:font-semibold"
+                  >
+                    <input
+                      type="radio"
+                      name="kind"
+                      value={choice}
+                      checked={kind === choice}
+                      data-autofocus={kind === choice ? '' : undefined}
+                      onChange={() => {
+                        setKind(choice)
+                        setRelation(CHOICES[choice][0]!)
+                      }}
+                      className="size-5 accent-leaf-deep"
+                    />
+                    {capitalise(t(RELATION_KEY[CHOICES[choice][0]!]))}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
+
           <fieldset>
             <legend className="font-semibold">{t('relDialog.relation')}</legend>
             <div className="mt-1 flex flex-wrap gap-2">
@@ -71,7 +103,7 @@ export function RelativeDialog({ anchor, kind, onClose, onDone }: Props) {
                     name="relation"
                     value={choice}
                     checked={relation === choice}
-                    data-autofocus={relation === choice ? '' : undefined}
+                    data-autofocus={fixedKind && relation === choice ? '' : undefined}
                     onChange={() => setRelation(choice)}
                     className="size-5 accent-leaf-deep"
                   />

@@ -303,7 +303,7 @@ test.describe('List view', () => {
     await expect(
       list.getByRole('button', { name: startingWith(`Anna · ${words('relation.sister')}`) }),
     ).toHaveAttribute('aria-current', 'true')
-    await page.getByRole('button', { name: words('app.listView') }).click()
+    await page.getByRole('button', { name: words('app.treeView') }).click()
     await expect(frame(page)).toBeVisible()
     await expect(peopleList(page)).toHaveCount(7)
   })

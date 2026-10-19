@@ -358,12 +358,14 @@ test('Settings shows how much storage the photos use', async ({ page }) => {
   await openWithTree(page, anna())
   await page.getByRole('button', { name: words('app.settings') }).click()
   const settings = page.getByRole('dialog', { name: words('app.settings') })
+  await settings.getByRole('tab', { name: words('settings.tab.storage') }).click()
   await expect(settings.getByText(words('settings.photosNone'))).toBeVisible()
   await settings.getByRole('button', { name: words('common.close') }).click()
 
   await editDetails(page)
   await addPhoto(page, await picture(page, 300, 300, 'image/jpeg'))
   await page.getByRole('button', { name: words('app.settings') }).click()
+  await settings.getByRole('tab', { name: words('settings.tab.storage') }).click()
   await expect(settings.getByText(photoSize())).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(settings).toHaveCount(0)
@@ -378,6 +380,7 @@ test('axe finds nothing in the crop dialog, the edit form with a photo, or Setti
   await confirmCrop(page)
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
   await page.getByRole('button', { name: words('app.settings') }).click()
+  await page.getByRole('dialog', { name: words('app.settings') }).getByRole('tab', { name: words('settings.tab.storage') }).click()
   await expect(
     page
       .getByRole('dialog', { name: words('app.settings') })

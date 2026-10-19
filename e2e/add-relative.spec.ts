@@ -336,6 +336,20 @@ test.describe('edit, Focus person and delete', () => {
     await expect(panel(page)).toContainText(words('person.focus'))
   })
 
+  test('deleting asks first: Cancel has the keyboard, changes nothing, and Escape does the same', async ({ page }) => {
+    await openWith(page, benWithTwoParents())
+    await openActionsMenu(page)
+    await page.getByRole('menuitem', { name: words('panel.delete', { name: 'Ben' }) }).click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toContainText(words('delete.undo'))
+    await expect(dialog.getByRole('button', { name: words('common.cancel'), exact: true })).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+    await expect(peopleList(page)).toHaveCount(3)
+    await expect(panel(page).getByRole('heading', { level: 2, name: 'Ben' })).toBeFocused()
+    await noViolations(page)
+  })
+
   test('deleting says what went with the Person', async ({ page }) => {
     await openWith(page, benWithTwoParents())
     await deletePerson(page, 'Ben')

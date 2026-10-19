@@ -16,13 +16,13 @@ export function SaveIndicator() {
     )
   return (
     <div className="flex items-center gap-3">
-      <span role="status" data-status={save} className={save === 'error' ? 'font-medium text-red-800' : 'text-ink-soft text-sm'}>
+      <span role="status" data-status={save} className={save === 'error' ? 'font-medium text-danger' : 'text-ink-soft text-sm'}>
         {t(LABELS[save])}
       </span>
       {save === 'error' && (
         <button
           type="button"
-          className="min-h-11 rounded border border-red-800 px-3 text-red-800"
+          className="min-h-11 rounded border border-danger px-3 text-danger"
           onClick={() => void exportAndAnnounce()}
         >
           {t('save.exportNow')}

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { type Relationship, deriveRelationships } from '../domain/labels.ts'
 import type { Person } from '../domain/schema.ts'
 import { searchPersons } from '../domain/search.ts'
@@ -7,8 +7,10 @@ import { formatList } from '../i18n/format.ts'
 import { useLanguageStore } from '../i18n/language.ts'
 import { useT } from '../i18n/useT.ts'
 import { displayName, lifeSpan } from '../view/text.ts'
-import { useUiStore } from './uiStore.ts'
+import { ChevronIcon, LinkIcon } from './icons.tsx'
+import { PersonAvatar } from './kit/PersonAvatar.tsx'
 import { PersonLine } from './PersonLine.tsx'
+import { useUiStore } from './uiStore.ts'
 import { useLabeler } from './useLabeler.ts'
 
 interface Model {
@@ -72,7 +74,8 @@ function useModel(): Model {
   }, [persons, parentLinks, partnerships, focusPersonId])
 }
 
-const buttonClass = 'min-h-11 rounded px-2 text-start hover:bg-stone-100'
+/** Nesting is drawn only this many levels deep; below it the list stays at one indent so a long line of descent keeps its width. */
+const MAX_INDENT = 4
 
 /** "with Ana, Ben (former)": the partners of a Person, or nothing. */
 function usePartnersLine(model: Model): (personId: string) => string | null {
@@ -93,33 +96,28 @@ interface Words {
   /** "Focus person" words are the caller's; this is the Relationship label, or null. */
   labelOf: ReturnType<typeof useLabeler>
   partnersLine: ReturnType<typeof usePartnersLine>
+  /** Whether a branch is open: what the user chose, else open for the first two generations. */
+  isOpen: (personId: string, depth: number) => boolean
+  toggle: (personId: string, open: boolean) => void
+}
+
+/** The second line of an entry: partners, and how many children there are. */
+function Details({ partners, childCount }: { partners: string | null; childCount: number }) {
+  const t = useT()
+  const parts = [partners, childCount > 0 ? t('list.children', { count: childCount }) : null].filter(Boolean)
+  return parts.length > 0 ? <span className="block text-sm text-ink-soft">{parts.join(' · ')}</span> : null
 }
 
 function Item({ person, depth, model, words }: { person: Person; depth: number; model: Model; words: Words }) {
   const t = useT()
-  const { labelOf, partnersLine } = words
+  const { labelOf, partnersLine, isOpen, toggle } = words
   const selectedId = useUiStore((s) => s.selectedId)
   const select = useUiStore((s) => s.select)
-  // The first two generations start open; deeper ones are collapsed so a big Tree stays manageable.
-  const [open, setOpen] = useState(depth < 2)
-  // Whoever is open in the panel must be visible in the list: their ancestors open up for them.
-  const holdsSelected = useMemo(() => {
-    for (let at = selectedId; at; at = model.home.get(at) ?? null) {
-      if (model.home.get(at) === person.id) return true
-    }
-    return false
-  }, [selectedId, model, person.id])
-  // Done once per newly opened Person, so a branch can still be collapsed by hand afterwards.
-  const [openedFor, setOpenedFor] = useState<string | null>(null)
-  if (holdsSelected && openedFor !== selectedId) {
-    setOpenedFor(selectedId)
-    setOpen(true)
-  }
   const kids = model.kids.get(person.id) ?? []
   const refs = model.refs.get(person.id) ?? []
   const expandable = kids.length > 0 || refs.length > 0
+  const open = isOpen(person.id, depth)
   const relationship = person.id === model.focusPersonId ? t('person.focus') : labelOf(person)
-  const partners = partnersLine(person.id)
   const name = displayName(person)
 
   return (
@@ -130,13 +128,10 @@ function Item({ person, depth, model, words }: { person: Person; depth: number; 
             type="button"
             aria-expanded={open}
             aria-label={t(open ? 'list.collapse' : 'list.expand', { name: person.firstName })}
-            onClick={() => setOpen(!open)}
-            className="grid size-11 shrink-0 place-items-center rounded hover:bg-stone-100"
+            onClick={() => toggle(person.id, !open)}
+            className="grid size-11 shrink-0 place-items-center rounded-lg hover:bg-surface-soft"
           >
-            {/* the "closed" triangle points the way the page reads, so it is flipped when that is right to left */}
-            <span aria-hidden="true" className="inline-block rtl:-scale-x-100">
-              {open ? '▾' : '▸'}
-            </span>
+            <ChevronIcon open={open} />
           </button>
         ) : (
           <span aria-hidden="true" className="size-11 shrink-0" />
@@ -145,21 +140,30 @@ function Item({ person, depth, model, words }: { person: Person; depth: number; 
           type="button"
           aria-current={selectedId === person.id ? 'true' : undefined}
           onClick={() => select(person.id)}
-          className={`${buttonClass} flex-1 ${selectedId === person.id ? 'bg-stone-200 font-semibold' : ''}`}
+          className="person-row flex-1"
         >
-          <PersonLine name={name} rest={[relationship, lifeSpan(person, t)]} />
-          {partners && <span className="block text-sm text-stone-700">{partners}</span>}
+          <PersonAvatar person={person} />
+          <span className="min-w-0">
+            <span className="block">
+              <PersonLine name={name} rest={[relationship, lifeSpan(person, t)]} />
+            </span>
+            <Details partners={partnersLine(person.id)} childCount={kids.length + refs.length} />
+          </span>
         </button>
       </div>
       {open && expandable && (
-        <ul className="ms-5 border-s border-stone-300 ps-2">
+        <ul className={`border-s border-line ps-2 ${depth < MAX_INDENT ? 'ms-5' : ''}`}>
           {kids.map((kid) => (
             <Item key={kid.id} person={kid} depth={depth + 1} model={model} words={words} />
           ))}
           {refs.map(({ person: other, home }) => (
-            <li key={other.id} className="ps-11">
-              <button type="button" onClick={() => select(other.id)} className={buttonClass}>
-                {t('list.alsoChild', { name: displayName(other), home: home.firstName })}
+            <li key={other.id}>
+              {/* the Person is listed in full under their first parent: this is a pointer to them, not a second copy */}
+              <button type="button" onClick={() => select(other.id)} className="person-row ps-11 text-ink-soft">
+                <span aria-hidden="true" className="shrink-0 text-bark">
+                  <LinkIcon />
+                </span>
+                <PersonLine name={displayName(other)} rest={[t('list.alsoUnder', { home: home.firstName })]} />
               </button>
             </li>
           ))}
@@ -179,52 +183,99 @@ export function ListView() {
   // made once for the whole list, not once per row: a row would add its own subscription to the language
   const partnersLine = usePartnersLine(model)
   const labelOf = useLabeler(model.relationships)
-  const words: Words = { labelOf, partnersLine }
   const persons = useTreeStore((s) => s.persons)
   const query = useUiStore((s) => s.query)
   const select = useUiStore((s) => s.select)
   const selectedId = useUiStore((s) => s.selectedId)
+
+  // What the user opened or closed by hand, over "the first two generations are open"; Expand all and Collapse all
+  // set the base for everyone and clear what was chosen one by one.
+  const [base, setBase] = useState<'default' | 'open' | 'closed'>('default')
+  const [chosen, setChosen] = useState<ReadonlyMap<string, boolean>>(new Map())
+  const isOpen = useCallback(
+    (personId: string, depth: number) => chosen.get(personId) ?? (base === 'open' ? true : base === 'closed' ? false : depth < 2),
+    [chosen, base],
+  )
+  const toggle = useCallback((personId: string, open: boolean) => setChosen((prev) => new Map(prev).set(personId, open)), [])
+  const setAll = (value: 'open' | 'closed') => {
+    setBase(value)
+    setChosen(new Map())
+  }
+
+  // Whoever is open in the panel must be visible in the list: their ancestors open up for them, once per newly opened
+  // Person, so a branch can still be collapsed by hand afterwards.
+  useEffect(() => {
+    if (!selectedId) return
+    const ancestors: string[] = []
+    for (let at = model.home.get(selectedId); at; at = model.home.get(at)) ancestors.push(at)
+    if (ancestors.length === 0) return
+    setChosen((prev) => {
+      const next = new Map(prev)
+      for (const ancestor of ancestors) next.set(ancestor, true)
+      return next
+    })
+    // only a newly opened Person opens the way: the Tree changing under an open Person must not undo a collapse
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId])
+
+  const words: Words = { labelOf, partnersLine, isOpen, toggle }
   // With something typed in the search box the list shows only the matches, flat, best first.
   const matches = useMemo(() => searchPersons(persons, query), [persons, query])
   const filtering = query.trim() !== ''
   // a bottom sheet covers the end of the list: leave room to scroll it clear
   const sheetHeight = useUiStore((s) => s.sheetHeight)
   return (
-    <section aria-labelledby="list-title" style={{ paddingBottom: sheetHeight + 16 }} className="h-full overflow-auto bg-white p-4">
+    <section aria-labelledby="list-title" style={{ paddingBottom: sheetHeight + 16 }} className="h-full overflow-auto bg-surface">
       <h2 id="list-title" className="sr-only">
         {t('list.title')}
       </h2>
-      {filtering ? (
-        matches.length > 0 ? (
-          <ul>
-            {matches.map((person) => {
-              const relationship = person.id === model.focusPersonId ? t('person.focus') : labelOf(person)
-              const partners = partnersLine(person.id)
-              return (
-                <li key={person.id}>
-                  <button
-                    type="button"
-                    aria-current={selectedId === person.id ? 'true' : undefined}
-                    onClick={() => select(person.id)}
-                    className={`${buttonClass} w-full ${selectedId === person.id ? 'bg-stone-200 font-semibold' : ''}`}
-                  >
-                    <PersonLine name={displayName(person)} rest={[relationship, lifeSpan(person, t)]} />
-                    {partners && <span className="block text-sm text-stone-700">{partners}</span>}
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        ) : (
-          <p className="px-2 text-stone-700">{t('list.noMatch', { query: query.trim() })}</p>
-        )
-      ) : (
-        <ul>
-          {model.roots.map((person) => (
-            <Item key={person.id} person={person} depth={0} model={model} words={words} />
-          ))}
-        </ul>
+      {!filtering && (
+        <div className="sticky top-0 z-10 flex gap-1 border-b border-line bg-surface px-3 py-1">
+          <button type="button" onClick={() => setAll('open')} className="btn-ghost">
+            {t('list.expandAll')}
+          </button>
+          <button type="button" onClick={() => setAll('closed')} className="btn-ghost">
+            {t('list.collapseAll')}
+          </button>
+        </div>
       )}
+      <div className="mx-auto max-w-3xl p-3">
+        {filtering ? (
+          matches.length > 0 ? (
+            <ul>
+              {matches.map((person) => {
+                const relationship = person.id === model.focusPersonId ? t('person.focus') : labelOf(person)
+                return (
+                  <li key={person.id}>
+                    <button
+                      type="button"
+                      aria-current={selectedId === person.id ? 'true' : undefined}
+                      onClick={() => select(person.id)}
+                      className="person-row"
+                    >
+                      <PersonAvatar person={person} />
+                      <span className="min-w-0">
+                        <span className="block">
+                          <PersonLine name={displayName(person)} rest={[relationship, lifeSpan(person, t)]} />
+                        </span>
+                        <Details partners={partnersLine(person.id)} childCount={(model.kids.get(person.id)?.length ?? 0) + (model.refs.get(person.id)?.length ?? 0)} />
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          ) : (
+            <p className="px-2 text-ink-soft">{t('list.noMatch', { query: query.trim() })}</p>
+          )
+        ) : (
+          <ul>
+            {model.roots.map((person) => (
+              <Item key={person.id} person={person} depth={0} model={model} words={words} />
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
   )
 }

@@ -84,7 +84,7 @@ export function LinkMenu({ target, name, onRemoved }: Props) {
     onRemoved()
   }
 
-  const item = 'flex min-h-11 w-full items-center px-4 text-start hover:bg-stone-100 focus:bg-stone-100'
+  const item = 'flex min-h-11 w-full items-center px-4 text-start hover:bg-surface-soft focus:bg-surface-soft'
 
   return (
     <span ref={rootRef} className="contents">
@@ -95,7 +95,7 @@ export function LinkMenu({ target, name, onRemoved }: Props) {
         aria-expanded={open}
         aria-label={t('panel.linkMenuAria', { name })}
         onClick={() => setOpen(!open)}
-        className="flex size-11 items-center justify-center rounded-full border border-stone-400 hover:bg-stone-100"
+        className="flex size-11 items-center justify-center rounded-full border border-line-strong hover:bg-surface-soft"
       >
         <span aria-hidden="true">⋯</span>
       </button>
@@ -103,7 +103,7 @@ export function LinkMenu({ target, name, onRemoved }: Props) {
         <div
           role="menu"
           onKeyDown={onMenuKeyDown}
-          className="w-full overflow-hidden rounded border border-stone-400 bg-white"
+          className="w-full overflow-hidden rounded border border-line-strong bg-white"
         >
           <button
             type="button"
@@ -116,7 +116,7 @@ export function LinkMenu({ target, name, onRemoved }: Props) {
           >
             {t('panel.editLink')}
           </button>
-          <button type="button" role="menuitem" onClick={remove} className={`${item} text-red-800`}>
+          <button type="button" role="menuitem" onClick={remove} className={`${item} text-danger`}>
             {t('panel.removeLink')}
           </button>
         </div>

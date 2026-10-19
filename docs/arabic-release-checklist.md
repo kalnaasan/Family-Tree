@@ -148,3 +148,15 @@ The screenshot pass of the right-to-left screens, at a phone width (390 px) and 
 ## The release
 
 When every box above is ticked, add `'ar'` to `AVAILABLE_LANGUAGES` in `src/i18n/language.ts`. That change is the release (spec section 13.8).
+
+## 5. Strings added by the UI redesign
+
+Written by Claude, not by the owner: read each one and correct it. Record the date and any change next to the key.
+
+- [ ] `panel.addTo.parents` إضافة والد · `panel.addTo.partners` إضافة شريك · `panel.addTo.children` إضافة ابن أو ابنة · `panel.addTo.siblings` إضافة أخ أو أخت
+- [ ] `panel.moreActions` المزيد من الإجراءات لـ{name} · `common.add` إضافة · `common.continue` متابعة
+- [ ] `relDialog.*`: the titles (إضافة والد إلى {name}, …), `relDialog.step` الخطوة {n} من {total}, `relDialog.relation` صلة القرابة, `relDialog.how` كيف تريد إضافته؟, `relDialog.create`/`createHint`, `relDialog.link`/`linkHint`, `relDialog.kind` ما صلة هذا الشخص بـ{name}؟
+- [ ] `delete.title` حذف {name}؟ · `delete.body` · `delete.undo`
+- [ ] `app.treeView` عرض الشجرة · `app.view` العرض · `app.addPerson` إضافة شخص
+- [ ] `list.alsoUnder` مُدرَج أيضًا تحت {home} · `list.children` (all six forms) · `list.expandAll` توسيع الكل · `list.collapseAll` طيّ الكل
+- [ ] `settings.tabs`, `settings.tab.*` (اللغة, البيانات والتخزين, النسخ الاحتياطي, الإصدارات السابقة), `settings.storageNote`, `settings.usageLabel`, `backup.overview`, `backup.explain`

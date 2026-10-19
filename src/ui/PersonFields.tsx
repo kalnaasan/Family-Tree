@@ -47,7 +47,7 @@ export function PersonFields({ values, onChange, errors = {}, showDates = false,
           className={inputClass}
         />
         {errors.firstName && (
-          <p id={`${id}-first-error`} className="mt-1 text-sm text-red-800">
+          <p id={`${id}-first-error`} className="mt-1 text-sm text-danger">
             {t(errors.firstName)}
           </p>
         )}
@@ -100,7 +100,7 @@ export function PersonFields({ values, onChange, errors = {}, showDates = false,
                 aria-describedby={`${id}-${field}-help`}
                 className={`${inputClass} input-start`}
               />
-              <p id={`${id}-${field}-help`} className={`mt-1 text-sm ${errors[field] ? 'text-red-800' : 'text-stone-700'}`}>
+              <p id={`${id}-${field}-help`} className={`mt-1 text-sm ${errors[field] ? 'text-danger' : 'text-ink-soft'}`}>
                 {t(errors[field] ?? DATE_HELP)}
               </p>
             </div>

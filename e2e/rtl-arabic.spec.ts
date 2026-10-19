@@ -81,7 +81,7 @@ test.describe('desktop', () => {
       .getByRole('region', { name: words('list.title') })
       .getByRole('button', { expanded: false })
       .first()
-      .locator('span')
+      .locator('svg')
     expect(await glyph.evaluate((span) => getComputedStyle(span).scale)).toMatch(/^-1\b/)
   })
 

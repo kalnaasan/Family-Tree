@@ -81,7 +81,7 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel, hasBack = 
   if (question.kind === 'blocked') {
     return (
       <div className="flex flex-col gap-3">
-        <p role="alert" className="rounded border border-red-800 p-3 text-red-800">
+        <p role="alert" className="rounded border border-danger p-3 text-danger">
           {renderMessage(t, question.message)}
         </p>
         {!hasBack && (
@@ -99,7 +99,7 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel, hasBack = 
 
       <RelativeQuestions question={question} answers={answers} onChange={setAnswers} />
 
-      <div aria-live="polite" className="rounded bg-stone-100 p-3 text-sm">
+      <div aria-live="polite" className="rounded bg-surface-soft p-3 text-sm">
         <p className="font-medium">{t('preview.title')}</p>
         <ul className="mt-1 list-disc ps-5">
           {preview.map((line, n) => (
@@ -109,7 +109,7 @@ export function AddRelativeForm({ anchor, relation, onDone, onCancel, hasBack = 
       </div>
 
       {failure && (
-        <p role="alert" className="text-red-800">
+        <p role="alert" className="text-danger">
           {failure}
         </p>
       )}

@@ -1,20 +1,17 @@
-import { useState } from 'react'
-import { SaveIndicator } from './components/SaveIndicator.tsx'
+import { useRef, useState } from 'react'
 import { useTreeStore } from './domain/store.ts'
 import { isolate } from './i18n/format.ts'
 import { useT } from './i18n/useT.ts'
 import { usePersistenceStatus } from './persistence/saveStatus.ts'
 import { usePersistence } from './persistence/usePersistence.ts'
+import { AppHeader } from './ui/AppHeader.tsx'
 import { BackupBanner } from './ui/BackupBanner.tsx'
 import { EmptyState } from './ui/EmptyState.tsx'
 import { ListView } from './ui/ListView.tsx'
 import { PersonPanel } from './ui/PersonPanel.tsx'
 import { ReadOnlyBanner } from './ui/ReadOnlyBanner.tsx'
-import { SearchBox } from './ui/SearchBox.tsx'
 import { SettingsDialog } from './ui/SettingsDialog.tsx'
-import { ListIcon, SettingsIcon } from './ui/icons.tsx'
 import { Toast } from './ui/Toast.tsx'
-import { UndoControls } from './ui/UndoControls.tsx'
 import { useUndoShortcuts } from './ui/undo.ts'
 import { useUiStore } from './ui/uiStore.ts'
 import { focusTree } from './view/focusTree.ts'
@@ -31,9 +28,9 @@ export function App() {
   const selectedId = useUiStore((s) => s.selectedId)
   const select = useUiStore((s) => s.select)
   const listView = useUiStore((s) => s.listView)
-  const setListView = useUiStore((s) => s.setListView)
   const open = persons.some((p) => p.id === selectedId) ? selectedId : null
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const settingsButton = useRef<HTMLButtonElement>(null)
 
   const closePanel = () => {
     select(null)
@@ -44,44 +41,15 @@ export function App() {
 
   return (
     <main className="flex h-dvh flex-col">
-      <header className="border-b border-line bg-paper-deep/60 px-4 py-2">
-        <div className="flex items-center gap-2">
-          <h1 className="me-auto text-xl font-semibold tracking-tight text-bark sm:text-2xl">{t('app.title')}</h1>
-          <SaveIndicator />
-          <UndoControls />
-          <button
-            type="button"
-            onClick={() => setSettingsOpen(true)}
-            aria-label={t('app.settings')}
-            title={t('app.settings')}
-            className="btn btn-icon"
-          >
-            <SettingsIcon />
-          </button>
-        </div>
-        {persons.length > 0 && (
-          <div className="mt-2 flex items-center gap-2">
-            <SearchBox />
-            <button
-              type="button"
-              aria-pressed={listView}
-              onClick={() => setListView(!listView)}
-              className="btn shrink-0 px-3 aria-pressed:border-leaf-deep aria-pressed:bg-leaf-deep aria-pressed:text-white"
-            >
-              <ListIcon />
-              {t('app.listView')}
-            </button>
-          </div>
-        )}
-      </header>
+      <AppHeader onOpenSettings={() => setSettingsOpen(true)} settingsButtonRef={settingsButton} />
 
       {load === 'invalid' && (
-        <p role="alert" className="mx-4 mt-2 rounded border border-red-800 p-3 text-red-800">
+        <p role="alert" className="mx-4 mt-2 rounded border border-danger p-3 text-danger">
           {t('app.loadInvalid', { detail: isolate(loadMessage ?? '') })}
         </p>
       )}
       {load === 'unavailable' && (
-        <p role="alert" className="mx-4 mt-2 rounded border border-red-800 p-3 text-red-800">
+        <p role="alert" className="mx-4 mt-2 rounded border border-danger p-3 text-danger">
           {t('app.loadUnavailable', { detail: isolate(loadMessage ?? '') })}
         </p>
       )}
@@ -102,7 +70,15 @@ export function App() {
         </>
       )}
       <Toast />
-      {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && (
+        <SettingsDialog
+          onClose={() => {
+            setSettingsOpen(false)
+            // the keyboard goes back to the button that opened Settings
+            queueMicrotask(() => settingsButton.current?.focus())
+          }}
+        />
+      )}
     </main>
   )
 }

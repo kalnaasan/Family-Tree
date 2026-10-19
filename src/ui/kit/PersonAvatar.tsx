@@ -9,10 +9,10 @@ export function PersonAvatar({ person, size = 40 }: { person: Pick<Person, 'firs
     <span
       aria-hidden="true"
       dir="auto"
+      // drawn by CSS, so the letter is not part of the text of a row that holds the avatar
+      data-initial={initialOf(person)}
       style={{ width: size, height: size, fontSize: size * 0.42 }}
-      className={`grid shrink-0 place-items-center rounded-full border-2 bg-accent-soft font-semibold text-bark ${person.deceased ? 'border-dashed border-line-strong' : 'border-accent'}`}
-    >
-      {initialOf(person)}
-    </span>
+      className={`grid shrink-0 place-items-center rounded-full border-2 bg-accent-soft font-semibold text-bark before:content-[attr(data-initial)] ${person.deceased ? 'border-dashed border-line-strong' : 'border-accent'}`}
+    />
   )
 }

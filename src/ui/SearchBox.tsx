@@ -129,16 +129,16 @@ export function SearchBox() {
                   role="option"
                   aria-selected={n === active}
                   onClick={() => pick(person.id)}
-                  className={`flex min-h-11 cursor-pointer items-center px-3 ${n === active ? 'bg-stone-200 font-semibold' : ''}`}
+                  className={`flex min-h-11 cursor-pointer items-center px-3 ${n === active ? 'bg-surface-soft font-semibold' : ''}`}
                 >
                   <PersonLine name={displayName(person)} rest={[label, lifeSpan(person, t)]} />
                 </li>
               )
             })}
           </ul>
-          {results.length === 0 && <p className="flex min-h-11 items-center px-3 text-stone-700">{t('search.none')}</p>}
+          {results.length === 0 && <p className="flex min-h-11 items-center px-3 text-ink-soft">{t('search.none')}</p>}
           {results.length > shown.length && (
-            <p className="flex min-h-11 items-center px-3 text-sm text-stone-700">
+            <p className="flex min-h-11 items-center px-3 text-sm text-ink-soft">
               {t('search.more', { count: results.length - shown.length })}
             </p>
           )}

@@ -32,8 +32,8 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
-/** The button of a Person's own entry, not the "also a child here" pointer to them under a second parent. */
-const item = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}(?! · also)( |$)`) })
+/** The button of a Person's own entry, not the "Also listed under" pointer to them under a second parent. */
+const item = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}(?! · Also)( |$)`) })
 
 describe('ListView', () => {
   it('lists the Persons with no parents at the top, nested by descent', () => {
@@ -55,7 +55,7 @@ describe('ListView', () => {
   it('opens the first two generations and collapses deeper ones', () => {
     render(<ListView />)
     expect(item('Leo')).toBeInTheDocument() // Ben's child: generation 2, shown
-    expect(screen.queryByRole('button', { name: /^Max(?! · also)/ })).toBeNull() // Leo's child: collapsed
+    expect(screen.queryByRole('button', { name: /^Max(?! · Also)/ })).toBeNull() // Leo's child: collapsed
     expect(screen.getByRole('button', { name: "Collapse Karl's family" })).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByRole('button', { name: "Expand Leo's family" })).toHaveAttribute('aria-expanded', 'false')
   })
@@ -66,14 +66,14 @@ describe('ListView', () => {
     await user.click(screen.getByRole('button', { name: "Expand Leo's family" }))
     expect(item('Max')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: "Collapse Leo's family" }))
-    expect(screen.queryByRole('button', { name: /^Max(?! · also)/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Max(?! · Also)/ })).toBeNull()
     await user.click(screen.getByRole('button', { name: "Collapse Karl's family" }))
-    expect(screen.queryByRole('button', { name: /^Ben ·(?! also)/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Ben ·(?! Also)/ })).toBeNull()
   })
 
   it('opens the way to whoever is open in the panel, even when they sit in a collapsed branch', () => {
     render(<ListView />)
-    expect(screen.queryByRole('button', { name: /^Max(?! · also)/ })).toBeNull() // Leo's child, collapsed
+    expect(screen.queryByRole('button', { name: /^Max(?! · Also)/ })).toBeNull() // Leo's child, collapsed
     act(() => useUiStore.getState().select(id(9)))
     expect(item('Max')).toHaveAttribute('aria-current', 'true')
     expect(screen.getByRole('button', { name: "Collapse Leo's family" })).toBeInTheDocument()
@@ -84,17 +84,14 @@ describe('ListView', () => {
     render(<ListView />)
     act(() => useUiStore.getState().select(id(4))) // Anna, under Karl
     await user.click(screen.getByRole('button', { name: "Collapse Karl's family" }))
-    expect(screen.queryByRole('button', { name: /^Anna ·(?! also)/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Anna ·(?! Also)/ })).toBeNull()
   })
 
   it('lists a Person once in full, and points to them from the second parent', () => {
     render(<ListView />)
-    expect(screen.getAllByRole('button', { name: /^Ben ·(?! also)/ })).toHaveLength(1)
-    const pointers = screen.getAllByRole('button', { name: /also a child here, listed under Karl/ })
-    expect(pointers.map((p) => p.textContent)).toEqual([
-      'Ben · also a child here, listed under Karl',
-      'Anna · also a child here, listed under Karl',
-    ])
+    expect(screen.getAllByRole('button', { name: /^Ben ·(?! Also)/ })).toHaveLength(1)
+    const pointers = screen.getAllByRole('button', { name: /Also listed under Karl/ })
+    expect(pointers.map((p) => p.textContent)).toEqual(['Ben · Also listed under Karl', 'Anna · Also listed under Karl'])
   })
 
   it('opens a Person in the same panel the tree uses, and marks them as current', async () => {
@@ -104,9 +101,28 @@ describe('ListView', () => {
     expect(useUiStore.getState().selectedId).toBe(id(4))
     expect(item('Anna')).toHaveAttribute('aria-current', 'true')
     // the first pointer is Maria's entry for Ben, who is listed in full under Karl
-    const pointers = within(screen.getByRole('region', { name: 'Family list' })).getAllByRole('button', { name: /also a child here/ })
+    const pointers = within(screen.getByRole('region', { name: 'Family list' })).getAllByRole('button', { name: /Also listed under/ })
     await user.click(pointers[0]!)
     expect(useUiStore.getState().selectedId).toBe(id(3))
+  })
+
+  it('says how many children each Person has', () => {
+    render(<ListView />)
+    expect(item('Karl')).toHaveTextContent('2 children')
+    expect(item('Leo')).toHaveTextContent('1 child')
+    expect(item('Anna')).not.toHaveTextContent('child')
+  })
+
+  it('Expand all opens every branch and Collapse all closes them', async () => {
+    const user = userEvent.setup()
+    render(<ListView />)
+    await user.click(screen.getByRole('button', { name: 'Expand all' }))
+    expect(item('Max')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Collapse all' }))
+    expect(screen.queryByRole('button', { name: /^Ben/ })).toBeNull()
+    // one branch can still be opened by hand afterwards
+    await user.click(screen.getByRole('button', { name: "Expand Karl's family" }))
+    expect(item('Anna')).toBeInTheDocument()
   })
 
   it('follows the Tree: a new relative appears', () => {

@@ -88,9 +88,9 @@ test.describe('desktop', () => {
     await page.getByRole('button', { name: 'List view' }).click()
     const glyph = () =>
       page
-        .getByRole('button', { name: /^Expand / })
+        .getByRole('button', { expanded: false })
         .first()
-        .locator('span')
+        .locator('svg')
         .evaluate((span) => getComputedStyle(span).scale)
     expect(await glyph()).toBe('none')
     await readRightToLeft(page)

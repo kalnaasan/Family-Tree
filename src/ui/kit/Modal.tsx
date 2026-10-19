@@ -8,13 +8,15 @@ interface Props {
   children: ReactNode
   /** A phone shows it as a sheet from the bottom, a wide screen as a centred dialog; `wide` makes that one larger. */
   wide?: boolean
+  /** On a phone it fills the screen instead of rising from the bottom (Settings). */
+  fullOnPhone?: boolean
 }
 
 /**
  * A modal dialog on the platform's `<dialog>`: the keyboard stays inside, Escape closes it, and the caller returns
  * focus to whatever opened it. The title is the dialog's accessible name.
  */
-export function Modal({ title, onClose, children, wide = false }: Props) {
+export function Modal({ title, onClose, children, wide = false, fullOnPhone = false }: Props) {
   const t = useT()
   const titleId = useId()
   const dialogRef = useRef<HTMLDialogElement>(null)
@@ -43,7 +45,7 @@ export function Modal({ title, onClose, children, wide = false }: Props) {
           onClose()
         }
       }}
-      className={`m-auto max-h-[92dvh] ${wide ? 'w-[min(94vw,44rem)]' : 'w-[min(94vw,32rem)]'} overflow-y-auto rounded-xl border border-line bg-surface p-0 shadow-raised backdrop:bg-black/50 max-sm:mb-0 max-sm:max-h-[88dvh] max-sm:w-full max-sm:max-w-none max-sm:rounded-b-none`}
+      className={`m-auto max-h-[92dvh] ${wide ? 'w-[min(94vw,44rem)]' : 'w-[min(94vw,32rem)]'} overflow-y-auto rounded-xl border border-line bg-surface p-0 shadow-raised backdrop:bg-black/50 max-sm:mb-0 max-sm:w-full max-sm:max-w-none max-sm:rounded-b-none ${fullOnPhone ? 'max-sm:h-dvh max-sm:max-h-none max-sm:rounded-none' : 'max-sm:max-h-[88dvh]'}`}
     >
       <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-line bg-surface px-4 py-2">
         <h2 id={titleId} className="me-auto text-lg font-semibold">

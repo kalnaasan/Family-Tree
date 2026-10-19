@@ -30,7 +30,7 @@ export function BackupBanner() {
   return (
     <section
       aria-label={t('backupBanner.label')}
-      className="mx-4 mt-2 flex flex-wrap items-center gap-3 rounded border border-amber-800 bg-amber-50 p-3 text-stone-900"
+      className="mx-4 mt-2 flex flex-wrap items-center gap-3 rounded border border-bark bg-accent-soft p-3 text-ink"
     >
       {/* the whole row on a phone, with the buttons below; beside them where there is room */}
       <p className="min-w-0 basis-full sm:flex-1 sm:basis-0">{text}</p>

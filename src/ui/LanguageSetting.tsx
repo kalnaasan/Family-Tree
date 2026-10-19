@@ -16,7 +16,7 @@ export function LanguageSetting({ store = useLanguageStore }: { store?: Language
   const setSetting = store((s) => s.setSetting)
   if (available.length < 2) return null
   return (
-    <div className="mt-4">
+    <div>
       <label htmlFor={id} className="text-sm font-medium">
         {t('settings.language')}
       </label>

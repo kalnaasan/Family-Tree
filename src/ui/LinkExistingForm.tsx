@@ -99,7 +99,7 @@ export function LinkExistingForm({ anchor, relation, onDone, onCancel }: Props) 
   if (question.kind === 'blocked') {
     return (
       <div className="flex flex-col gap-3">
-        <p role="alert" className="rounded border border-red-800 p-3 text-red-800">
+        <p role="alert" className="rounded border border-danger p-3 text-danger">
           {renderMessage(t, question.message)}
         </p>
         <button type="button" onClick={onCancel} className="btn px-4">
@@ -134,7 +134,7 @@ export function LinkExistingForm({ anchor, relation, onDone, onCancel }: Props) 
           onKeyDown={onKeyDown}
           className="min-h-11 w-full rounded-lg border border-line-strong bg-white px-3 placeholder:text-ink-soft"
         />
-        {!anyValid && <p className="text-sm text-stone-700">{t('link.none')}</p>}
+        {!anyValid && <p className="text-sm text-ink-soft">{t('link.none')}</p>}
         <ul id={listId} role="listbox" aria-label={t('link.list')} className="flex flex-col">
           {rows.map(({ person, status }, n) => (
             <li
@@ -147,8 +147,8 @@ export function LinkExistingForm({ anchor, relation, onDone, onCancel }: Props) 
               onClick={() => choose(n)}
               onMouseMove={() => setActiveIndex(n)}
               className={`flex min-h-11 flex-col justify-center rounded px-3 py-1 ${
-                status.valid ? 'cursor-pointer' : 'cursor-not-allowed text-stone-700'
-              } ${n === active ? 'bg-stone-200' : ''}`}
+                status.valid ? 'cursor-pointer' : 'cursor-not-allowed text-ink-soft'
+              } ${n === active ? 'bg-surface-soft' : ''}`}
             >
               <span className={n === active ? 'font-semibold' : ''}>
                 <PersonLine name={displayName(person)} rest={[lifeSpan(person, t)]} />
@@ -161,9 +161,9 @@ export function LinkExistingForm({ anchor, relation, onDone, onCancel }: Props) 
             </li>
           ))}
         </ul>
-        {rows.length === 0 && anyValid && <p className="text-sm text-stone-700">{t('link.noMatch')}</p>}
+        {rows.length === 0 && anyValid && <p className="text-sm text-ink-soft">{t('link.noMatch')}</p>}
         {matching.length > rows.length && (
-          <p className="text-sm text-stone-700">{t('link.more', { count: matching.length - rows.length })}</p>
+          <p className="text-sm text-ink-soft">{t('link.more', { count: matching.length - rows.length })}</p>
         )}
         <button type="button" onClick={onCancel} className="btn px-4">
           {t('common.cancel')}
@@ -199,7 +199,7 @@ export function LinkExistingForm({ anchor, relation, onDone, onCancel }: Props) 
         </button>
       </p>
       <RelativeQuestions question={asked} answers={answers} onChange={setAnswers} />
-      <div aria-live="polite" className="rounded bg-stone-100 p-3 text-sm">
+      <div aria-live="polite" className="rounded bg-surface-soft p-3 text-sm">
         <p className="font-medium">{t('preview.linkTitle')}</p>
         <ul className="mt-1 list-disc ps-5">
           {preview.map((line, n) => (
@@ -208,7 +208,7 @@ export function LinkExistingForm({ anchor, relation, onDone, onCancel }: Props) 
         </ul>
       </div>
       {failure && (
-        <p role="alert" className="text-red-800">
+        <p role="alert" className="text-danger">
           {failure}
         </p>
       )}

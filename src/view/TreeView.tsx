@@ -51,7 +51,7 @@ export function TreeView() {
     [focusPersonId, persons, parentLinks, partnerships],
   )
   // a big Tree is laid out in a Worker: until the first layout is back there is nothing to draw yet
-  if (!laidOut) return <p aria-live="polite" className="p-4 text-stone-700">{t('tree.layingOut')}</p>
+  if (!laidOut) return <p aria-live="polite" className="p-4 text-ink-soft">{t('tree.layingOut')}</p>
   return (
     <TreeCanvas
       layout={laidOut.layout}
