@@ -85,7 +85,7 @@ The table is `docs/spec/arabic-relationship-labels.md`, implemented in `src/doma
 
 ## 2. The interface text
 
-The dictionary is `src/i18n/messages.ts` (`ar`). It is a draft in Modern Standard Arabic: read each group in the app (switch the Language in a test build, or run `npm run e2e -- --project=chromium-ar` and open the screens) and edit the strings. The build fails if a key is missing or a plural message lacks one of its six forms, so editing a string is safe.
+The dictionary is `src/i18n/messages.ts` (`ar`). It is a draft in Modern Standard Arabic: read each group in the app (switch the Language in a test build, or run `pnpm e2e --project=chromium-ar` and open the screens) and edit the strings. The build fails if a key is missing or a plural message lacks one of its six forms, so editing a string is safe.
 
 For each group: ticked when read and edited; date and result beside it.
 
@@ -142,7 +142,7 @@ The screenshot pass of the right-to-left screens, at a phone width (390 px) and 
 ## 5. The automatic checks
 
 - [ ] CI is green, including the Arabic Playwright projects: `chromium-ar` and `webkit-ar` re-run smoke, tree, keyboard, add-relative, search, backup, undo, touch, photos, link-existing and edit-links with the Language set to Arabic, and `rtl-arabic.spec.ts` repeats the right-to-left checks (mirroring, key swap, overflow at 390 px, axe) in real Arabic. Date: ____ Result: ____
-- [ ] The Arabic-names variant of the performance test (1,000 and 5,000 people) is within the same budget (`npx playwright test --project=perf`). Date: ____ Result: ____
+- [ ] The Arabic-names variant of the performance test (1,000 and 5,000 people) is within the same budget (`pnpm exec playwright test --project=perf`). Date: ____ Result: ____
 - [ ] The release gate still holds before the change: `language.spec.ts` shows an Arabic browser still gets English. Date: ____ Result: ____
 
 ## The release

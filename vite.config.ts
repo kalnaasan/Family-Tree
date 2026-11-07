@@ -3,8 +3,8 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-// `npm run bench` (PERF=1) runs only the timing checks, one file at a time, so other tests cannot steal CPU
-// from the measurement. `npm test` runs everything else.
+// `pnpm bench` (PERF=1) runs only the timing checks, one file at a time, so other tests cannot steal CPU
+// from the measurement. `pnpm test` runs everything else.
 const perfOnly = process.env.PERF === '1'
 
 export default defineConfig({
